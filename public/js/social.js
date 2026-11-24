@@ -18,10 +18,17 @@ class SocialManager {
  constructor(sim,saved){
   this.sim=sim;const list=saved.filter(f=>f&&Array.isArray(f.world?.buildings)).map(f=>({...f,world:makeWorld(f.world.buildings,f.level,f.world)}));
   this.adapter=new SocialStorageAdapter([...this.samples().filter(m=>!list.some(f=>f.id===m.id)),...list]);
+  for(const f of this.friends())if(!Number.isInteger(f.avatar))f.avatar=this.guessAvatar(f.id);
   this.current=null;this.viewMode="own";
   for(const f of this.friends())if(!f.seeded){this.sim.crisis.friendRoll(f,true);f.seeded=true}
  }
  friends(){return this.adapter.list()}
+ // Bạn bè nhập bằng mã Base64 không kèm chân dung: chọn cố định theo mã thành phố.
+ guessAvatar(id){
+  const sample=/^MP-MAU-([1-5])$/.exec(id);if(sample)return [32,6,25,18,26][sample[1]-1];
+  let h=0;for(const ch of String(id))h=(h*31+ch.charCodeAt(0))>>>0;
+  return CONFIG.avatars.pick[h%CONFIG.avatars.pick.length];
+ }
  samples(){
   const profiles=[
    ["An Nhiên",3,7400,108,4,6,7],["Minh Khôi",5,19800,117,8,8,6],
@@ -44,7 +51,7 @@ class SocialManager {
    const advanced=["night_market","police_station","park","construction_hq","hospital","waste_plant","school","office_tower","solar_plant","mall","bank","cyber_hub","metro_station","tech_tower","university","trade_port","wind_farm","metro_wonder","stadium","museum"];
    const layout=[...common,...advanced.filter(id=>CONFIG.buildings[id].unlock<=level),...Array.from({length:i+1},(_,j)=>["house_small","apartment","mini_mart","water_tower"][(i+j)%4])];
    layout.forEach((id,j)=>{if(slots[j])put(id,slots[j].x,slots[j].y)});
-   return {id:"MP-MAU-"+(i+1),name,level,coins,happiness,helpsGiven,clock:0,seeded:false,world:makeWorld(buildings,level)};
+   return {id:"MP-MAU-"+(i+1),avatar:[32,6,25,18,26][i],name,level,coins,happiness,helpsGiven,clock:0,seeded:false,world:makeWorld(buildings,level)};
   });
  }
  resetQuota(){
@@ -86,17 +93,17 @@ class SocialManager {
       CONFIG.buildings[type].unlock>level||!unlocked(grid,x,y)||used.has(coord(x,y)))throw Error("Bố cục công trình không hợp lệ.");
    used.add(coord(x,y));const b=makeBuilding(type,x,y,l);b.age=100;buildings.push(b);
   }
-  return {id,name:name.trim(),level,coins,happiness,helpsGiven,clock:0,seeded:true,...extra,world:makeWorld(buildings,level)};
+  return {id,name:name.trim(),avatar:this.guessAvatar(id),level,coins,happiness,helpsGiven,clock:0,seeded:true,...extra,world:makeWorld(buildings,level)};
  }
  import(code){
   const friend=this.build(SocialStorageAdapter.decode(code.trim()));
   this.adapter.add(friend);this.sim.crisis.friendRoll(friend,true);this.sim.storage.save();return friend;
  }
  // Thêm hoặc cập nhật thành phố bạn bè lấy từ máy chủ.
- upsertCloud(data){
-  const fresh=this.build(data,{cloud:true}),old=this.friends().find(f=>f.id===fresh.id);
+ upsertCloud(data,avatar){
+  const fresh=this.build(data,Number.isInteger(avatar)?{cloud:true,avatar}:{cloud:true}),old=this.friends().find(f=>f.id===fresh.id);
   if(!old){this.adapter.add(fresh);this.sim.crisis.friendRoll(fresh,true);this.sim.storage.save();return fresh}
-  Object.assign(old,{name:fresh.name,level:fresh.level,coins:fresh.coins,happiness:fresh.happiness,helpsGiven:fresh.helpsGiven,cloud:true});
+  Object.assign(old,{name:fresh.name,avatar:fresh.avatar,level:fresh.level,coins:fresh.coins,happiness:fresh.happiness,helpsGiven:fresh.helpsGiven,cloud:true});
   if(this.current!==old&&!old.world.npcs.length){old.world=fresh.world;this.sim.crisis.friendRoll(old,true)}
   return old;
  }
@@ -106,7 +113,7 @@ class SocialManager {
  }
  rankings(stat){
   const p=this.sim.profile;
-  const entries=[{id:p.mayorId,name:p.mayorName,level:p.level,coins:p.coins,happiness:p.happiness,helpsGiven:p.helpsGiven,world:this.sim.world,me:true},...this.friends()];
+  const entries=[{id:p.mayorId,name:p.mayorName,avatar:p.avatar,level:p.level,coins:p.coins,happiness:p.happiness,helpsGiven:p.helpsGiven,world:this.sim.world,me:true},...this.friends()];
   const value=e=>stat==="score"?(e.me?this.sim.metrics.score:this.sim.measure(e.world,e.level).score):stat==="assets"?e.coins+e.world.buildings.reduce((sum,b)=>sum+CONFIG.buildings[b.id].price*(1+Array.from({length:b.level-1},(_,i)=>1.6**(i+1)).reduce((a,b)=>a+b,0)),0):e[stat];
   return entries.map(e=>({...e,score:value(e)})).sort((a,b)=>b.score-a.score||b.level-a.level);
  }

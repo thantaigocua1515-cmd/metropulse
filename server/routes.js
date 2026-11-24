@@ -1,12 +1,13 @@
 "use strict";
 const express=require("express");
 const {sha,newToken,newCode,hashPassword,verifyPassword,limiter}=require("./auth");
-const {inspectSave,publicCity,cleanName}=require("./game");
+const {CONFIG,inspectSave,publicCity,cleanName}=require("./game");
 
 const STATS=["score","assets","happiness","helpsGiven"];
 const today=()=>new Date().toISOString().slice(0,10);
 const fail=(status,message,extra)=>Object.assign(Error(message),{status,extra});
 const wrap=handler=>(req,res,next)=>Promise.resolve(handler(req,res,next)).catch(next);
+const avatarOf=p=>p.summary?.avatar||CONFIG.avatars.fallback;
 const account=p=>({code:p.code,name:p.name,username:p.username||null,createdAt:p.createdAt});
 
 module.exports=function routes(getDb){
@@ -133,7 +134,7 @@ module.exports=function routes(getDb){
  router.get("/leaderboard",wrap(async(req,res)=>{
   const stat=STATS.includes(req.query.stat)?req.query.stat:"score",field="summary."+stat;
   const top=await players().find({"summary.level":{$gte:1},city:{$exists:true,$ne:[]}},{projection:{code:1,name:1,summary:1}}).sort({[field]:-1,_id:1}).limit(30).toArray();
-  const row=p=>({code:p.code,name:p.name,level:p.summary.level,score:p.summary[stat]||0});
+  const row=p=>({code:p.code,name:p.name,level:p.summary.level,avatar:avatarOf(p),score:p.summary[stat]||0});
   let me=null;
   if(!top.some(p=>p.code===req.player.code)&&req.player.city?.length){
    const mine=req.player.summary?.[stat]||0,place=1+await players().countDocuments({[field]:{$gt:mine},city:{$exists:true,$ne:[]}});
@@ -151,7 +152,7 @@ module.exports=function routes(getDb){
  router.get("/friends",wrap(async(req,res)=>{
   const codes=(req.player.friends||[]).slice(0,50);
   const list=codes.length?await players().find({code:{$in:codes},city:{$exists:true,$ne:[]}},{projection:{code:1,name:1,summary:1,city:1,coins:1}}).toArray():[];
-  res.json({cities:list.map(publicCity)});
+  res.json({cities:list.map(publicCity),avatars:Object.fromEntries(list.map(p=>[p.code,avatarOf(p)]))});
  }));
  router.post("/friends",wrap(async(req,res)=>{
   if(!socialLimit(String(req.player._id)))throw fail(429,"Thao tác quá nhanh.");
@@ -160,7 +161,7 @@ module.exports=function routes(getDb){
   const friend=await findCity(code);
   if((req.player.friends||[]).length>=50&&!req.player.friends.includes(code))throw fail(400,"Danh sách bạn bè đã đủ 50 thành phố.");
   await players().updateOne({_id:req.player._id},{$addToSet:{friends:code}});
-  res.status(201).json({city:publicCity(friend)});
+  res.status(201).json({city:publicCity(friend),avatar:avatarOf(friend)});
  }));
  router.delete("/friends/:code",wrap(async(req,res)=>{
   await players().updateOne({_id:req.player._id},{$pull:{friends:String(req.params.code).toUpperCase()}});res.json({ok:true});

@@ -58,24 +58,14 @@ class UIController {
   };
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[id]+"</svg>";
  }
- // Chân dung nhân vật vẽ bằng SVG, không dùng ảnh ngoài.
- portrait(id){
-  const c=CONTENT.cast[id],top='<path d="M29 50c-4-24 8-34 21-34s25 10 21 34c-2-10-5-16-8-19-8 3-18 3-26 0-3 3-6 9-8 19z"/>';
-  const hair={
-   bob:top+'<path d="M29 44v17c3 1 6 0 7-3zM71 44v17c-3 1-6 0-7-3z"/>',
-   long:top+'<path d="M28 44c-2 14-2 27 2 37h9c-5-10-6-22-5-33zM72 44c2 14 2 27-2 37h-9c5-10 6-22 5-33z"/>',
-   bun:top+'<circle cx="50" cy="15" r="8"/>',
-   slick:'<path d="M30 43c-2-18 8-27 20-27s22 9 20 27c-3-8-7-12-12-13-8 2-16 1-22-2-3 3-5 8-6 15z"/>',
-   helmet:'<path d="M31 46c-1-6 0-10 2-13h34c2 3 3 7 2 13-1-4-3-7-5-9H36c-2 2-4 5-5 9z"/>',
-   glasses:'<path d="M30 43c-2-18 8-27 20-27s22 9 20 27c-3-8-7-12-12-13-8 2-16 1-22-2-3 3-5 8-6 15z"/>'
-  }[c.style];
-  const extra=c.style==="helmet"?'<path d="M28 38c0-15 10-24 22-24s22 9 22 24z" fill="#ffce4d"/><path d="M24 37h52v5H24z" fill="#e9ad2f"/>':
-   c.style==="glasses"?'<g fill="none" stroke="#22303a" stroke-width="2"><circle cx="42" cy="47" r="6.5"/><circle cx="58" cy="47" r="6.5"/><path d="M48.5 47h3"/></g>':"";
-  return '<svg class="portrait" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="'+c.shirt+'" opacity=".22"/><clipPath id="clip-'+id+'"><circle cx="50" cy="50" r="50"/></clipPath><g clip-path="url(#clip-'+id+')">'+
-   '<path d="M12 104c2-22 17-30 38-30s36 8 38 30z" fill="'+c.shirt+'"/><path d="M43 62h14v14a7 7 0 0 1-14 0z" fill="'+c.skin+'" opacity=".82"/>'+
-   '<ellipse cx="50" cy="46" rx="19" ry="22" fill="'+c.skin+'"/><g fill="'+c.hair+'">'+hair+'</g>'+
-   '<circle cx="42" cy="47" r="2.2" fill="#262a2e"/><circle cx="58" cy="47" r="2.2" fill="#262a2e"/><path d="M43 57q7 6 14 0" fill="none" stroke="#7a3b32" stroke-width="2.2" stroke-linecap="round"/>'+extra+'</g></svg>';
+ // Chân dung lấy từ bộ ảnh trong img/npc (01–36).
+ avatar(n,cls=""){
+  const id=Number.isInteger(n)&&n>=1&&n<=CONFIG.avatars.count?n:CONFIG.avatars.fallback;
+  return '<img class="portrait'+(cls?" "+cls:"")+'" src="img/npc/'+String(id).padStart(2,"0")+'.webp" alt="" width="104" height="104" decoding="async" draggable="false">';
  }
+ portrait(id){return this.avatar(CONTENT.cast[id].avatar)}
+ // Chân dung kèm huy hiệu nhỏ (cấp, biểu tượng đội…).
+ face(n,mark="",color=""){return '<span class="face">'+this.avatar(n)+(mark!==""?'<i'+(color?' style="color:'+color+'"':"")+'>'+mark+'</i>':"")+'</span>'}
  html(id,value){const el=this.nodes[id];if(el._mp!==value){el.innerHTML=value;el._mp=value}}
  text(id,value){if(this.nodes[id].textContent!==value)this.nodes[id].textContent=value}
  btn(act,label,opts={}){
@@ -149,6 +139,7 @@ class UIController {
    case "sound":s.audio.enabled=!s.audio.enabled;if(s.audio.enabled)s.audio.play("click");s.storage.save();if(this.dialogType==="profile")this.profileDialog();break;
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
+   case "avatar":{const n=Number(id);if(CONFIG.avatars.pick.includes(n)){s.profile.avatar=n;s.storage.save();s.cloud?.flush(true);this.profileDialog()}break}
    case "save-name":{
     const input=document.getElementById("mayor-name"),city=document.getElementById("city-name"),name=input?.value.trim(),town=city?.value.trim();
     if(!name||!town){this.toast("Tên Thị trưởng và tên thành phố không được để trống.");return}
@@ -215,7 +206,7 @@ class UIController {
  reopen(){({missions:()=>this.missions(),social:()=>this.socials(),profile:()=>this.profileDialog()})[this.dialogType]?.()}
  refresh(initial=false){
   const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score);
-  this.html("profile",'<span class="profile-level"><b>'+p.level+'</b><small>CẤP</small></span><span class="profile-meta"><b>'+htm(p.mayorName)+'</b><small>'+rank.name+' '+htm(p.cityName)+' · '+fmt(p.xp)+' / '+fmt(CONFIG.xpNext(p.level))+' XP</small>'+this.bar(p.xp/CONFIG.xpNext(p.level))+'</span>');
+  this.html("profile",this.face(p.avatar,p.level)+'<span class="profile-meta"><b>'+htm(p.mayorName)+'</b><small>'+rank.name+' '+htm(p.cityName)+' · '+fmt(p.xp)+' / '+fmt(CONFIG.xpNext(p.level))+' XP</small>'+this.bar(p.xp/CONFIG.xpNext(p.level))+'</span>');
   this.html("stats",[
    this.stat("coin","Vàng",fmt(Math.floor(p.coins)),"+"+fmt(m.income,1)+"/s","gold"),
    this.stat("gem","Uy tín",fmt(Math.floor(p.prestige)),"","mint"),
@@ -233,7 +224,7 @@ class UIController {
   this.html("cloud",this.icon("cloud")+'<span>'+who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state])+'</span>');this.nodes.cloud.dataset.state=state;
   this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
   this.nodes.visit.hidden=own;
-  if(friend)this.html("visit",'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
+  if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
   const dots={missions:badges.missions,research:badges.research};
   this.html("dock",this.menu.map(([id,name,icon])=>this.btn(id,this.icon(icon)+'<span>'+name+'</span>'+(dots[id]?'<sup>'+(id==="missions"?dots[id]:"")+'</sup>':""),{
    cls:((id==="build"&&(this.catalogOpen||this.tool==="build"))||(id==="look"&&this.tool==="look"&&!this.catalogOpen&&!this.dialogType)||(["move","demo"].includes(id)&&this.tool===id)||(this.dialogType===id))?"active":"",
@@ -301,7 +292,7 @@ class UIController {
    if(d.know)facts.push('<span class="teal">Tri thức +'+fmt(d.know*(1+.25*(b.level-1))*(group==="edu"&&b.spec==="a"?1.5:1)*60,1)+'/ph</span>');
    extra='<div class="facts">'+facts.join(" · ")+'</div>';
    if(syn.notes.length)extra+='<div class="chips">'+syn.notes.map(([v,label])=>'<span class="chip '+(v.startsWith("−")?"bad":"good")+'">'+v+' '+label+'</span>').join("")+'</div>';
-   if(team){const r=CONFIG.rank(b.missions);extra+='<small>'+team.captain+' · '+r[1]+' · '+b.missions+' nhiệm vụ · '+CONFIG.vehicles[b.teamLevel-1].name+'</small>'}
+   if(team){const r=CONFIG.rank(b.missions);extra+='<small class="captain">'+this.avatar(team.avatar)+team.captain+' · '+r[1]+' · '+b.missions+' nhiệm vụ · '+CONFIG.vehicles[b.teamLevel-1].name+'</small>'}
    if(b.spec&&group)extra+='<div class="chips"><span class="chip spec">✦ '+CONFIG.specs[group][b.spec][0]+' — '+CONFIG.specs[group][b.spec][1]+'</span></div>';
    else if(own&&group&&b.level>=CONFIG.specLevel)extra+='<div class="spec-pick"><small>Chọn một chuyên môn hóa (không đổi lại được):</small>'+["a","b"].map(k=>this.btn("spec",'<b>'+CONFIG.specs[group][k][0]+'</b><small>'+CONFIG.specs[group][k][1]+'</small>',{id:key,arg:k})).join("")+'</div>';
    else if(own&&group&&b.level<CONFIG.specLevel)extra+='<small class="muted">Chuyên môn hóa mở ở cấp '+CONFIG.specLevel+'.</small>';
@@ -325,7 +316,7 @@ class UIController {
    let status=job?(job.blocked?"Đang chờ mở lối":c.progress>0?"Đang sửa · "+Math.round(c.progress*100)+"%":"Đội đang trên đường"):c.late?"Quá ngưỡng nguy hiểm":"Nguy hiểm sau "+Math.max(0,Math.ceil(d.danger-c.age))+" giây";
    if(!teams.length&&!job)status="Cần xây "+CONFIG.buildings[d.hq].name+" để điều phối "+d.npc+"!";
    const button=job?this.btn("dispatch","Đang điều phối",{id:c.uid,disabled:true}):this.btn("dispatch",friend?"Chi viện NPC":"Điều phối NPC",{id:c.uid,cls:"primary"});
-   return '<div class="incident glass interactive"><div class="eyebrow"><span style="color:'+d.color+'">'+htm(d.icon)+'</span> '+(friend?"Sự cố thành phố bạn":"Cảnh báo sự cố")+'</div><h3>'+d.name+'</h3><p>'+d.penalty+'</p><small>'+status+'</small>'+this.bar(job&&c.progress>0?c.progress:c.age/d.danger,job?"blue":"danger")+button+
+   return '<div class="incident glass interactive">'+(teams.length||job?this.avatar(CONFIG.npcs[d.hq].avatar,"incident-face"):"")+'<div class="eyebrow"><span style="color:'+d.color+'">'+htm(d.icon)+'</span> '+(friend?"Sự cố thành phố bạn":"Cảnh báo sự cố")+'</div><h3>'+d.name+'</h3><p>'+d.penalty+'</p><small>'+status+'</small>'+this.bar(job&&c.progress>0?c.progress:c.age/d.danger,job?"blue":"danger")+button+
     (!teams.length&&!friend?this.btn("quick","Xây nhanh Trụ sở",{id:d.hq}):"")+'</div>';
   }).join("");
   if(shown.length<w.crises.length)result+='<div class="chips buffs"><span class="chip bad">+'+(w.crises.length-shown.length)+' sự cố khác trên bản đồ</span></div>';

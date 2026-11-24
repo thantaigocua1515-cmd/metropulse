@@ -87,11 +87,12 @@ test("bạn bè, chi viện, hộp thư và bảng xếp hạng",async()=>{
  const a=(await call("/auth/guest",{method:"POST",body:{}})).data,b=(await call("/auth/guest",{method:"POST",body:{}})).data;
  await call("/save",{method:"PUT",token:a.token,body:{rev:0,data:city(3,[{id:"apartment",x:6,y:8,level:3,left:0}])}});
  assert.equal((await call("/friends",{method:"POST",token:a.token,body:{code:b.account.code}})).status,404);
- await call("/save",{method:"PUT",token:b.token,body:{rev:0,data:city()}});
+ await call("/save",{method:"PUT",token:b.token,body:{rev:0,data:{...city(),profile:{...city().profile,avatar:25}}}});
  assert.equal((await call("/friends",{method:"POST",token:a.token,body:{code:a.account.code}})).status,400);
  const add=await call("/friends",{method:"POST",token:a.token,body:{code:b.account.code.toLowerCase()}});
- assert.equal(add.status,201);assert.equal(add.data.city[1],b.account.code);assert.equal(add.data.city[7].length,2);
- assert.equal((await call("/friends",{token:a.token})).data.cities.length,1);
+ assert.equal(add.status,201);assert.equal(add.data.city[1],b.account.code);assert.equal(add.data.city[7].length,2);assert.equal(add.data.avatar,25);
+ const mine=(await call("/friends",{token:a.token})).data;
+ assert.equal(mine.cities.length,1);assert.deepEqual(mine.avatars,{[b.account.code]:25});
  for(let i=0;i<5;i++)assert.equal((await call("/assist",{method:"POST",token:a.token,body:{code:b.account.code}})).status,201);
  assert.equal((await call("/assist",{method:"POST",token:a.token,body:{code:b.account.code}})).status,429);
  const mail=await call("/mailbox",{token:b.token});
@@ -102,6 +103,8 @@ test("bạn bè, chi viện, hộp thư và bảng xếp hạng",async()=>{
  assert.equal(board.status,200);assert.ok(board.data.rows.length>=2);
  assert.ok(board.data.rows.every((r,i,list)=>!i||list[i-1].score>=r.score));
  assert.equal(board.data.rows[0].code,a.account.code);
+ // Chân dung không hợp lệ hoặc thiếu thì dùng mặc định.
+ assert.equal(board.data.rows[0].avatar,10);assert.equal(board.data.rows.find(r=>r.code===b.account.code).avatar,25);
  await call("/friends/"+b.account.code,{method:"DELETE",token:a.token});
  assert.equal((await call("/friends",{token:a.token})).data.cities.length,0);
  await call("/save",{method:"DELETE",token:a.token});

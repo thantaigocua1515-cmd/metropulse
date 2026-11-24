@@ -32,6 +32,7 @@ function inspectSave(data){
  const income=num(data.progress?.stats?.peakIncome,0,1e9)?data.progress.stats.peakIncome:0;
  const summary={
   level:p.level,assets:Math.floor(assets),happiness,helpsGiven:int(p.helpsGiven,0,1e9)?p.helpsGiven:0,
+  avatar:CONFIG.avatars.pick.includes(p.avatar)?p.avatar:CONFIG.avatars.fallback,
   pop:Math.round(pop),score:Math.round(pop*2+Math.min(income,1e7)*4+levels*10)
  };
  return {summary,city,coins:Math.floor(p.coins),name:cleanName(p.mayorName,40)||"Thị trưởng"};

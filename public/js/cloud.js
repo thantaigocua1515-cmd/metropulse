@@ -81,11 +81,11 @@ class CloudClient {
  }
  async rename(name){if(this.online)try{await this.api("/me",{method:"PATCH",body:{name}})}catch(_){}}
  async leaderboard(stat){return this.api("/leaderboard?stat="+encodeURIComponent(stat))}
- async addFriend(code){const r=await this.api("/friends",{method:"POST",body:{code}});return this.sim.social.upsertCloud(r.city)}
+ async addFriend(code){const r=await this.api("/friends",{method:"POST",body:{code}});return this.sim.social.upsertCloud(r.city,r.avatar)}
  async syncFriends(){
   if(!this.online)return;
   const r=await this.api("/friends");
-  for(const city of r.cities)try{this.sim.social.upsertCloud(city)}catch(_){}
+  for(const city of r.cities)try{this.sim.social.upsertCloud(city,r.avatars?.[city[1]])}catch(_){}
  }
  async removeFriend(code){if(this.online)try{await this.api("/friends/"+encodeURIComponent(code),{method:"DELETE"})}catch(_){}}
  assist(friend){if(this.online&&friend.cloud)this.api("/assist",{method:"POST",body:{code:friend.id}}).catch(()=>{})}

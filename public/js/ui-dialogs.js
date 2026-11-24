@@ -8,7 +8,7 @@ const UIDialogs = {
  teams(){
   const s=this.sim,rows=s.world.buildings.filter(b=>CONFIG.npcs[b.id]).map(b=>{
    const d=CONFIG.buildings[b.id],team=CONFIG.npcs[b.id],v=CONFIG.vehicles[b.teamLevel-1],key=coord(b.x,b.y),rank=CONFIG.rank(b.missions),next=CONFIG.ranks.find(r=>r[0]>b.missions);
-   return '<div class="row"><span class="badge" style="color:'+team.color+'">'+htm(team.icon)+'</span><div class="grow"><b>'+team.captain+' · '+team.name+'</b><small>'+CONFIG.buildingName(b)+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+(b.spec?' · ✦ '+CONFIG.specs.svc[b.spec][0]:'')+'</small><small>'+(b.left>0?"Đang xây":'Xe cấp '+b.teamLevel+' · '+v.name+' · '+fmt(v.speed,1)+' ô/giây · sửa '+fmt(v.repair*rank[2],1)+' giây · '+(b.crew-s.crisis.busy(b))+'/'+b.crew+' rảnh')+'</small><small class="mint">Quân hàm: '+rank[1]+' · '+b.missions+' nhiệm vụ'+(next?' (còn '+(next[0]-b.missions)+' để lên '+next[1]+')':'')+'</small></div><div class="actions col">'+
+   return '<div class="row">'+this.face(team.avatar,htm(team.icon),team.color)+'<div class="grow"><b>'+team.captain+' · '+team.name+'</b><small>'+CONFIG.buildingName(b)+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+(b.spec?' · ✦ '+CONFIG.specs.svc[b.spec][0]:'')+'</small><small>'+(b.left>0?"Đang xây":'Xe cấp '+b.teamLevel+' · '+v.name+' · '+fmt(v.speed,1)+' ô/giây · sửa '+fmt(v.repair*rank[2],1)+' giây · '+(b.crew-s.crisis.busy(b))+'/'+b.crew+' rảnh')+'</small><small class="mint">Quân hàm: '+rank[1]+' · '+b.missions+' nhiệm vụ'+(next?' (còn '+(next[0]-b.missions)+' để lên '+next[1]+')':'')+'</small></div><div class="actions col">'+
     this.btn("team-up",b.teamLevel===5?"Xe tối đa":"Nâng xe · "+fmt(Math.ceil(250*b.teamLevel**1.4))+" V",{id:key,disabled:b.teamLevel===5||b.left>0})+
     this.btn("team-hire",b.crew===3?"Đủ 3 người":"Tuyển · "+(b.crew+1)+" Uy tín",{id:key,disabled:b.crew===3||b.left>0})+'</div></div>';
   }).join("");
@@ -87,7 +87,7 @@ const UIDialogs = {
   let body=this.tabbar("social",[["friends","Bạn bè"],["rank","Xếp hạng"],["codes","Mã thành phố"]]);
   if(tab==="friends"){
    if(online&&!this.friendsSynced){this.friendsSynced=true;cloud.syncFriends().then(()=>{if(this.dialogType==="social"&&this.tabs.social==="friends")this.socials()}).catch(()=>{})}
-   const list=s.social.friends().map(f=>'<div class="row"><span class="badge">'+f.level+'</span><div class="grow"><b>'+htm(f.name)+(f.cloud?' <span class="tag">trực tuyến</span>':String(f.id).startsWith("MP-MAU")?' <span class="tag muted">mẫu</span>':'')+'</b><small>'+f.id+' · Cấp '+f.level+' · '+(f.world.crises.length?'<span class="warn">'+f.world.crises.length+' sự cố cần chi viện</span>':'đang yên ổn')+'</small></div><div class="actions">'+
+   const list=s.social.friends().map(f=>'<div class="row">'+this.face(f.avatar,f.level)+'<div class="grow"><b>'+htm(f.name)+(f.cloud?' <span class="tag">trực tuyến</span>':String(f.id).startsWith("MP-MAU")?' <span class="tag muted">mẫu</span>':'')+'</b><small>'+f.id+' · Cấp '+f.level+' · '+(f.world.crises.length?'<span class="warn">'+f.world.crises.length+' sự cố cần chi viện</span>':'đang yên ổn')+'</small></div><div class="actions">'+
     (String(f.id).startsWith("MP-MAU")?"":this.btn("unfriend","Xóa",{id:f.id,cls:"ghost"}))+this.btn("visit","Thăm",{id:f.id,cls:"primary"})+'</div></div>').join("");
    body+='<p class="muted">Còn <b id="help-left">'+s.profile.dailyHelpsLeft+'/5</b> lượt chi viện · làm mới sau <b id="help-timer">'+s.social.resetTime()+'</b>. Mỗi lượt: 250 Vàng × cấp bạn, 40 XP và 2 Uy tín'+(online?"; bạn bè trực tuyến còn nhận được quà cảm ơn":"")+'.</p>'+
     (online?'<div class="inline"><input id="friend-code" maxlength="12" placeholder="Nhập mã thành phố, ví dụ MP-7K2QF9" autocomplete="off">'+this.btn("add-friend","Kết bạn",{cls:"primary"})+'</div><p id="friend-message" role="status"></p>':"")+list;
@@ -103,8 +103,8 @@ const UIDialogs = {
     }
     rows=this.globalRows.rows?this.globalRows.rows.map((f,i)=>({...f,place:i+1,me:f.code===cloud.account?.code,id:f.code})):null;
     if(rows&&this.globalRows.me&&!rows.some(r=>r.me))rows.push({...this.globalRows.me,me:true,id:this.globalRows.me.code});
-   }else rows=s.social.rankings(this.rank).map((f,i)=>({place:i+1,name:f.name,level:f.level,id:f.id,score:f.score,me:!!f.me}));
-   body+=rows?rows.map(f=>'<div class="row'+(f.me?" me":"")+'"><span class="badge place p'+Math.min(4,f.place)+'">'+f.place+'</span><div class="grow"><b>'+htm(f.name)+(f.me?' <span class="tag">Bạn</span>':'')+'</b><small>Cấp '+f.level+' · '+f.id+'</small></div><b class="gold">'+fmt(f.score)+unit+'</b></div>').join("")||'<p class="empty">Chưa có dữ liệu xếp hạng.</p>':'<p class="empty">Đang tải bảng xếp hạng…</p>';
+   }else rows=s.social.rankings(this.rank).map((f,i)=>({place:i+1,name:f.name,level:f.level,id:f.id,score:f.score,me:!!f.me,avatar:f.avatar}));
+   body+=rows?rows.map(f=>'<div class="row'+(f.me?" me":"")+'"><span class="badge place p'+Math.min(4,f.place)+'">'+f.place+'</span>'+this.avatar(f.avatar,"mini")+'<div class="grow"><b>'+htm(f.name)+(f.me?' <span class="tag">Bạn</span>':'')+'</b><small>Cấp '+f.level+' · '+f.id+'</small></div><b class="gold">'+fmt(f.score)+unit+'</b></div>').join("")||'<p class="empty">Chưa có dữ liệu xếp hạng.</p>':'<p class="empty">Đang tải bảng xếp hạng…</p>';
   }else{
    body+=(online?'<p class="muted">Mã kết bạn trực tuyến của bạn: <b class="mint">'+cloud.account.code+'</b> — gửi mã này cho bạn bè để họ thăm thành phố thật của bạn.</p>':'<p class="muted">Đang chơi ngoại tuyến: dùng mã Base64 bên dưới để chia sẻ thành phố.</p>')+
     '<label for="export-code"><b>Xuất mã thành phố (ngoại tuyến)</b></label><textarea id="export-code" rows="3" readonly>'+s.social.export()+'</textarea>'+this.btn("copy","Sao chép mã",{cls:"primary"})+
@@ -129,9 +129,10 @@ const UIDialogs = {
   if(tab==="me"){
    const hours=Math.floor(st.playTime/3600),minutes=Math.floor(st.playTime/60)%60;
    const cells=[["Điểm đô thị",fmt(m.score)],["Thu nhập cao nhất",fmt(st.peakIncome,1)+" V/s"],["Dân số cao nhất",fmt(st.peakPop)],["Sự cố đã xử lý",fmt(st.crisesSolved)],["Chuỗi tốt nhất","×"+st.bestCombo],["Công trình đã xây",fmt(st.buildingsBuilt)],["Lượt nâng cấp",fmt(st.upgrades)],["Túi thuế đã thu",fmt(st.bubbles)],["Cấp nghiên cứu",st.research+" / 36"],["Lượt chi viện",fmt(p.helpsGiven)],["Ngày điểm danh",fmt(st.loginDays)],["Thời gian chơi",hours+" giờ "+minutes+" phút"]];
-   body+='<div class="hero"><span class="profile-level big"><b>'+p.level+'</b><small>CẤP</small></span><div class="grow"><h3>'+htm(p.mayorName)+'</h3><small>'+rank.name+' '+htm(p.cityName)+' · Mã '+p.mayorId+'</small>'+
+   body+='<div class="hero">'+this.face(p.avatar,p.level)+'<div class="grow"><h3>'+htm(p.mayorName)+'</h3><small>'+rank.name+' '+htm(p.cityName)+' · Mã '+p.mayorId+'</small>'+
     (rank.next?this.bar(m.score/rank.next[0])+'<small>Còn '+fmt(Math.max(0,rank.next[0]-m.score))+' điểm đô thị để thành «'+rank.next[1]+'»</small>':'<small class="mint">Danh hiệu cao nhất!</small>')+'</div></div>'+
     '<div class="inline"><input id="mayor-name" maxlength="40" value="'+htm(p.mayorName)+'" aria-label="Tên Thị trưởng"><input id="city-name" maxlength="24" value="'+htm(p.cityName)+'" aria-label="Tên thành phố">'+this.btn("save-name","Lưu tên",{cls:"primary"})+'</div>'+
+    '<h4>Chân dung Thị trưởng</h4><div class="avatar-grid">'+CONFIG.avatars.pick.map(n=>'<button type="button" data-act="avatar" data-id="'+n+'" title="'+CONFIG.avatars.roles[n-1]+'" aria-label="'+CONFIG.avatars.roles[n-1]+'" aria-pressed="'+(p.avatar===n)+'"'+(p.avatar===n?' class="active"':"")+'>'+this.avatar(n)+'</button>').join("")+'</div>'+
     '<div class="statgrid">'+cells.map(([k,v])=>'<div><small>'+k+'</small><b>'+v+'</b></div>').join("")+'</div>';
   }else if(tab==="account"){
    if(!cloud?.enabled)body+='<p class="empty">Bạn đang mở trò chơi trực tiếp từ tệp. Tiến độ được lưu trong trình duyệt. Chạy máy chủ (npm start) để dùng lưu đám mây, bảng xếp hạng toàn cầu và kết bạn trực tuyến.</p>';

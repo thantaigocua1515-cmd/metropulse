@@ -45,17 +45,17 @@ const CONFIG = (() => {
  const buildings = Object.fromEntries(rows.map(([id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc])=>
   [id,{id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc,know:knowRate[id]||0,tiers:tierNames[id]||[name,name+" II",name+" III"]}]));
  const incidents = [
-  ["blackout","Mất điện diện rộng","power_plant","Thợ Điện lực","ϟ","#ffce68","−50% doanh thu quanh điểm mất điện; không thể xây cạnh đó.",45,120,0,45,"Cư dân đang ăn cơm dưới ánh nến vì mất điện!","Đội trưởng Sơn"],
-  ["water_leak","Vỡ ống / Cúp nước","water_tower","Kỹ sư Cấp nước","≈","#7cdaff","−2% Hạnh phúc mỗi 5 giây.",45,0,0,45,"Vỉa hè bất ngờ biến thành đài phun nước.","Kỹ sư Thủy"],
-  ["collapse","Sập giàn giáo / Nứt tường","construction_hq","Kỹ sư Xây dựng","!","#ffc199","Đóng băng thi công; quá hạn tốn 10% giá trị để phục hồi.",80,0,0,45,"Đội thi công tạm nghỉ vì giàn giáo gặp sự cố.","Chỉ huy Tùng"],
-  ["traffic_jam","Kẹt xe / Tai nạn","police_station","Cảnh sát Giao thông","↔","#94aaff","−30% thu nhập thương mại; xe qua đây chậm 60%.",65,0,0,45,"Tắc đường: còi xe đang tranh giải dàn nhạc thành phố.","Thượng úy Hùng"],
-  ["fire","Hỏa hoạn cục bộ","fire_station","Lính Cứu hỏa","▲","#ff8d63","Mất toàn bộ thu nhập tại chỗ; có thể lan sau 45 giây.",100,0,2,45,"Khói bốc cao, đội phản ứng đang chờ lệnh xuất phát!","Đội trưởng Lửa"],
-  ["trash_pile","Quá tải rác / Ô nhiễm","waste_plant","Nhân viên Môi trường","✦","#bdd77e","−10% Hạnh phúc; khu dân cư ngừng cộng XP.",75,150,0,50,"Người dân xin đừng biến vỉa hè thành bãi rác.","Cô Sáu Xanh"],
-  ["flu_outbreak","Dịch cúm mùa","hospital","Đội Y tế / Bác sĩ","✚","#ff9f9f","−25% năng suất toàn thành phố; Hạnh phúc giảm.",110,0,0,50,"Khẩu trang trở lại, thành phố cần đội y tế.","Bác sĩ An"],
-  ["cyber_attack","Tấn công mạng","cyber_hub","Kỹ sư IT","⌘","#8dffb1","Đóng băng doanh thu Văn phòng và Công nghệ.",180,0,4,55,"Máy chủ báo gián đoạn; đội IT đang chờ điều phối.","Hacker mũ trắng Kha"]
+  ["blackout","Mất điện diện rộng","power_plant","Thợ Điện lực","ϟ","#ffce68","−50% doanh thu quanh điểm mất điện; không thể xây cạnh đó.",45,120,0,45,"Cư dân đang ăn cơm dưới ánh nến vì mất điện!","Đội trưởng Sơn",28],
+  ["water_leak","Vỡ ống / Cúp nước","water_tower","Kỹ sư Cấp nước","≈","#7cdaff","−2% Hạnh phúc mỗi 5 giây.",45,0,0,45,"Vỉa hè bất ngờ biến thành đài phun nước.","Kỹ sư Thủy",5],
+  ["collapse","Sập giàn giáo / Nứt tường","construction_hq","Kỹ sư Xây dựng","!","#ffc199","Đóng băng thi công; quá hạn tốn 10% giá trị để phục hồi.",80,0,0,45,"Đội thi công tạm nghỉ vì giàn giáo gặp sự cố.","Chỉ huy Tùng",4],
+  ["traffic_jam","Kẹt xe / Tai nạn","police_station","Cảnh sát Giao thông","↔","#94aaff","−30% thu nhập thương mại; xe qua đây chậm 60%.",65,0,0,45,"Tắc đường: còi xe đang tranh giải dàn nhạc thành phố.","Thượng úy Hùng",8],
+  ["fire","Hỏa hoạn cục bộ","fire_station","Lính Cứu hỏa","▲","#ff8d63","Mất toàn bộ thu nhập tại chỗ; có thể lan sau 45 giây.",100,0,2,45,"Khói bốc cao, đội phản ứng đang chờ lệnh xuất phát!","Đội trưởng Lửa",9],
+  ["trash_pile","Quá tải rác / Ô nhiễm","waste_plant","Nhân viên Môi trường","✦","#bdd77e","−10% Hạnh phúc; khu dân cư ngừng cộng XP.",75,150,0,50,"Người dân xin đừng biến vỉa hè thành bãi rác.","Cô Sáu Xanh",36],
+  ["flu_outbreak","Dịch cúm mùa","hospital","Đội Y tế / Bác sĩ","✚","#ff9f9f","−25% năng suất toàn thành phố; Hạnh phúc giảm.",110,0,0,50,"Khẩu trang trở lại, thành phố cần đội y tế.","Bác sĩ An",3],
+  ["cyber_attack","Tấn công mạng","cyber_hub","Kỹ sư IT","⌘","#8dffb1","Đóng băng doanh thu Văn phòng và Công nghệ.",180,0,4,55,"Máy chủ báo gián đoạn; đội IT đang chờ điều phối.","Hacker mũ trắng Kha",30]
  ];
- const crises = Object.fromEntries(incidents.map(([id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news,captain])=>[id,{id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news,captain}]));
- const npcs = Object.fromEntries(Object.values(crises).map(c=>[c.hq,{name:c.npc,icon:c.icon,color:c.color,captain:c.captain,crisis:c.id}]));
+ const crises = Object.fromEntries(incidents.map(([id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news,captain,avatar])=>[id,{id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news,captain,avatar}]));
+ const npcs = Object.fromEntries(Object.values(crises).map(c=>[c.hq,{name:c.npc,icon:c.icon,color:c.color,captain:c.captain,avatar:c.avatar,crisis:c.id}]));
  const vehicles = [
   {name:"Đi bộ",speed:1.8,repair:10},{name:"Xe đạp / Xe đẩy",speed:2.4,repair:8},
   {name:"Xe máy chuyên dụng",speed:3.2,repair:6},{name:"Xe tải kỹ thuật",speed:4,repair:4.5},
@@ -82,7 +82,10 @@ const CONFIG = (() => {
   return d.group;
  };
  const cityRanks = [[0,"Thị trấn"],[400,"Thị xã"],[1500,"Thành phố trẻ"],[5000,"Đô thị loại I"],[15000,"Siêu đô thị"],[40000,"Đô thị huyền thoại"]];
- return {buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:5,baseKnowledge:.03,maxLevel:10,specLevel:5,
+ // Bộ 36 chân dung trong public/img/npc. `pick` là các chân dung người chơi được chọn (không trùng nhân vật cốt truyện và đội trưởng).
+ const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
+  roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
+ return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:5,baseKnowledge:.03,maxLevel:10,specLevel:5,
   crisisInterval:12,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>Math.floor(100*level**1.55),
   upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**b.level),

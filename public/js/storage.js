@@ -16,7 +16,7 @@ class StorageManager {
   buildings.push(makeBuilding("house_small",7,8),makeBuilding("power_plant",6,6),makeBuilding("water_tower",9,8));
   return {
    version:2,
-   profile:{mayorId:"MP-"+Math.floor(1000+Math.random()*9000),mayorName:"Thị trưởng Mới",cityName:"Bình Minh",level:1,xp:0,coins:CONFIG.starterCoins,prestige:10,knowledge:0,happiness:100,combo:0,helpsGiven:0,dailyHelpsLeft:5,lastHelpResetDate:today()},
+   profile:{mayorId:"MP-"+Math.floor(1000+Math.random()*9000),mayorName:"Thị trưởng Mới",cityName:"Bình Minh",avatar:CONFIG.avatars.fallback,level:1,xp:0,coins:CONFIG.starterCoins,prestige:10,knowledge:0,happiness:100,combo:0,helpsGiven:0,dailyHelpsLeft:5,lastHelpResetDate:today()},
    world:makeWorld(buildings),progress:this.freshProgress(),friends:[],lastSavedAt:0,sound:true
   };
  }
@@ -40,6 +40,7 @@ class StorageManager {
    for(const key of ["buffs","bubbles","npcs","crises"])if(!Array.isArray(world[key]))world[key]=[];
    const profile={...fallback.profile,...val.profile};
    if(!Number.isFinite(profile.knowledge))profile.knowledge=0;
+   if(!CONFIG.avatars.pick.includes(profile.avatar))profile.avatar=CONFIG.avatars.fallback;
    return {...fallback,...val,version:2,profile,world,progress,friends:Array.isArray(val.friends)?val.friends:[],milestones:undefined};
   }catch(_){return null}
  }

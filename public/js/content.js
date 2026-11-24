@@ -3,12 +3,12 @@
 // Nội dung: nhân vật, cốt truyện, nghiên cứu, thành tựu, nhiệm vụ ngày, điểm danh, thư quyết định.
 const CONTENT = (() => {
  const cast = {
-  mai:{name:"Mai",role:"Thư ký trưởng",skin:"#f6d9b8",hair:"#3b2a26",shirt:"#d1fb8b",style:"bob"},
-  bach:{name:"Ông Bách",role:"Kỹ sư trưởng",skin:"#e9c39b",hair:"#8d9499",shirt:"#ffce77",style:"helmet"},
-  vy:{name:"Vy",role:"Phóng viên Bản tin Đô thị",skin:"#f8dcc0",hair:"#7a3f2c",shirt:"#ff9fb4",style:"long"},
-  hanh:{name:"Bà Hạnh",role:"Tổ trưởng dân phố",skin:"#eecaa6",hair:"#c9c4bd",shirt:"#9ae4cb",style:"bun"},
-  quan:{name:"Ông Quân",role:"Chủ tịch Tập đoàn Kim Long",skin:"#e2b891",hair:"#1d1f24",shirt:"#8f7cf0",style:"slick"},
-  lam:{name:"Tiến sĩ Lam",role:"Viện trưởng Viện Quy hoạch",skin:"#f3d3ae",hair:"#2f3d55",shirt:"#7cdaff",style:"glasses"}
+  mai:{name:"Mai",role:"Thư ký trưởng",avatar:2},
+  bach:{name:"Ông Bách",role:"Kỹ sư trưởng",avatar:23},
+  vy:{name:"Vy",role:"Phóng viên Bản tin Đô thị",avatar:34},
+  hanh:{name:"Bà Hạnh",role:"Tổ trưởng dân phố",avatar:7},
+  quan:{name:"Ông Quân",role:"Chủ tịch Tập đoàn Kim Long",avatar:31},
+  lam:{name:"Tiến sĩ Lam",role:"Viện trưởng Viện Quy hoạch",avatar:13}
  };
  const q=(id,name,desc,[coins,xp,prestige,know],prog)=>({id,name,desc,coins,xp,prestige,know,prog});
  const has=(s,id,n=1)=>[Math.min(n,s.count(id)),n];
