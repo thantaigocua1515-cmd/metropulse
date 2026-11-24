@@ -90,6 +90,7 @@ class UIController {
   const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera),hit=this.renderer.hit(point);
   if(hit?.crisis){this.dispatch(hit.crisis.uid);return}
   if(hit?.bubble&&this.tool==="look"){this.toast(s.collect(hit.bubble.uid));this.refresh();return}
+  if(hit?.citizen&&this.tool==="look"){this.renderer.life.poke(hit.citizen);s.audio.play("click");return}
   const at=lookup(w,x,y),b=hit?.building||at;
   if(this.tool==="build"&&this.selection){this.toast(s.build(this.selection,x,y));this.refresh();return}
   if(this.tool==="move"){

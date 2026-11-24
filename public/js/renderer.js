@@ -1,7 +1,7 @@
 "use strict";
 class IsoRenderer {
  constructor(canvas,sim){
-  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.walkers=[];this.trafficWorld=null;this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
+  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
@@ -59,27 +59,27 @@ class IsoRenderer {
  }
  ambient(night,mood,world){
   const g=this.ctx,{width:w,height:h}=this,gradient=g.createLinearGradient(0,0,w*.27,h);
-  const palette=mood==="storm"?["#253f42","#3b6262","#183538"]:night>.5?["#142f3e","#274b54","#17353d"]:mood==="heat"?["#416451","#6c8061","#254742"]:["#2a514b","#52786a","#234b49"];
+  const palette=mood==="storm"?["#8fa5b0","#a9bcc4","#7f97a3"]:night>.5?["#2b4660","#3c5e79","#253f58"]:mood==="heat"?["#e9e4c6","#f1ecd4","#d8ddba"]:["#cfe6ee","#e4f1f4","#b8d9e4"];
   gradient.addColorStop(0,palette[0]);gradient.addColorStop(.52,palette[1]);gradient.addColorStop(1,palette[2]);g.fillStyle=gradient;g.fillRect(0,0,w,h);
   const size=Math.max(38,49*this.camera.zoom),ox=((this.camera.x*.14)%size+size)%size,oy=((this.camera.y*.14)%size+size)%size;
-  g.fillStyle="#d0eee026";
+  g.fillStyle=night>.5?"#d0eee026":"#ffffff8c";
   for(let x=ox;x<w;x+=size)for(let y=oy;y<h;y+=size)g.fillRect(x,y,1.5,1.5);
   g.lineWidth=1;
   for(let i=0;i<72;i++){
    const x=((i*139.163+w*.31+this.camera.x*.09)%(w+120)+w+120)%(w+120)-60,y=((i*167.377+this.camera.y*.1)%(h+80)+h+80)%(h+80)-40,l=3+(i*17)%25;
-   const a=.065+.028*Math.sin(this.elapsed*.85+i);this.line([{x,y},{x:x+l,y:y-l*.13}],i%5===0?"rgba(226,245,211,"+(a*1.6)+")":"rgba(198,229,224,"+a+")",.75);
+   const a=.065+.028*Math.sin(this.elapsed*.85+i);this.line([{x,y},{x:x+l,y:y-l*.13}],night>.5?"rgba(198,229,224,"+a+")":"rgba(255,255,255,"+(a*5)+")",.75);
   }
   const c=this.camera;
   for(let i=1;i<=4;i++){
    const a=-i*.26,b=16+i*.26;
    const ring=this.plate(a,a,b,b,-16);
    for(const p of ring)p.x+=Math.sin(this.elapsed*.55+i)*1.7*c.zoom;
-   this.poly(ring,null,i%2?"#b9e4d228":"#b9e4d218",1.2);
+   this.poly(ring,null,night>.5?"#b9e4d228":i%2?"#ffffff9c":"#ffffff60",1.2);
   }
  }
  ground(w){
   const c=this.camera,z=c.zoom,g=this.ctx,base=this.plate(0,0,16,16),low=this.plate(0,0,16,16,-17);
-  const shadow=low.map(p=>({x:p.x+10*z,y:p.y+9*z}));this.poly(shadow,"#112e30a0");
+  const shadow=low.map(p=>({x:p.x+10*z,y:p.y+9*z}));this.poly(shadow,"#2d556a4d");
   this.poly([base[1],base[2],low[2],low[1]],"#496752","#395c48");this.poly([base[2],base[3],low[3],low[2]],"#3c5946","#365543");
   const soil=this.plate(0,0,16,16,-9);this.line([soil[1],soil[2],soil[3]],"#9fb4866c",3*z);this.line([base[1],base[2],base[3]],"#abc8a2",2.5*z);
   const active=["#87aa73","#8cae76","#91b079","#84a66f","#8cad74"],locked=["#59776a","#5c7b6c","#5d7d6b","#567667"];
@@ -102,7 +102,7 @@ class IsoRenderer {
   }
   if(z>.65)for(let i=0;i<16;i+=2){
    const p=this.project(16.38,i+.52,-3),q=this.project(i+.52,16.38,-3);
-   this.text(String.fromCharCode(65+i),p.x,p.y,9*z,"#c5e4d389");this.text(String(i+1).padStart(2,"0"),q.x,q.y,9*z,"#c5e4d389");
+   this.text(String.fromCharCode(65+i),p.x,p.y,9*z,"#ffffffb0");this.text(String(i+1).padStart(2,"0"),q.x,q.y,9*z,"#ffffffb0");
   }
  }
  road(b,w){
@@ -335,37 +335,6 @@ class IsoRenderer {
   this.hits.push({bubble:b,x:p.x,y:p.y,r:r+6});
  }
  // Cư dân và xe cộ đi lại trên đường (chỉ để trang trí).
- traffic(w,dt){
-  if(this.trafficWorld!==w){this.trafficWorld=w;this.walkers=[]}
-  const roads=w.buildings.filter(b=>b.id==="road"),want=Math.min(14,Math.floor(roads.length/3)),list=this.walkers;
-  const colors=["#ff9b82","#ffd36e","#9ae4cb","#8fb8ff","#f3f0e6","#c9a2f0"];
-  const spawn=a=>{const r=roads[Math.floor(Math.random()*roads.length)];Object.assign(a,{fx:r.x,fy:r.y,tx:r.x,ty:r.y,px:-1,py:-1,part:1,x:r.x,y:r.y})};
-  while(list.length<want){const a={car:Math.random()<.45,color:colors[list.length%colors.length]};a.speed=a.car?1.5+Math.random()*.6:.45+Math.random()*.25;spawn(a);list.push(a)}
-  list.length=Math.min(list.length,want);
-  for(const a of list){
-   a.part+=dt*a.speed;
-   if(a.part>=1){
-    a.fx=a.tx;a.fy=a.ty;
-    if(lookup(w,a.fx,a.fy)?.id!=="road"){spawn(a);continue}
-    const options=steps.map(([dx,dy])=>({x:a.fx+dx,y:a.fy+dy})).filter(q=>lookup(w,q.x,q.y)?.id==="road"),forward=options.filter(q=>q.x!==a.px||q.y!==a.py);
-    const next=(forward.length?forward:options)[Math.floor(Math.random()*(forward.length||options.length))];
-    a.px=a.fx;a.py=a.fy;if(next){a.tx=next.x;a.ty=next.y;a.part=0}else a.part=1;
-   }
-   const dx=a.tx-a.fx,dy=a.ty-a.fy,side=a.car?.13:.3;
-   a.x=a.fx+dx*a.part-dy*side;a.y=a.fy+dy*a.part+dx*side;
-  }
- }
- walker(a,night){
-  const z=this.camera.zoom,p=this.project(a.x+.5,a.y+.5);
-  if(a.car){
-   this.ellipse(p.x,p.y+1.5*z,5.5*z,2.3*z,"#1e352c88");this.block(a.x+.41,a.y+.43,.18,.14,1,3.6,a.color);
-   this.block(a.x+.45,a.y+.45,.1,.1,4.6,2,"#cfe3ea");
-   if(night>.22)this.ellipse(p.x+(a.tx-a.fx-(a.ty-a.fy))*5*z,p.y+(a.tx-a.fx+a.ty-a.fy)*2.5*z,2.2*z,1.3*z,"#fff3b0cc");
-  }else{
-   const bob=Math.sin(this.elapsed*9+a.fx)*.6*z;
-   this.ellipse(p.x,p.y+.8*z,2.4*z,1.1*z,"#1e352c77");this.ellipse(p.x,p.y-3.2*z+bob,1.9*z,2.8*z,a.color);this.ellipse(p.x,p.y-6.6*z+bob,1.6*z,1.6*z,"#f5e6bf");
-  }
- }
  npc(n){
   const t=this.elapsed,z=this.camera.zoom,p=this.project(n.x+.51,n.y+.51),d=CONFIG.npcs[n.type],color=d.color;
   this.ellipse(p.x,p.y+1.7*z,(n.level+2)*z,2.6*z,"#1e352c99");
@@ -393,7 +362,7 @@ class IsoRenderer {
   }return found;
  }
  hit(point){
-  for(const kind of ["crisis","bubble"])for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit[kind]&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
+  for(const kind of ["crisis","bubble","citizen"])for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit[kind]&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
   for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.building&&hit.polys.some(poly=>this.contains(point,poly)))return hit}
   return null;
  }
@@ -415,8 +384,8 @@ class IsoRenderer {
     if((!unlocked(w,x,y)&&hash%7<2)||(unlocked(w,x,y)&&hash%17===3))jobs.push({x,y,draw:()=>this.tree(x+.53,y+.57,hash%3,.62+hash%5*.1)});
    }
   }
-  this.traffic(w,dt);
-  for(const a of this.walkers)jobs.push({x:a.x+.05,y:a.y+.05,draw:()=>this.walker(a,night)});
+  this.life.update(w,dt);
+  for(const a of this.life.agents)jobs.push({x:a.x+.05,y:a.y+.05,draw:()=>this.life.draw(a,night)});
   for(const n of w.npcs)jobs.push({x:n.x+.1,y:n.y+.1,draw:()=>this.npc(n)});
   jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);for(const job of jobs)job.draw();
   if(night>.01){g.fillStyle="rgba(27,50,110,"+night*.37+")";g.fillRect(0,0,this.width,this.height)}
@@ -433,6 +402,7 @@ class IsoRenderer {
    this.poly(this.plate(x+.03,y+.03,x+.97,y+.97,1),"rgba(209,251,139,"+(.18+.3*pulse)+")","#f2ffd0",2+pulse*1.5);
    const a=this.project(x+.5,y+.5,26+pulse*8);this.poly([{x:a.x-7,y:a.y-9},{x:a.x+7,y:a.y-9},{x:a.x,y:a.y+3}],"#f2ffd0","#233a2c",1.2);
   }
+  this.life.overlay();
   for(const c of w.crises)this.crisis(c,heights.get(coord(c.x,c.y))||0);
   if(w===own)for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
   for(const p of this.sim.particles)if((p.world||own)===w){
