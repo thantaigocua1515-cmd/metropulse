@@ -1,6 +1,6 @@
 # MetroPulse · Nhịp Đập Đô Thị
 
-Game xây dựng thành phố isometric 2.5D vẽ bằng Canvas thuần (âm thanh tổng hợp bằng Web Audio; ảnh duy nhất là bộ chân dung nhân vật trong `public/img/npc`), kèm backend Express + MongoDB.
+Game xây dựng thành phố isometric 2.5D vẽ bằng Canvas thuần (âm thanh tổng hợp bằng Web Audio; ảnh gồm bộ chân dung nhân vật trong `public/img/npc` và sprite 3D của 12 công trình trong `public/img/bld`, sinh bằng `tools/build-sprites.py`), kèm backend Express + MongoDB.
 
 ## Chạy cục bộ
 

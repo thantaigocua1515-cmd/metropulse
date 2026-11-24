@@ -1,7 +1,7 @@
 "use strict";
 class IsoRenderer {
  constructor(canvas,sim){
-  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.walkers=[];this.trafficWorld=null;this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();
+  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.walkers=[];this.trafficWorld=null;this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
@@ -147,10 +147,19 @@ class IsoRenderer {
   const d=CONFIG.buildings[b.id],g=this.ctx,z=this.camera.zoom,x=b.x,y=b.y,polys=[];
   const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
-  this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
-  const p=this.project(x+.6,y+.59);this.ellipse(p.x+6*z,p.y+3*z,25*z,8*z,"#293e3455");
+  const meta=SPRITES[b.id],art=meta&&b.left<=0?this.sprite(b.id,b.level,this.facing(b,w),dark):false;
   let height=0;
-  if(b.left>0){
+  if(art===false){
+   this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
+   const p=this.project(x+.6,y+.59);this.ellipse(p.x+6*z,p.y+3*z,25*z,8*z,"#293e3455");
+  }
+  if(art!==false){
+   // Sprite đã có sẵn thảm cỏ và bóng đổ; trong lúc ảnh đang tải chỉ vẽ nền ô.
+   const c=this.project(x+.5,y+.5);height=meta.tops[b.level-1];
+   if(art)g.drawImage(art,c.x-meta.ax*z,c.y-meta.ay*z,meta.w*z,meta.h*z);else this.poly(deck,"#a9bd9c","#637f637d",.7);
+   const top=this.plate(x+.24,y+.24,x+.76,y+.76,height),low=this.plate(x+.24,y+.24,x+.76,y+.76);
+   polys.push([top[2],top[3],low[3],low[2]],[top[1],top[2],low[2],low[1]],top);
+  }else if(b.left>0){
    const progress=clamp(1-b.left/b.total,0,1);height=11+18*progress;
    this.block(x+.22,y+.22,.56,.56,0,height,"#9e9e85",polys);
    for(const [a,c] of [[.14,.17],[.82,.17],[.14,.82],[.82,.82]]){
@@ -269,6 +278,24 @@ class IsoRenderer {
    if(b.spec)this.ellipse(t.x,t.y-(tier?8:0)*z,2.6*z,2.6*z,b.spec==="a"?"#ffb38a":"#9ae4cb");
   }
   this.hits.push({building:b,polys:[deck,...polys]});return height;
+ }
+ // Sprite công trình tải lười theo (id, cấp, góc): trả về ảnh khi sẵn sàng, null khi đang tải, false khi lỗi (quay về nét vẽ Canvas).
+ sprite(id,level,rot,dark){
+  const key=id+"/"+String(level).padStart(2,"0")+"_"+rot;let s=this.sprites.get(key);
+  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src="img/bld/"+key+".webp";this.sprites.set(key,s)}
+  if(s.state<1)return s.state?false:null;
+  if(!dark)return s.img;
+  if(!s.dark){
+   const c=s.dark=document.createElement("canvas"),g=c.getContext("2d");c.width=s.img.width;c.height=s.img.height;
+   g.drawImage(s.img,0,0);g.globalCompositeOperation="source-atop";g.fillStyle="#0a1524b0";g.fillRect(0,0,c.width,c.height);
+  }
+  return s.dark;
+ }
+ // Góc quay 0–3 (cửa hướng +x, −y, −x, +y). Chưa xoay tay thì cửa tự quay ra con đường kề bên.
+ facing(b,w){
+  if(Number.isInteger(b.rot))return b.rot&3;
+  const road=(dx,dy)=>lookup(w,b.x+dx,b.y+dy)?.id==="road";
+  return road(1,0)?0:road(0,1)?3:road(0,-1)?1:road(-1,0)?2:0;
  }
  progress(x,y,value,color){
   const g=this.ctx,z=this.camera.zoom;g.fillStyle="#142420e9";g.fillRect(x-15*z,y-3*z,30*z,6*z);g.fillStyle=color;g.fillRect(x-14*z,y-2*z,28*z*value,4*z);
@@ -421,6 +448,7 @@ class IsoRenderer {
  }
  thumbnail(id){
   const canvas=document.createElement("canvas");canvas.width=112;canvas.height=94;
+  if(SPRITES[id])return "img/bld/"+id+"/thumb.webp";
   const saved={ctx:this.ctx,camera:this.camera,hits:this.hits};this.ctx=canvas.getContext("2d");this.camera={x:56,y:70,zoom:id==="metro_wonder"?.58:["tech_tower","wind_farm","airport","office_tower","university"].includes(id)?.66:.79};this.hits=[];
   const b=makeBuilding(id,0,0),w=makeWorld(id==="road"?[b,makeBuilding("road",1,0),makeBuilding("road",0,-1)]:[b]);
   if(id==="road")this.road(b,w);else this.building(b,w,0);

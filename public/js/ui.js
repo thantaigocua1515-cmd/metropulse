@@ -159,6 +159,7 @@ class UIController {
    case "upgrade":if(tile())this.toast(s.upgrade(tile())||"Đã nâng cấp công trình.");break;
    case "spec":if(tile())this.toast(s.specialize(tile(),arg)||"Đã chọn chuyên môn hóa.");break;
    case "accelerate":if(tile())this.toast(s.accelerate(tile())||"Đã xây xong!");break;
+   case "rotate":{const b=tile();if(b&&SPRITES[b.id]){b.rot=(r.facing(b,s.world)+1)%4;s.audio.play("click");s.storage.save()}}break;
    case "remove":if(tile())this.confirmDemolish(tile());break;
    case "do-demolish":if(tile()){this.close();this.toast(s.demolish(tile())||"Đã phá dỡ công trình.");this.inspect=null}break;
    case "teams":this.teams();break;
@@ -303,10 +304,10 @@ class UIController {
     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
     actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary",disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
    }
-   actions+=(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
+   actions+=(SPRITES[b.id]&&b.left<=0?this.btn("rotate","⟳ Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
-  this.html("inspect",'<img class="inspect-thumb" src="'+this.thumbs[b.id]+'" alt=""><div class="inspect-main"><div class="inspect-head"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close","×",{cls:"ghost icon",title:"Đóng thẻ"})+'</div>'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div>');
+  this.html("inspect",'<img class="inspect-thumb" src="'+(SPRITES[b.id]&&b.left<=0?"img/bld/"+b.id+"/"+String(b.level).padStart(2,"0")+"_"+this.renderer.facing(b,w)+".webp":this.thumbs[b.id])+'" alt=""><div class="inspect-main"><div class="inspect-head"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close","×",{cls:"ghost icon",title:"Đóng thẻ"})+'</div>'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div>');
  }
  sidebar(){
   const s=this.sim,w=s.social.world,friend=s.social.current;
