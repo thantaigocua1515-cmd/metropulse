@@ -40,6 +40,14 @@ class UIController {
  icon(id){
   return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="img/hud.svg#'+id+'"/></svg>';
  }
+ refreshCloud(){
+  const cloud=this.sim.cloud,state=!cloud?.enabled?"local":cloud.status;
+  const who=cloud?.online&&cloud.account?(cloud.account.username||"Khách")+" · ":"";
+  const label="Tài khoản · "+who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state]||"Tài khoản");
+  this.html("cloud",this.icon(state==="syncing"||state==="synced"?"cloud":"cloud-off"));
+  const button=this.nodes.cloud;
+  button.dataset.state=state;button.title=label;button.setAttribute("aria-label",label);
+ }
  // Chân dung lấy từ bộ ảnh trong img/npc (01–36).
  avatar(n,cls=""){
   const id=Number.isInteger(n)&&n>=1&&n<=CONFIG.avatars.count?n:CONFIG.avatars.fallback;
@@ -224,22 +232,19 @@ class UIController {
    this.utility("water","Nước",fmt(m.ws)+" / "+fmt(m.wd),coverage(m.ws,m.wd),m.ws<m.wd,"Nước · Cung cấp / Nhu cầu")
   ].join(""));
   const t=Math.floor(s.world.timeOfDay*1440),phase=t<360||t>=1140?"Đêm":t<660?"Buổi sáng":t<960?"Buổi trưa":"Hoàng hôn",weather=CONFIG.weather[s.world.weather];
-  this.html("clock",this.icon(s.world.weather==="storm"?"storm":phase==="Đêm"?"moon":"sun")+'<b>'+String(Math.floor(t/60)).padStart(2,"0")+':'+String(t%60).padStart(2,"0")+'</b><small>'+phase+' · '+weather[1]+'</small>');
+  this.html("clock",this.icon(s.world.weather!=="sunny"?s.world.weather:phase==="Đêm"?"moon":"sun")+'<b>'+String(Math.floor(t/60)).padStart(2,"0")+':'+String(t%60).padStart(2,"0")+'</b><small>'+phase+' · '+weather[1]+'</small>');
   this.html("sound",this.icon(s.audio.enabled?"sound":"mute"));this.nodes.sound.setAttribute("aria-pressed",String(s.audio.enabled));
-  const cloud=s.cloud,state=!cloud?.enabled?"local":cloud.status;
-  const who=cloud?.online&&cloud.account?(cloud.account.username||"Khách")+" · ":"";
-  const cloudLabel=who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state]||"Tài khoản");
-  this.html("cloud",this.icon("cloud"));this.nodes.cloud.dataset.state=state;
-  this.nodes.cloud.title="Tài khoản · "+cloudLabel;this.nodes.cloud.setAttribute("aria-label",this.nodes.cloud.title);
+  this.nodes.sound.title=s.audio.enabled?"Tắt âm thanh":"Bật âm thanh";
+  this.refreshCloud();
   this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
   const dots={missions:badges.missions,research:badges.research};
   this.html("action-rail",[
-   ["missions","Nhiệm vụ","target"],["research","Nghiên cứu","flask"],["policies","Sắc lệnh","policy"],["social","Bạn bè","social"],["teams","Đội NPC","crew"]
+   ["missions","Nhiệm vụ","checklist"],["research","Nghiên cứu","flask"],["policies","Sắc lệnh","policy"],["social","Bạn bè","social"],["teams","Đội NPC","crew"]
   ].map(([id,name,icon])=>this.gameButton(id,name,icon,{count:dots[id],active:this.dialogType===id})).join(""));
   this.html("build-tools",[
-   this.gameButton("build","Xây dựng","shop",{shop:true,active:this.catalogOpen||this.tool==="build",disabled:!own}),
+   this.gameButton("build","Xây dựng","crane",{shop:true,active:this.catalogOpen||this.tool==="build",disabled:!own}),
    this.gameButton("move","Di chuyển","move",{active:this.tool==="move",disabled:!own}),
    this.gameButton("demo","Phá dỡ","demo",{active:this.tool==="demo",disabled:!own})
   ].join(""));
@@ -352,7 +357,7 @@ class UIController {
   node.hidden=!!s.social.current;if(node.hidden)return;
   const chapter=s.prog.chapter(),claimed=chapter?.quests.filter(q=>s.progress.story.claimed.includes(q.id)).length||0;
   const summary=chapter?chapter.title:"Đô thị kiểu mẫu";
-  const header=this.btn("quest-toggle",this.icon("target")+'<span><small>THEO DÕI CỐT TRUYỆN</small><b>'+summary+'</b></span>'+
+  const header=this.btn("quest-toggle",this.icon("story")+'<span><small>THEO DÕI CỐT TRUYỆN</small><b>'+summary+'</b></span>'+
    (chapter?'<i>'+claimed+'/'+chapter.quests.length+'</i>':"")+'<span class="quest-chevron" aria-hidden="true"></span>',{cls:"quest-toggle",expanded:this.questOpen,label:"Theo dõi cốt truyện · "+summary+(badges.story?" · "+badges.story+" phần thưởng":"")});
   const list=this.questOpen&&chapter?chapter.quests.map(q=>({q,st:s.prog.questState(q)})).filter(x=>!x.st.claimed).sort((a,b)=>b.st.done-a.st.done).slice(0,1):[];
   const body=list.map(({q,st})=>'<div class="quest'+(st.done?" ready":"")+'"><b>'+q.name+'</b><small>'+q.desc+'</small>'+

@@ -41,3 +41,28 @@ test("quest tracker expands, prioritizes claimable quests, and hides during visi
   ui.refresh();
   assert.equal(tracker.hidden, false);
 });
+
+test("cloud status has distinct connected and disconnected icons and accessible labels", () => {
+  const ui = Object.create(UIController.prototype);
+  const button = { dataset: {}, setAttribute(name, value) { this[name] = value; } };
+  ui.nodes = { cloud: button };
+  ui.sim = { cloud: { enabled: true, online: true, account: {}, status: "syncing" } };
+  for (const [state, icon, label] of [
+    ["syncing", "cloud", "Đang đồng bộ"],
+    ["synced", "cloud", "Đã đồng bộ"],
+    ["offline", "cloud-off", "Ngoại tuyến"],
+    ["error", "cloud-off", "Lỗi đồng bộ"],
+    ["expired", "cloud-off", "Hết phiên"]
+  ]) {
+    ui.sim.cloud.status = state;
+    ui.refreshCloud();
+    assert.ok(button.innerHTML.includes('href="img/hud.svg#' + icon + '"'));
+    assert.equal(button.dataset.state, state);
+    assert.ok(button["aria-label"].includes(label));
+    assert.equal(button.title, button["aria-label"]);
+  }
+  ui.sim.cloud = { enabled: false, online: false, account: null };
+  ui.refreshCloud();
+  assert.ok(button.innerHTML.includes('href="img/hud.svg#cloud-off"'));
+  assert.equal(button.title, "Tài khoản · Lưu trên máy");
+});
