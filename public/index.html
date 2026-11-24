@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#122120">
+<meta name="description" content="MetroPulse — Nhịp Đập Đô Thị: game xây dựng thành phố isometric, xử lý sự cố theo thời gian thực.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23122120'/%3E%3Cpath d='M8 37h11l7-19 11 30 7-11h12' fill='none' stroke='%23d1fb8b' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>MetroPulse · Nhịp Đập Đô Thị</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="map" aria-label="Bản đồ đẳng phối thành phố"></canvas>
+<div id="hud">
+ <header class="topbar glass">
+  <div class="brand"><span id="logo" class="logo"></span><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
+  <div id="stats" class="stats" aria-label="Chỉ số đô thị"></div>
+  <div class="topright">
+   <div id="clock" class="clock"></div>
+   <button id="cloud" class="cloud" data-act="profile" data-id="account" title="Tài khoản và lưu đám mây"></button>
+   <button id="help" class="icon" data-act="help" aria-label="Cẩm nang" title="Cẩm nang Thị trưởng"></button>
+   <button id="sound" class="icon" data-act="sound" aria-label="Âm thanh" title="Âm thanh"></button>
+   <button id="settings" class="icon" data-act="profile" data-id="settings" aria-label="Cài đặt" title="Cài đặt"></button>
+  </div>
+ </header>
+ <button id="profile" class="profile glass" data-act="profile" data-id="me" title="Hồ sơ Thị trưởng"></button>
+ <div id="maplabel" class="maplabel"></div>
+ <div id="visit" class="visit interactive" hidden></div>
+ <section id="side" class="side glass interactive" aria-label="Danh mục xây dựng" hidden>
+  <div class="side-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="icon ghost" data-act="close-build" aria-label="Đóng bản vẽ">×</button></div>
+  <div id="filters" class="filter"></div><div id="catalog" class="catalog"></div>
+  <div class="side-foot">Chọn bản vẽ rồi chạm ô đất sáng để đặt.</div>
+ </section>
+ <aside id="right" class="right" aria-label="Điều hành thành phố"></aside>
+ <section id="inspect" class="inspect glass interactive" hidden></section>
+ <div id="fab" class="fab"></div>
+ <div class="camera glass"><button data-act="zoom-out" aria-label="Thu nhỏ">−</button><output id="zoom">100%</output><button data-act="zoom-in" aria-label="Phóng to">+</button><button data-act="center" id="center" aria-label="Về giữa bản đồ" title="Về giữa bản đồ"></button></div>
+ <div id="hint" class="hint"></div>
+ <div id="toast" class="toast glass" role="status" hidden></div>
+ <div id="coach" class="coach" hidden></div>
+ <footer class="bottom glass"><div class="news"><b>● BẢN TIN ĐÔ THỊ</b><div class="news-window"><span id="news"></span></div></div><nav id="dock" class="dock" aria-label="Công cụ thành phố"></nav></footer>
+</div>
+<div id="scene" class="scene" hidden><div id="scene-body" class="scene-body"></div></div>
+<dialog id="dialog"><div class="dialog-head"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="icon ghost" data-act="close-dialog" aria-label="Đóng hộp thoại">×</button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<div id="boot" class="boot"><div><b>MetroPulse</b><small>Đang mở cổng thành phố…</small></div></div>
+<script src="js/config.js"></script>
+<script src="js/content.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/core.js"></script>
+<script src="js/simulation.js"></script>
+<script src="js/crisis.js"></script>
+<script src="js/progression.js"></script>
+<script src="js/social.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/ui-input.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/ui-dialogs.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

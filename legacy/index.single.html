@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#122120">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23122120'/%3E%3Cpath d='M8 37h11l7-19 11 30 7-11h12' fill='none' stroke='%23d1fb8b' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
+<title>MetroPulse · Nhịp Đập Đô Thị</title>
+<style>
+:root{color-scheme:dark;--ink:#edf5e9;--muted:#a6b9ae;--line:#3a5048;--panel:rgba(19,35,32,.94);--mint:#d1fb8b;--teal:#9ae4cb;--gold:#ffce77;--danger:#ffada0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#1a3835;color:var(--ink)}button,input,textarea{font:inherit;color:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:9px;background:#263b35;padding:8px 11px;font-weight:650;white-space:nowrap}button:hover:not(:disabled){border-color:#a6d394;background:#354e42}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--mint);outline-offset:2px}button:disabled{opacity:.48;cursor:not-allowed}button.primary{background:var(--mint);color:#192517;border-color:transparent}button.primary:hover:not(:disabled){background:#e4ffb4}button.ghost{background:transparent}button.danger{color:var(--danger)}button.active{background:#344d3a;border-color:#94bd76;color:var(--mint)}button.icon{min-width:36px;padding:7px 9px}svg{width:19px;height:19px;vertical-align:-4px;flex:none}h1,h2,h3,p{margin:0}small,.muted{color:var(--muted)}strong{font-weight:750}.eyebrow{font-size:10px;letter-spacing:.16em;font-weight:800;text-transform:uppercase;color:var(--teal)}.gold{color:var(--gold)}.mint{color:var(--mint)}.warn{color:var(--danger)}[hidden]{display:none!important}
+#map{position:fixed;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}#map.build{cursor:crosshair}#map.drag{cursor:grabbing}#hud{position:fixed;inset:0;pointer-events:none}#hud button,#hud input,#hud textarea,#hud .interactive{pointer-events:auto}
+.glass{background:var(--panel);border:1px solid var(--line);box-shadow:0 13px 34px #0915125c;backdrop-filter:blur(14px)}.topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:16px;padding:11px 19px;border-width:0 0 1px;min-height:65px}.brand{display:flex;align-items:center;gap:10px;flex:none}.logo{display:grid;place-items:center;width:36px;height:36px;background:var(--mint);color:#223422;border-radius:10px;box-shadow:0 0 22px #d1fb8b24}.logo svg{width:24px;height:24px}.brand b{font-size:17px;letter-spacing:-.04em;display:block;line-height:1.1}.brand small{font-size:9px;letter-spacing:.12em;text-transform:uppercase}.stats{flex:1;min-width:0;display:flex;justify-content:center;gap:clamp(8px,1.55vw,28px);align-items:center}.stat{display:grid;grid-template-columns:auto auto;align-items:center;gap:0 7px;white-space:nowrap;min-width:0}.stat svg{grid-row:span 2;width:17px;height:17px;color:var(--teal)}.stat label{color:var(--muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}.stat b{line-height:1.25;font-variant-numeric:tabular-nums}.stat em{color:var(--mint);font-size:10px;font-style:normal;margin-left:4px}.topright{display:flex;align-items:center;gap:7px}.clock{padding-right:8px;text-align:right;white-space:nowrap}.clock b,.clock small{display:block}.clock b{font-size:12px}.clock small{font-size:10px}
+.profile{position:absolute;top:83px;left:17px;width:252px;padding:12px;border-radius:12px;display:flex;gap:10px;text-align:left}.profile-avatar{width:34px;height:34px;border-radius:9px;background:#385649;display:grid;place-items:center;color:var(--teal);flex:none}.profile-meta{min-width:0;flex:1}.profile-meta b{display:block;overflow:hidden;text-overflow:ellipsis}.profile-meta small{font-size:10px}.bar{height:4px;border-radius:10px;background:#ffffff22;overflow:hidden;margin-top:5px}.bar i{height:100%;display:block;background:var(--mint);border-radius:inherit}.bar.danger i{background:#ff9073}.bar.blue i{background:#87c9ff}
+.maplabel{position:absolute;top:91px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;text-shadow:0 2px 8px #0b201b}.maplabel h1{font-size:22px;line-height:1.1;letter-spacing:-.035em}.maplabel small{font-size:10px;color:#c8e4d6;letter-spacing:.13em;text-transform:uppercase}.visit{position:absolute;top:132px;left:50%;transform:translateX(-50%);background:#1e4463;color:#def0ff;border:1px solid #70b5e3;border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);z-index:2}.visit button{background:#2a5675;border-color:#6b9cc3}
+.side{position:absolute;top:157px;left:17px;width:252px;max-height:calc(100% - 263px);border-radius:13px;display:flex;flex-direction:column;overflow:hidden}.side-header{padding:14px 13px 10px;display:flex;justify-content:space-between;align-items:center;gap:5px}.side-header h2,.dialog-head h2{font-size:17px;letter-spacing:-.025em}.filter{display:flex;gap:5px;padding:0 11px 11px;flex-wrap:wrap}.filter button{font-size:10px;padding:4px 6px;border-radius:5px}.catalog{overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;min-height:0;padding:0 8px 8px}.blueprint{display:flex;width:100%;white-space:normal;align-items:center;text-align:left;padding:6px;gap:8px;margin-bottom:4px;border-radius:8px;background:#253832}.blueprint img{width:38px;height:34px;object-fit:contain;border-radius:6px;background:#162a25;flex:none}.blueprint b,.blueprint small{display:block}.blueprint b{font-size:11px;line-height:1.2}.blueprint small{font-size:9px;margin-top:3px}.blueprint .price{margin-left:auto;font-size:11px;white-space:nowrap}.blueprint.locked{background:transparent;color:#a1b4ab}.blueprint.locked img{opacity:.45}.side-foot{color:var(--muted);padding:8px 11px;border-top:1px solid var(--line);font-size:10px}
+.right{position:absolute;top:84px;right:17px;width:225px;display:grid;gap:8px;max-height:calc(100% - 185px);overflow:auto;scrollbar-width:thin}.mission,.incident,.inspect{padding:12px;border-radius:12px}.mission h3,.incident h3{font-size:13px;margin:4px 0 5px}.mission p,.incident p{font-size:11px;color:var(--muted);margin-bottom:7px}.mission button,.incident button{width:100%;font-size:11px;margin-top:6px}.incident{border-color:#7d5148}.incident .eyebrow{color:var(--danger)}.inspect{position:absolute;right:17px;bottom:153px;width:225px;max-height:45%;overflow:auto}.inspect h3{font-size:14px}.inspect .actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.inspect .actions button{font-size:11px;padding:6px 8px}
+.camera{position:absolute;bottom:121px;right:17px;display:flex;gap:4px;padding:4px;border-radius:9px}.camera button{padding:5px 8px;background:transparent}.camera output{width:44px;display:grid;place-items:center;color:var(--muted);font-size:10px}.hint{position:absolute;bottom:123px;left:17px;color:#deede3;background:#132522c9;border:1px solid #577267;border-radius:7px;padding:5px 8px;font-size:11px;max-width:60%;text-shadow:0 1px #111}.bottom{position:absolute;bottom:0;left:0;right:0;padding:0 15px max(9px,env(safe-area-inset-bottom));background:linear-gradient(0deg,#132321 83%,#132321d9);border-width:1px 0 0}.news{height:29px;display:flex;align-items:center;gap:10px;overflow:hidden;border-bottom:1px solid var(--line)}.news b{font-size:9px;letter-spacing:.1em;color:var(--teal);white-space:nowrap}.news-window{overflow:hidden;flex:1;mask-image:linear-gradient(90deg,transparent,#000 3%,#000 96%,transparent)}.news span{display:inline-block;white-space:nowrap;min-width:100%;padding-left:2%;font-size:11px;color:#c9dbcf;animation:ticker 23s linear infinite}@keyframes ticker{0%,18%{transform:translateX(0)}90%,100%{transform:translateX(-100%)}}
+.dock{display:flex;justify-content:center;gap:7px;padding-top:8px;overflow:auto;scrollbar-width:thin}.dock button{background:transparent;position:relative;font-size:11px;padding:7px 12px;border-color:#2f453c}.dock button.active{background:#354b37;border-color:#7f9d68}.dock svg{margin-right:5px;width:16px;height:16px}.dock sup{display:inline-block;background:#ff9b82;width:7px;height:7px;border-radius:50%;position:absolute;top:4px;right:5px}.toast{position:absolute;left:50%;bottom:141px;transform:translateX(-50%);padding:9px 14px;border-radius:9px;text-align:center;max-width:calc(100% - 28px);z-index:5}
+dialog{margin:auto;background:#192d27;color:var(--ink);border:1px solid #4a6759;border-radius:17px;box-shadow:0 25px 95px #08130ecf;padding:0;width:min(560px,calc(100vw - 24px));max-height:79dvh}dialog::backdrop{background:#071410a6;backdrop-filter:blur(3px)}.dialog-head{position:sticky;top:0;z-index:2;background:#1c312a;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:13px 17px}.dialog-body{padding:15px 17px 18px}.dialog-body>p{margin-bottom:12px}.row{padding:10px;border:1px solid var(--line);border-radius:9px;margin:7px 0;display:flex;gap:9px;align-items:center;justify-content:space-between;background:#20362e}.row b,.row small{display:block}.row small{font-size:11px}.row .actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.row button{font-size:11px;padding:6px 8px}.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}.tabs button{font-size:11px}input,textarea{display:block;width:100%;margin:6px 0 10px;padding:9px;border:1px solid var(--line);background:#10221d;border-radius:7px}textarea{resize:vertical;min-height:65px}
+@media(max-width:1070px){.topbar{gap:9px;padding-inline:10px}.stats{gap:10px}.stat{gap:0 4px}.stat svg{width:14px;height:14px}.stat label{font-size:8px}.brand small{display:none}}
+@media(max-width:780px){.topbar{flex-wrap:wrap;gap:6px;padding:7px 10px;justify-content:space-between}.stats{order:3;flex-basis:100%;justify-content:flex-start;overflow-x:auto;padding:3px 0 2px;scrollbar-width:thin}.stat{flex:none}.stat b{font-size:11px}.logo{width:27px;height:27px}.logo svg{width:19px}.brand b{font-size:15px}.clock{padding-right:0}.topright button{padding:3px 6px}.profile{top:100px;left:8px;width:160px;padding:7px}.profile-avatar{width:25px;height:25px}.profile-meta b{font-size:11px}.maplabel{top:104px;left:auto;right:9px;transform:none;text-align:right}.maplabel h1{font-size:15px}.maplabel small{font-size:8px}.side{left:8px;top:auto;bottom:121px;width:185px;max-height:min(42dvh,calc(100% - 260px))}.side-header{padding:8px}.side-header h2{font-size:13px}.filter{padding:0 6px 6px;gap:3px}.filter button{font-size:9px;padding:3px 4px}.catalog{padding:0 4px}.blueprint{gap:4px;padding:4px}.blueprint img{width:28px;height:26px}.side-foot{display:none}.right{top:156px;right:8px;width:min(170px,43vw);max-height:35%}.mission,.incident,.inspect{padding:8px}.mission p,.incident p{font-size:10px}.inspect{right:8px;bottom:145px;width:min(180px,45vw)}.dock{justify-content:flex-start;gap:4px}.dock button{padding:6px 8px}.bottom{padding-inline:8px}.camera{right:8px;bottom:100px}.hint{left:8px;bottom:92px;max-width:54%;font-size:9px}.visit{top:147px;font-size:11px;gap:6px}.visit button{font-size:10px}.visit:not([hidden])~.right{top:201px}}
+@media(max-height:640px){.mission p{display:none}.news{height:22px}.camera{bottom:92px}.hint{bottom:93px}.side{max-height:calc(100% - 232px)}}
+@media(min-width:781px){.side{max-height:calc(100% - 310px)}}
+@media(prefers-reduced-motion:reduce){.news span{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="map" aria-label="Bản đồ đẳng phối thành phố"></canvas>
+<div id="hud">
+ <header class="topbar glass"><div class="brand"><span id="logo" class="logo"></span><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div><div id="stats" class="stats" aria-label="Chỉ số đô thị"></div><div class="topright"><div id="clock" class="clock"></div><button id="sound" class="icon" data-act="sound" aria-label="Âm thanh" title="Âm thanh"></button><button class="icon" id="settings" data-act="settings" aria-label="Lưu và cài đặt" title="Lưu và cài đặt"></button></div></header>
+ <button id="profile" class="profile glass" data-act="settings"></button>
+ <div id="maplabel" class="maplabel"><small>Bản đồ quy hoạch · MP</small><h1>Thành phố của tôi</h1></div>
+ <div id="visit" class="visit interactive" hidden></div>
+ <section id="side" class="side glass interactive" aria-label="Danh mục xây dựng"><div class="side-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="icon ghost" data-act="close-build" aria-label="Đóng bản vẽ">×</button></div><div id="filters" class="filter"></div><div id="catalog" class="catalog"></div><div class="side-foot">Chọn bản vẽ, rồi bấm vào một ô đất sáng.</div></section>
+ <aside id="right" class="right" aria-label="Điều hành thành phố"></aside>
+ <section id="inspect" class="inspect glass interactive" hidden></section>
+ <div class="camera glass"><button data-act="zoom-out" aria-label="Thu nhỏ">−</button><output id="zoom">100%</output><button data-act="zoom-in" aria-label="Phóng to">+</button><button data-act="center" id="center" aria-label="Về giữa bản đồ" title="Về giữa bản đồ"></button></div>
+ <div id="hint" class="hint"></div>
+ <div id="toast" class="toast glass" role="status" hidden></div>
+ <footer class="bottom glass"><div class="news"><b>● BẢN TIN ĐÔ THỊ</b><div class="news-window"><span id="news"></span></div></div><nav id="dock" class="dock" aria-label="Công cụ thành phố"></nav></footer>
+</div>
+<dialog id="dialog"><div class="dialog-head"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="icon ghost" data-act="close-dialog" aria-label="Đóng hộp thoại">×</button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<script>
+"use strict";
+
+const CONFIG = (() => {
+ const rows = [
+  ["road","Đường nhựa","infra",1,15,0,0,0,0,0,0,0,15,"#536365","Nối mạng lưới di chuyển."],
+  ["house_small","Nhà cấp 4","res",1,80,4,6,-2,-2,10,0,3,25,"#ed8b64","Nhà ở và nguồn thu thuế cơ bản."],
+  ["power_plant","Trạm Điện lực","svc",1,150,6,0,20,-2,0,0,2,35,"#dcae55","Cung cấp điện và điều phối Thợ Điện lực."],
+  ["water_tower","Tháp Nước","svc",1,150,6,0,-2,20,0,0,1,35,"#64bdd1","Cung cấp nước và điều phối Kỹ sư Cấp nước."],
+  ["mini_mart","Tiệm Tạp hóa","com",2,220,8,18,-4,-3,0,2,4,45,"#f2a871","Tăng thu nhập và Hạnh phúc."],
+  ["apartment","Chung cư mini","res",3,400,12,25,-6,-6,35,0,10,60,"#e0b282","Nhà ở mật độ cao."],
+  ["fire_station","Trạm Cứu hỏa","svc",3,450,10,0,-4,-6,0,3,2,65,"#e76b62","Giảm rủi ro cháy; mở đội Cứu hỏa."],
+  ["police_station","Đồn Công an","svc",4,550,12,0,-5,-4,0,5,2,75,"#76a9e1","Giảm kẹt xe; mở đội Cảnh sát Giao thông."],
+  ["night_market","Chợ Đêm","com",4,700,15,55,-8,-6,0,4,12,90,"#e898b0","Thu nhập cao, tạo nhiều lưu lượng và rác."],
+  ["park","Công viên Xanh","special",5,500,8,5,-1,-4,0,12,-8,80,"#8bc66d","Tăng Hạnh phúc, xử lý 8 rác."],
+  ["construction_hq","Công ty Xây dựng","svc",5,850,15,10,-6,-4,0,0,4,100,"#e4aa59","Giảm 10% thời gian xây; mở đội Xây dựng."],
+  ["hospital","Bệnh viện Đa khoa","svc",6,1200,18,0,-10,-10,0,10,4,120,"#e0e6dc","Phòng dịch; mở đội Y tế."],
+  ["waste_plant","Trạm Xử lý Rác","svc",6,1100,16,15,-8,-6,0,4,-25,115,"#a6b87a","Xử lý 25 rác; mở đội Môi trường."],
+  ["office_tower","Khu Văn phòng","com",7,2000,25,140,-15,-10,50,0,10,140,"#7ab6c5","Nguồn thu lớn nhưng tiêu thụ nhiều điện."],
+  ["solar_plant","Nhà máy Điện Mặt trời","infra",7,2200,22,20,55,0,0,5,1,145,"#86abe5","Nguồn điện sạch, giảm nguy cơ quá tải."],
+  ["mall","Trung tâm Thương mại","com",8,3800,30,280,-22,-16,0,8,15,165,"#cc9cdd","Nguồn thu chủ lực, lượng rác cao."],
+  ["cyber_hub","Trung tâm An ninh Mạng","svc",9,5000,28,60,-20,-6,0,6,5,180,"#75d3b7","Giảm nguy cơ tấn công mạng; mở đội IT."],
+  ["tech_tower","Tòa tháp Công nghệ","special",10,8500,40,620,-35,-18,100,0,18,205,"#70cdd1","Lợi nhuận rất cao, dễ gặp sự cố mạng."],
+  ["trade_port","Cảng Giao thương","special",11,14000,50,950,-30,-20,0,10,14,225,"#d6ae71","Tăng 25% phần thưởng chi viện."],
+  ["metro_wonder","Kỳ quan Đô thị","special",12,25000,60,1800,-40,-30,0,25,8,250,"#e6cef7","Tăng 20% tổng thu nhập thành phố."]
+ ];
+ const buildings = Object.fromEntries(rows.map(([id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc])=>[id,{id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc}]));
+ const incidents = [
+  ["blackout","Mất điện diện rộng","power_plant","Thợ Điện lực","ϟ","#ffce68","−50% doanh thu quanh điểm mất điện; không thể xây cạnh đó.",45,120,0,45,"Cư dân đang ăn cơm dưới ánh nến vì mất điện!"],
+  ["water_leak","Vỡ ống / Cúp nước","water_tower","Kỹ sư Cấp nước","≈","#7cdaff","−2% Hạnh phúc mỗi 5 giây.",45,0,0,45,"Vỉa hè bất ngờ biến thành đài phun nước."],
+  ["collapse","Sập giàn giáo / Nứt tường","construction_hq","Kỹ sư Xây dựng","!","#ffc199","Đóng băng thi công; quá hạn tốn 10% giá trị để phục hồi.",80,0,0,45,"Đội thi công tạm nghỉ vì giàn giáo gặp sự cố."],
+  ["traffic_jam","Kẹt xe / Tai nạn","police_station","Cảnh sát Giao thông","↔","#94aaff","−30% thu nhập thương mại; xe qua đây chậm 60%.",65,0,0,45,"Tắc đường: còi xe đang tranh giải dàn nhạc thành phố."],
+  ["fire","Hỏa hoạn cục bộ","fire_station","Lính Cứu hỏa","▲","#ff8d63","Mất toàn bộ thu nhập tại chỗ; có thể lan sau 45 giây.",100,0,2,45,"Khói bốc cao, đội phản ứng đang chờ lệnh xuất phát!"],
+  ["trash_pile","Quá tải rác / Ô nhiễm","waste_plant","Nhân viên Môi trường","✦","#bdd77e","−10% Hạnh phúc; khu dân cư ngừng cộng XP.",75,150,0,50,"Người dân xin đừng biến vỉa hè thành bãi rác."],
+  ["flu_outbreak","Dịch cúm mùa","hospital","Đội Y tế / Bác sĩ","✚","#ff9f9f","−25% năng suất toàn thành phố; Hạnh phúc giảm.",110,0,0,50,"Khẩu trang trở lại, thành phố cần đội y tế."],
+  ["cyber_attack","Tấn công mạng","cyber_hub","Kỹ sư IT","⌘","#8dffb1","Đóng băng doanh thu Văn phòng và Công nghệ.",180,0,4,55,"Máy chủ báo gián đoạn; đội IT đang chờ điều phối."]
+ ];
+ const crises = Object.fromEntries(incidents.map(([id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news])=>[id,{id,name,hq,npc,icon,color,penalty,xp,coins,prestige,danger,news}]));
+ const npcs = Object.fromEntries(Object.values(crises).map(c=>[c.hq,{name:c.npc,icon:c.icon,color:c.color}]));
+ const vehicles = [
+  {name:"Đi bộ",speed:1.8,repair:10},{name:"Xe đạp / Xe đẩy",speed:2.4,repair:8},
+  {name:"Xe máy chuyên dụng",speed:3.2,repair:6},{name:"Xe tải kỹ thuật",speed:4,repair:4.5},
+  {name:"Xe phản ứng nhanh",speed:5.2,repair:3}
+ ];
+ const policies = {
+  overtime:{name:"Tăng ca Thần tốc",desc:"Giảm 35% thời gian xây. Nguy cơ mất điện và sập giàn giáo +25%.",duration:120,cooldown:180,cost:0},
+  festival:{name:"Lễ hội Đường phố",desc:"Tăng 50% thu nhập toàn thành phố, nhưng lượng rác sinh ra gấp đôi.",duration:90,cooldown:180,cost:0},
+  green:{name:"Chiến dịch Đô thị Xanh",desc:"Tăng 20% Hạnh phúc và giảm 50% xác suất sự cố.",duration:120,cooldown:180,cost:2}
+ };
+ const milestones = [
+  ["roots","Đặt nền móng","Hoàn thành 2 Nhà cấp 4 và 1 Trạm Điện lực.",150,100,1,s=>s.count("house_small")>=2&&s.count("power_plant")>=1],
+  ["streets","Mạng lưới đầu tiên","Nối liền ít nhất 5 ô Đường nhựa.",180,110,1,s=>s.roadChain()>=5],
+  ["lights","Tiện nghi cơ bản","Hoàn thành một Tháp Nước.",180,120,1,s=>s.count("water_tower")>=1],
+  ["rescue","Phản ứng đầu tiên","Xử lý thành công một sự cố tại thành phố mình.",250,150,2,s=>s.stats.crisesSolved>=1],
+  ["market","Thành phố làm ăn","Đạt 50 Vàng/giây.",400,180,2,s=>s.stats.peakIncome>=50],
+  ["crew","Đội ngũ chuyên nghiệp","Nâng cấp một đội NPC lên cấp 2.",500,200,2,s=>s.stats.npcLevel>=2],
+  ["friend","Hàng xóm nghĩa tình","Thăm và hoàn thành một lượt chi viện.",700,240,2,s=>s.profile.helpsGiven>=1],
+  ["green","Khoảng trời xanh","Xây Công viên Xanh và đạt 115% Hạnh phúc.",800,270,3,s=>s.count("park")&&s.metrics.happiness>=115],
+  ["mayor","Một quyết định lớn","Ban hành ít nhất một sắc lệnh.",900,300,3,s=>s.stats.policies>=1],
+  ["citizens","Đô thị đông vui","Đạt dân số 100 người.",1100,350,3,s=>s.metrics.pop>=100],
+  ["skyline","Vươn lên bầu trời","Hoàn thành một Khu Văn phòng.",1600,400,4,s=>s.count("office_tower")>=1],
+  ["wonder","Dấu ấn để đời","Xây xong Kỳ quan Đô thị.",4000,500,5,s=>s.count("metro_wonder")>=1]
+ ].map(([id,name,desc,coins,xp,prestige,test])=>({id,name,desc,coins,xp,prestige,test}));
+ return {buildings,crises,npcs,vehicles,policies,milestones,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:5,maxLevel:5,crisisInterval:12,key:"metropulse_save_v1",
+  xpNext:level=>Math.floor(100*level**1.55),upgrade:(b)=>Math.ceil(buildings[b.id].price*1.6**b.level),
+  scale:level=>1+.35*(level-1),radius:level=>Math.min(8,4+Math.floor((level-1)/2)),
+  groups:{all:"Tất cả",infra:"Hạ tầng",res:"Dân cư",com:"Thương mại",svc:"Dịch vụ/NPC",special:"Đặc biệt"},
+  weather:{sunny:["☀","Nắng đẹp"],heat:["◉","Nắng gắt"],storm:["☂","Mưa bão"]}
+ };
+})();
+
+class AudioEngine {
+ constructor(){this.enabled=true;this.context=null}
+ unlock(){try{const Audio=window.AudioContext||window.webkitAudioContext;if(!this.context&&Audio)this.context=new Audio();if(this.context?.state==="suspended")this.context.resume().catch(()=>{});}catch(_){}}
+ play(kind){
+  const c=this.context;if(!this.enabled||!c||c.state!=="running")return;
+  const score={click:[[440,0,.07,"sine"]],build:[[135,0,.18,"triangle"],[260,.04,.12,"sine"]],money:[[530,0,.12],[670,.08,.12],[795,.16,.19]],level:[[392,0,.17],[523,.08,.2],[659,.16,.2],[784,.24,.32]],alarm:[[450,0,.16,"triangle"],[580,.23,.18,"triangle"]],repair:[[740,0,.18],[990,.10,.25]]};
+  for(const [frequency,delay,length,wave="sine"] of score[kind]||[]){
+   const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+delay;o.type=wave;o.frequency.value=frequency;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(kind==="click"?.025:.085,t+.014);g.gain.exponentialRampToValueAtTime(.001,t+length);o.connect(g).connect(c.destination);o.start(t);o.stop(t+length+.01);
+  }
+ }
+}
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const coord=(x,y)=>y*CONFIG.size+x;
+const steps=[[1,0],[-1,0],[0,1],[0,-1]];
+const inside=(x,y)=>x>=0&&y>=0&&x<16&&y<16;
+const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+const unlocked=(w,x,y)=>inside(x,y)&&x>=8-w.unlockedRadius&&x<8+w.unlockedRadius&&y>=8-w.unlockedRadius&&y<8+w.unlockedRadius;
+const lookup=(w,x,y)=>inside(x,y)?w.index.get(coord(x,y)):undefined;
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const today=()=>new Date().toLocaleDateString("sv-SE");
+const fmt=(v,d=0)=>Number(v).toLocaleString("vi-VN",{maximumFractionDigits:d,minimumFractionDigits:d});
+const timer=v=>Math.ceil(Math.max(0,v)/60)+ " phút";
+const htm=value=>String(value).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const makeBuilding=(id,x,y,level=1,left=0)=>({id,x,y,level,left,total:left,age:0,crew:1,teamLevel:1});
+const makeWorld=(buildings=[],level=1,rest={})=>({gridSize:16,unlockedRadius:CONFIG.radius(level),timeOfDay:.30,weather:"sunny",weatherClock:0,activePolicy:null,policyCooldowns:{},npcs:[],crises:[],crisisClock:0,speedBuff:0,immunity:0,happyDelta:0,...rest,buildings,index:new Map(buildings.map(b=>[coord(b.x,b.y),b]))});
+
+class IsoMath {
+ static gridToScreen(x,y,c){return {x:(x-y)*CONFIG.tileW/2*c.zoom+c.x,y:(x+y)*CONFIG.tileH/2*c.zoom+c.y}}
+ static screenToGrid(x,y,c){
+  const a=(x-c.x)/(CONFIG.tileW/2*c.zoom),b=(y-c.y)/(CONFIG.tileH/2*c.zoom);
+  return {x:Math.floor((a+b)/2+1e-9),y:Math.floor((b-a)/2+1e-9)};
+ }
+}
+
+class Pathfinding {
+ static route(w,start,goal){
+  if(!unlocked(w,start.x,start.y)||!unlocked(w,goal.x,goal.y))return null;
+  const startKey=coord(start.x,start.y),end=coord(goal.x,goal.y),cost=new Float64Array(256).fill(Infinity),parent=new Int16Array(256).fill(-1);
+  let open=[{key:startKey,g:0,f:distance(start,goal)}];cost[startKey]=0;
+  while(open.length){
+   open.sort((a,b)=>b.f-a.f||a.g-b.g);const {key,g}=open.pop();if(g!==cost[key])continue;
+   if(key===end){
+    const path=[];for(let k=end;k!==-1;k=parent[k])path.push({x:k%16,y:k>>4});
+    return {path:path.reverse(),cost:g,offroad:path.some((p,i)=>i>0&&i<path.length-1&&!lookup(w,p.x,p.y))};
+   }
+   for(const [dx,dy] of steps){
+    const x=key%16+dx,y=(key>>4)+dy;if(!unlocked(w,x,y))continue;
+    const k=coord(x,y),b=lookup(w,x,y);if(k!==end&&b&&b.id!=="road")continue;
+    const next=g+(b?1:4);if(next>=cost[k])continue;cost[k]=next;parent[k]=key;
+    open.push({key:k,g:next,f:next+distance({x,y},goal)});
+   }
+  }
+  return null;
+ }
+}
+
+class SimulationEngine {
+ constructor(data,audio){
+  this.audio=audio;this.profile=data.profile;this.world=makeWorld(data.world.buildings,this.profile.level,data.world);
+  this.milestones=data.milestones;this.stats=this.milestones.stats;this.particles=[];this.news=[];this.elapsed=0;this.metrics=this.measure(this.world);this.storage=null;
+ }
+ active(w=this.world){return w.buildings.filter(b=>b.left<=0)}
+ count(id,w=this.world){return this.active(w).filter(b=>b.id===id).length}
+ roadChain(){
+  const visited=new Set();let best=0;
+  for(const b of this.active())if(b.id==="road"&&!visited.has(b)){
+   const stack=[b];visited.add(b);let n=0;
+   while(stack.length){const r=stack.pop();n++;for(const [dx,dy] of steps){const next=lookup(this.world,r.x+dx,r.y+dy);if(next?.id==="road"&&!visited.has(next)){visited.add(next);stack.push(next)}}}
+   best=Math.max(best,n);
+  }return best;
+ }
+ measure(w,level=this.profile.level){
+  const m={ps:0,pd:0,ws:0,wd:0,waste:0,pop:0,happiness:100,commerce:0,roads:0,income:0,level,construction:0};
+  const has=id=>w.crises.some(c=>c.id===id),policy=w.activePolicy?.id;
+  let earnings=0,wonder=false;
+  for(const b of w.buildings){
+   if(b.left>0){m.construction++;continue}
+   const d=CONFIG.buildings[b.id],prod=this.production(b,w);
+   if(d.power>0)m.ps+=d.power;else m.pd-=d.power;
+   if(d.water>0)m.ws+=d.water;else m.wd-=d.water;
+   m.waste+=d.waste*(d.waste>0&&policy==="festival"?2:1);m.pop+=d.pop;
+   m.happiness+=d.happy;m.commerce+=d.group==="com"?1:0;m.roads+=b.id==="road"?1:0;
+   earnings+=prod;wonder||=b.id==="metro_wonder";
+  }
+  m.happiness=clamp((m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0))*(policy==="green"?1.2:1),20,150);
+  const globalPenalty=Math.max(.1,w.crises.reduce((f,c)=>f*(c.id==="flu_outbreak"?.75:1),1));
+  m.income=(CONFIG.baseIncome+earnings)*m.happiness/100*globalPenalty*(policy==="festival"?1.5:1)*(wonder?1.2:1);
+  return m;
+ }
+ production(b,w){
+  if(b.left>0||w.crises.some(c=>c.id==="fire"&&distance(c,b)===0))return 0;
+  if((b.id==="office_tower"||b.id==="tech_tower")&&w.crises.some(c=>c.id==="cyber_attack"))return 0;
+  const d=CONFIG.buildings[b.id],factor=w.crises.reduce((f,c)=>f*(c.id==="blackout"&&distance(c,b)<=1?.5:c.id==="traffic_jam"&&d.group==="com"?.7:1),1);
+  return d.income*CONFIG.scale(b.level)*Math.max(.1,factor);
+ }
+ say(message){this.news.unshift(message);this.news.length=Math.min(12,this.news.length)}
+ float(x,y,text,color="#d1fb8b"){this.particles.push({x,y,text,color,life:0})}
+ gainXP(amount){
+  const p=this.profile;p.xp+=amount;
+  while(p.xp>=CONFIG.xpNext(p.level)){
+   p.xp-=CONFIG.xpNext(p.level);p.level++;p.coins+=150*p.level;p.prestige+=5;this.world.unlockedRadius=CONFIG.radius(p.level);
+   this.audio.play("level");this.say("Bản tin đặc biệt: "+p.mayorName+" đã đưa thành phố lên cấp "+p.level+"!");
+  }
+ }
+ placement(id,x,y,existing=null){
+  const w=this.world,d=CONFIG.buildings[id];
+  if(!d)return "Chưa chọn bản vẽ.";
+  if(!unlocked(w,x,y))return "Đất chưa mở khóa. Hãy lên cấp để mở rộng.";
+  if(lookup(w,x,y))return "Ô này đã có công trình.";
+  if(this.profile.level<d.unlock)return "Bản vẽ mở ở cấp "+d.unlock+".";
+  if(!existing&&this.profile.coins<d.price)return "Không đủ Vàng.";
+  if(w.crises.some(c=>c.id==="blackout"&&distance(c,{x,y})<=1))return "Không thể xây cạnh khu vực mất điện.";
+  return "";
+ }
+ build(id,x,y){
+  const error=this.placement(id,x,y);if(error)return error;
+  const d=CONFIG.buildings[id],b=makeBuilding(id,x,y,1,d.duration);this.profile.coins-=d.price;
+  this.world.buildings.push(b);this.world.index.set(coord(x,y),b);this.audio.play("build");
+  if(b.left===0)this.finish(b);
+  this.storage.save();return "";
+ }
+ finish(b){
+  b.left=0;this.stats.buildingsBuilt++;if(b.id==="road")this.stats.roadsBuilt++;
+  const d=CONFIG.buildings[b.id],xp=d.group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")?0:d.xp;
+  if(xp){this.gainXP(xp);this.float(b.x,b.y,"+"+xp+" XP")}
+  if(b.id!=="road")this.say(d.name+" đã chính thức đi vào hoạt động.");
+ }
+ upgrade(b){
+  if(b.left>0)return "Hãy chờ xây xong.";
+  if(b.level>=CONFIG.maxLevel)return "Công trình đã đạt cấp tối đa.";
+  const price=CONFIG.upgrade(b);if(this.profile.coins<price)return "Không đủ Vàng.";
+  this.profile.coins-=price;b.level++;if(!(CONFIG.buildings[b.id].group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")))this.gainXP(20*b.level);
+  this.audio.play("build");this.float(b.x,b.y,"Cấp "+b.level);this.storage.save();return "";
+ }
+ accelerate(b){
+  if(b.left<=0)return "Công trình đã hoàn thành.";
+  if(this.world.crises.some(c=>c.id==="collapse"&&distance(c,b)===0))return "Cần sửa sự cố trước khi tăng tốc.";
+  if(this.profile.prestige<1)return "Cần 1 Điểm Uy tín.";
+  this.profile.prestige--;this.finish(b);this.audio.play("build");this.storage.save();return "";
+ }
+ canAlter(b){return !this.world.crises.some(c=>distance(c,b)===0)&&!this.world.npcs.some(n=>distance(n.home,b)===0)&&!this.social?.friends().some(f=>f.world.npcs.some(n=>n.assist&&distance(n.source,b)===0))}
+ demolish(b){
+  if(!this.canAlter(b))return "Không thể phá khi đang có sự cố hoặc đội đang làm nhiệm vụ.";
+  this.profile.coins+=CONFIG.buildings[b.id].price*.5;this.world.buildings.splice(this.world.buildings.indexOf(b),1);this.world.index.delete(coord(b.x,b.y));this.audio.play("build");this.storage.save();return "";
+ }
+ move(b,x,y){
+  if(!this.canAlter(b))return "Không thể di chuyển khi đang có sự cố hoặc đội đang làm nhiệm vụ.";
+  const error=this.placement(b.id,x,y,b);if(error)return error;
+  this.world.index.delete(coord(b.x,b.y));b.x=x;b.y=y;this.world.index.set(coord(x,y),b);this.storage.save();return "";
+ }
+ activate(id){
+  const w=this.world,p=CONFIG.policies[id];if(w.activePolicy)return "Đang có sắc lệnh hiệu lực.";
+  if(w.policyCooldowns[id]>0)return "Sắc lệnh đang hồi.";
+  if(this.profile.prestige<p.cost)return "Không đủ Điểm Uy tín.";
+  this.profile.prestige-=p.cost;w.activePolicy={id,left:p.duration};this.stats.policies++;this.say("Thị trưởng vừa ban hành sắc lệnh: "+p.name+".");this.storage.save();return "";
+ }
+ claim(id){
+  const m=CONFIG.milestones.find(item=>item.id===id);if(!m||!this.milestones.completedIds.includes(id)||this.milestones.claimedIds.includes(id))return;
+  this.milestones.claimedIds.push(id);this.profile.coins+=m.coins;this.profile.prestige+=m.prestige;this.gainXP(m.xp);this.audio.play("money");this.storage.save();
+ }
+ refreshMilestones(){
+  this.stats.peakIncome=Math.max(this.stats.peakIncome,this.metrics.income);
+  for(const m of CONFIG.milestones)if(!this.milestones.completedIds.includes(m.id)&&m.test(this))this.milestones.completedIds.push(m.id);
+ }
+ tick(dt){
+  const w=this.world;this.elapsed+=dt;w.timeOfDay=(w.timeOfDay+dt/180)%1;w.weatherClock+=dt;
+  if(w.weatherClock>=90){
+   w.weatherClock-=90;let order=["sunny","heat","storm"];w.weather=order[(order.indexOf(w.weather)+1)%3];
+   this.say({storm:"Mưa bão đang thử thách hệ thống lưới điện.",heat:"Nắng gắt! Cư dân nhắc nhau để ý đường ống và nguồn nhiệt.",sunny:"Trời quang, phố phường lại rộn ràng."}[w.weather]);
+  }
+  for(const id of Object.keys(w.policyCooldowns))w.policyCooldowns[id]=Math.max(0,w.policyCooldowns[id]-dt);
+  if(w.activePolicy&&(w.activePolicy.left-=dt)<=0){w.policyCooldowns[w.activePolicy.id]=CONFIG.policies[w.activePolicy.id].cooldown;w.activePolicy=null}
+  w.speedBuff=Math.max(0,w.speedBuff-dt);w.immunity=Math.max(0,w.immunity-dt);
+  if(!w.crises.some(c=>c.id==="water_leak"))w.happyDelta-=Math.sign(w.happyDelta)*Math.min(Math.abs(w.happyDelta),dt*.035);
+  const speed=(this.count("construction_hq")?.9:1)*(w.activePolicy?.id==="overtime"?.65:1);
+  for(const b of w.buildings){
+   if(b.left<=0){b.age+=dt;continue}
+   if(w.crises.some(c=>c.id==="collapse"&&distance(c,b)===0))continue;
+   b.left-=dt/speed;if(b.left<=0)this.finish(b);
+  }
+  this.metrics=this.measure(w);this.profile.coins+=this.metrics.income*dt;this.profile.happiness=this.metrics.happiness;
+  if(!this.stats.news500&&this.metrics.income>=500){this.stats.news500=true;this.say(this.profile.mayorName+" vừa vượt mốc 500 Vàng/giây!")}
+  this.crisis.tickOwn(dt);this.social.tick(dt);
+  this.particles=this.particles.filter(p=>(p.life+=dt)<1.45);
+ }
+ start(renderer,ui){
+  let last=performance.now(),hud=1,save=0,mission=1;
+  const frame=now=>{
+   const dt=clamp((now-last)/1000,0,.1);last=now;this.tick(dt);renderer.render(dt);
+   hud+=dt;save+=dt;mission+=dt;if(mission>=.8){this.refreshMilestones();mission=0}if(hud>=.18){ui.refresh();hud=0}if(save>=5){this.storage.save();save=0}
+   requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+ }
+}
+class CrisisAndNPCManager {
+ constructor(sim){this.sim=sim}
+ candidates(w,m){
+  const live=w.buildings.filter(b=>b.left<=0&&b.id!=="road"),work=w.buildings.filter(b=>b.left>0);
+  const homes=live.filter(b=>CONFIG.buildings[b.id].group==="res"),commercial=live.filter(b=>CONFIG.buildings[b.id].group==="com");
+  const industry=live.filter(b=>CONFIG.buildings[b.id].group==="com"||["power_plant","waste_plant","tech_tower","trade_port"].includes(b.id));
+  const net=live.filter(b=>["office_tower","tech_tower"].includes(b.id));
+  const sunny=w.weather==="heat",storm=w.weather==="storm",p=w.activePolicy?.id;
+  const supply=id=>this.sim.count(id,w)>0;
+  return [
+   ["blackout",(m.ps<m.pd?.37:0)+(storm?.22:0),live.filter(b=>CONFIG.buildings[b.id].power<0), (p==="overtime"?1.25:1)*(supply("solar_plant")?.55:1)],
+   ["water_leak",(m.ws<m.wd?.37:0)+(sunny?.25:0),live.filter(b=>CONFIG.buildings[b.id].water<0),1],
+   ["collapse",work.length?.15+Math.min(.14,work.length*.035)+(storm?.18:0)+(p==="overtime"?.1:0):0,work,p==="overtime"?1.25:1],
+   ["traffic_jam",m.commerce>=2&&m.roads/Math.max(1,live.length)<.9?.31:0,w.buildings.filter(b=>b.id==="road"&&commercial.some(c=>distance(c,b)<=1)).concat(commercial),supply("police_station")?.65:1],
+   ["fire",(industry.some(b=>b.age>45)?.17:0)+(sunny?.21:0),industry.length?industry:live,supply("fire_station")?.63:1],
+   ["trash_pile",m.pop>=40&&m.waste>15?.34:0,homes,1],
+   ["flu_outbreak",m.level>=5&&!w.immunity&&(m.happiness<85||m.waste>15)?.26:0,homes,supply("hospital")?.55:1],
+   ["cyber_attack",net.length&&m.level>=7?.24:0,net,supply("cyber_hub")?.65:1]
+  ].map(([id,risk,targets,factor])=>({id,risk:risk*factor*(p==="green"?.5:1),targets}));
+ }
+ spawn(w,id,target,notify){
+  if(!target||w.crises.some(c=>distance(c,target)===0))return false;
+  const c={id,uid:uid(),x:target.x,y:target.y,age:0,progress:0,spread:false,late:false};
+  w.crises.push(c);if(notify){this.sim.say(CONFIG.crises[id].news);this.sim.audio.play("alarm");this.sim.storage?.save()}return true;
+ }
+ roll(w,m){
+  if(w.crises.length>=3||w.buildings.filter(b=>b.id!=="road").length<3)return;
+  const choices=this.candidates(w,m).filter(z=>z.risk>0&&m.level>=CONFIG.buildings[CONFIG.crises[z.id].hq].unlock&&!w.crises.some(c=>c.id===z.id));
+  for(const z of choices.sort((a,b)=>b.risk-a.risk)){
+   if(Math.random()>=z.risk)continue;
+   const options=z.targets.filter(b=>!w.crises.some(c=>distance(c,b)===0));
+   if(this.spawn(w,z.id,options[Math.floor(Math.random()*options.length)],true))break;
+  }
+ }
+ friendRoll(friend,initial=false){
+  const w=friend.world,m=this.sim.measure(w,friend.level);
+  const goal=initial&&friend.level<=6?1:2;
+  const relaxed=[{id:"blackout",targets:w.buildings.filter(b=>b.id!=="road"&&b.id!=="power_plant")},{id:"water_leak",targets:w.buildings.filter(b=>b.id!=="road"&&b.id!=="water_tower")}];
+  const variants=this.candidates(w,m).filter(z=>z.risk>0&&CONFIG.buildings[CONFIG.crises[z.id].hq].unlock<=friend.level).concat(relaxed);
+  const order=initial?[relaxed[friend.level%2],...variants.filter(z=>z.id!==relaxed[friend.level%2].id)]:variants.sort((a,b)=>String(a.id).localeCompare(b.id));
+  const start=initial?0:Math.floor(Math.random()*order.length);
+  for(let i=0;i<order.length&&w.crises.length<goal;i++){
+   const z=order[(i+start)%order.length];if(w.crises.some(c=>c.id===z.id))continue;
+   const options=z.targets.filter(b=>!w.crises.some(c=>distance(c,b)===0));
+   this.spawn(w,z.id,options[Math.floor(Math.random()*options.length)],false);
+  }
+ }
+ teams(hq){return this.sim.active().filter(b=>b.id===hq)}
+ busy(b){
+  return this.sim.world.npcs.filter(n=>distance(n.home,b)===0).length+
+   this.sim.social.friends().reduce((sum,f)=>sum+f.world.npcs.filter(n=>n.assist&&distance(n.source,b)===0).length,0);
+ }
+ dispatch(c,w,friend=null){
+  const s=this.sim,d=CONFIG.crises[c.id];if(!w.crises.includes(c))return "Sự cố đã được xử lý.";
+  if(w.npcs.some(n=>n.target===c.uid&&n.phase!=="return"))return "Đội đang xử lý sự cố này.";
+  if(friend){s.social.resetQuota();if(s.profile.dailyHelpsLeft<=0)return "Đã hết 5 lượt chi viện hôm nay."}
+  const all=this.teams(d.hq),free=all.filter(b=>this.busy(b)<b.crew);
+  if(!all.length)return "Cần xây "+CONFIG.buildings[d.hq].name+" để điều phối "+d.npc+"!";
+  if(!free.length)return "Tất cả nhân sự của đội đang làm nhiệm vụ.";
+  const homes=friend?[
+   ...w.buildings.filter(b=>b.id===d.hq&&b.left<=0),
+   ...w.buildings.filter(b=>b.id==="road"&&steps.filter(([dx,dy])=>lookup(w,b.x+dx,b.y+dy)?.id==="road").length===1),
+   ...w.buildings.filter(b=>b.id==="road")
+  ]:free;
+  let routes=homes.map(home=>({home,route:Pathfinding.route(w,home,c)})).filter(p=>p.route);
+  if(friend&&!routes.length){
+   const entry=w.buildings.filter(b=>b.id!=="road"&&distance(b,c)>0).filter(b=>steps.some(([dx,dy])=>unlocked(w,b.x+dx,b.y+dy)&&!lookup(w,b.x+dx,b.y+dy)));
+   routes=entry.map(home=>({home,route:Pathfinding.route(w,home,c)})).filter(p=>p.route);
+  }
+  if(!routes.length)return "Không có lối đến sự cố. Hãy mở đường hoặc di chuyển công trình.";
+  if(friend&&routes.some(r=>r.home.id===d.hq))routes=routes.filter(r=>r.home.id===d.hq);
+  else if(friend&&routes.some(r=>distance(r.home,c)>1))routes=routes.filter(r=>distance(r.home,c)>1);
+  routes.sort((a,b)=>a.route.cost-b.route.cost||distance(a.home,c)-distance(b.home,c));
+  const {home,route}=routes[0],source=friend?free.sort((a,b)=>b.teamLevel-a.teamLevel)[0]:home;
+  w.npcs.push({type:d.hq,assist:!!friend,source:{x:source.x,y:source.y},home:{x:home.x,y:home.y},level:source.teamLevel,target:c.uid,
+   phase:"out",path:route.path,segment:0,part:0,x:home.x,y:home.y,repair:0});
+  if(friend)s.profile.dailyHelpsLeft--;
+  s.storage.save();return route.offroad?"Đã điều phối · Thiếu đường nối, đội di chuyển chậm.":"Đã điều phối "+d.npc+".";
+ }
+ teamAction(b,what){
+  const s=this.sim;
+  if(!CONFIG.npcs[b.id]||b.left>0)return "Trụ sở chưa hoạt động.";
+  if(what==="hire"){
+   if(b.crew>=3)return "Đội đã đủ 3 người.";
+   const cost=b.crew+1;if(s.profile.prestige<cost)return "Không đủ Điểm Uy tín.";
+   s.profile.prestige-=cost;b.crew++;
+  }else{
+   if(b.teamLevel>=5)return "Phương tiện đã đạt cấp tối đa.";
+   const cost=250*b.teamLevel**1.4;if(s.profile.coins<Math.ceil(cost))return "Không đủ Vàng.";
+   s.profile.coins-=Math.ceil(cost);b.teamLevel++;s.stats.npcLevel=Math.max(s.stats.npcLevel,b.teamLevel);
+  }s.audio.play("level");s.storage.save();return "";
+ }
+ resolve(c,w,friend){
+  const s=this.sim,p=s.profile,d=CONFIG.crises[c.id];
+  w.crises.splice(w.crises.indexOf(c),1);
+  let xp=d.xp,coins=d.coins,rep=d.prestige;
+  if(friend){
+   const factor=s.count("trade_port")?1.25:1;
+   xp=40*factor;coins=250*friend.level*factor;rep=2*factor;p.helpsGiven++;
+   s.say("Đội chi viện đã giúp "+friend.name+" xử lý "+d.name.toLowerCase()+"!");
+  }else{
+   if(!c.late){p.combo++;if(p.combo%3===0)rep++;if(p.combo>=3)xp=Math.round(xp*1.2)}
+   const b=lookup(w,c.x,c.y);
+   if(c.id==="water_leak")w.happyDelta=Math.min(50,w.happyDelta+8);
+   if(c.id==="collapse"&&b){if(c.late)p.coins-=CONFIG.buildings[b.id].price*.1;b.left*=.8}
+   if(c.id==="traffic_jam")w.speedBuff=30;
+   if(c.id==="flu_outbreak")w.immunity=180;
+   s.stats.crisesSolved++;s.say(d.name+" đã được xử lý."+(!c.late&&p.combo>=2?" Chuỗi phản ứng nhanh ×"+p.combo+"!":""));
+  }
+  s.gainXP(xp);p.coins+=coins;p.prestige+=rep;s.audio.play("repair");
+  if(!friend||s.social.current===friend){
+   const first=s.particles.length;s.float(c.x,c.y,"+"+xp+" XP");if(coins)s.float(c.x+.18,c.y+.7,"+"+fmt(coins)+" Vàng","#ffe08f");
+   for(let i=first;i<s.particles.length;i++)s.particles[i].world=w;
+  }
+  s.storage.save();
+ }
+ reRoute(n,w,c){
+  const point=n.path[n.segment],next=Pathfinding.route(w,point,n.phase==="return"?n.home:c);
+  if(!next)return false;n.path=next.path;n.segment=0;n.part=0;n.x=point.x;n.y=point.y;return true;
+ }
+ advance(n,w,dt,c){
+  let budget=dt,attempts=0;
+  while(budget>1e-6&&n.segment<n.path.length-1&&attempts++<6){
+   const a=n.path[n.segment],b=n.path[n.segment+1],tile=lookup(w,b.x,b.y),end=n.segment===n.path.length-2;
+   if(!end&&tile&&tile.id!=="road"){
+    if(!this.reRoute(n,w,c))n.blocked=true;
+    else n.blocked=false;
+    return;
+   }
+   n.blocked=false;
+   const jam=w.crises.some(z=>z.id==="traffic_jam"&&distance(z,b)===0&&n.target!==z.uid);
+   const speed=CONFIG.vehicles[n.level-1].speed*(tile&&(tile.id==="road"||end)?1:.3)*(jam?.4:1)*(this.sim.world.speedBuff>0?1.25:1);
+   const used=Math.min(budget,(1-n.part)/speed);budget-=used;n.part+=used*speed;
+   n.x=a.x+(b.x-a.x)*n.part;n.y=a.y+(b.y-a.y)*n.part;
+   if(n.part>=1-1e-6){n.segment++;n.part=0;n.x=b.x;n.y=b.y}
+  }
+ }
+ tickWorld(w,dt,friend=null){
+  for(const c of [...w.crises]){
+   const d=CONFIG.crises[c.id],before=c.age;c.age+=dt;
+   if(!c.late&&c.age>=d.danger){c.late=true;if(!friend)this.sim.profile.combo=0}
+   if(!friend&&c.id==="water_leak"&&Math.floor(before/5)!==Math.floor(c.age/5))w.happyDelta=Math.max(-130,w.happyDelta-2);
+   if(c.id==="fire"&&!c.spread&&c.age>=45&&w.crises.length<3){
+    c.spread=true;
+    const adjacent=steps.map(([dx,dy])=>lookup(w,c.x+dx,c.y+dy)).filter(b=>b&&b.id!=="road"&&!w.crises.some(z=>distance(z,b)===0));
+    if(adjacent.length&&Math.random()<.72)this.spawn(w,"fire",adjacent[Math.floor(Math.random()*adjacent.length)],!friend);
+   }
+  }
+  for(const n of [...w.npcs]){
+   const c=w.crises.find(c=>c.uid===n.target);
+   if(n.phase==="out"&&c){
+    this.advance(n,w,dt,c);
+    if(n.segment===n.path.length-1)n.phase="repair";
+   }else if(n.phase==="repair"&&c){
+    n.repair+=dt;c.progress=clamp(n.repair/CONFIG.vehicles[n.level-1].repair,0,1);
+    if(c.progress>=1){
+     n.phase="return";const route=Pathfinding.route(w,c,n.home);n.path=route?.path||[{x:c.x,y:c.y}];n.segment=0;n.part=0;
+     this.resolve(c,w,friend);
+    }
+   }else if(n.phase==="return"){
+    if(n.path.length===1&&distance(n,n.home)>0){n.blocked=!this.reRoute(n,w,null);continue}
+    this.advance(n,w,dt,null);
+    if(n.segment===n.path.length-1)w.npcs.splice(w.npcs.indexOf(n),1);
+   }else w.npcs.splice(w.npcs.indexOf(n),1);
+  }
+ }
+ tickOwn(dt){
+  const {world:w,metrics:m}=this.sim;
+  if((w.crisisClock+=dt)>=CONFIG.crisisInterval){w.crisisClock-=CONFIG.crisisInterval;this.roll(w,m)}
+  this.tickWorld(w,dt);
+ }
+}
+
+class SocialStorageAdapter {
+ constructor(data){this.records=data}
+ list(){return this.records}
+ add(friend){if(this.records.some(f=>f.id===friend.id))throw Error("Thành phố này đã có trong danh sách.");if(this.records.length>=50)throw Error("Danh sách đã đủ 50 thành phố.");this.records.push(friend)}
+ static code(data){
+  const bytes=new TextEncoder().encode(JSON.stringify(data));let binary="";
+  for(const byte of bytes)binary+=String.fromCharCode(byte);return btoa(binary);
+ }
+ static decode(code){
+  if(typeof code!=="string"||code.length>28000||!(/^[a-zA-Z0-9+/]+={0,2}$/.test(code)))throw Error("Mã Base64 không hợp lệ.");
+  try{return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(Uint8Array.from(atob(code),ch=>ch.charCodeAt(0))))}
+  catch(_){throw Error("Không đọc được mã thành phố. Hãy sao chép lại mã đầy đủ.")}
+ }
+}
+
+class SocialManager {
+ constructor(sim,saved){
+  this.sim=sim;this.adapter=new SocialStorageAdapter(saved.length?saved.map(f=>({...f,world:makeWorld(f.world.buildings,f.level,f.world)})):this.samples());
+  this.current=null;this.viewMode="own";
+  for(const f of this.friends())if(!f.seeded){this.sim.crisis.friendRoll(f,true);f.seeded=true}
+ }
+ friends(){return this.adapter.list()}
+ samples(){
+  const profiles=[
+   ["An Nhiên",3,7400,108,4,6,7],["Minh Khôi",5,19800,117,8,8,6],
+   ["Hải Vân",7,38500,125,13,7,8],["Gia Linh",9,71200,133,18,9,7],["Thiên Lam",12,135000,144,27,8,9]
+  ];
+  return profiles.map(([name,level,coins,happiness,helpsGiven,row,col],i)=>{
+   const r=CONFIG.radius(level),lo=8-r,hi=7+r,buildings=[],taken=new Set();
+   const put=(id,x,y)=>{const k=coord(x,y);if(x<lo||x>hi||y<lo||y>hi||taken.has(k))return;taken.add(k);const b=makeBuilding(id,x,y);b.age=100;buildings.push(b)};
+   for(let x=lo+1;x<=hi-1;x++)put("road",x,row);
+   for(let y=lo+1;y<=hi-1;y++)put("road",col,y);
+   if(level>=7)for(let x=col-4;x<=col+3;x++)put("road",x,row+3);
+   const slots=[];
+   for(const b of [...buildings])for(const [dx,dy] of steps){
+    const x=b.x+dx,y=b.y+dy;
+    if(x<lo||x>hi||y<lo||y>hi||taken.has(coord(x,y))||slots.some(s=>s.x===x&&s.y===y))continue;
+    slots.push({x,y});
+   }
+   slots.sort((a,b)=>distance(a,{x:col,y:row})-distance(b,{x:col,y:row})||((a.x*13+a.y*17+i*11)%19)-((b.x*13+b.y*17+i*11)%19));
+   const common=["house_small","power_plant","water_tower","mini_mart","house_small","apartment","fire_station"];
+   const advanced=["night_market","police_station","park","construction_hq","hospital","waste_plant","office_tower","solar_plant","mall","cyber_hub","tech_tower","trade_port","metro_wonder"];
+   const layout=[...common,...advanced.filter(id=>CONFIG.buildings[id].unlock<=level),...Array.from({length:i+1},(_,j)=>["house_small","apartment","mini_mart","water_tower"][(i+j)%4])];
+   layout.forEach((id,j)=>{if(slots[j])put(id,slots[j].x,slots[j].y)});
+   return {id:"MP-MAU-"+(i+1),name,level,coins,happiness,helpsGiven,clock:0,seeded:false,world:makeWorld(buildings,level)};
+  });
+ }
+ resetQuota(){
+  const p=this.sim.profile,date=today();
+  if(p.lastHelpResetDate!==date){p.lastHelpResetDate=date;p.dailyHelpsLeft=5}
+ }
+ resetTime(){
+  const next=new Date();next.setHours(24,0,0,0);const seconds=Math.max(0,Math.ceil((next-Date.now())/1000));
+  return String(Math.floor(seconds/3600)).padStart(2,"0")+":"+String(Math.floor(seconds/60)%60).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");
+ }
+ visit(id){this.current=this.friends().find(f=>f.id===id)||null;this.viewMode=this.current?"friend":"own";return this.current}
+ own(){this.current=null;this.viewMode="own"}
+ get world(){return this.current?.world||this.sim.world}
+ tick(dt){
+  this.resetQuota();
+  for(const friend of this.friends()){
+   this.sim.crisis.tickWorld(friend.world,dt,friend);
+   if((friend.clock+=dt)>=48){friend.clock-=48;this.sim.crisis.friendRoll(friend)}
+  }
+ }
+ export(){
+  const {profile:p,world:w}=this.sim;
+  return SocialStorageAdapter.code([1,p.mayorId,p.mayorName,p.level,Math.max(0,Math.floor(p.coins)),Math.round(p.happiness),p.helpsGiven,w.buildings.map(b=>[b.id,b.x,b.y,b.level])]);
+ }
+ import(code){
+  const data=SocialStorageAdapter.decode(code.trim());
+  const within=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
+  if(!Array.isArray(data)||data.length!==8)throw Error("Định dạng mã thành phố không được hỗ trợ.");
+  const [ver,id,name,level,coins,happiness,helpsGiven,layout]=data;
+  if(ver!==1||typeof id!=="string"||!/^MP-\d{4}$/.test(id)||typeof name!=="string"||!name.trim()||name.length>40||
+     !within(level,1,100000)||!within(coins,0,Number.MAX_SAFE_INTEGER)||!within(happiness,20,150)||
+     !within(helpsGiven,0,Number.MAX_SAFE_INTEGER)||!Array.isArray(layout)||layout.length>256)throw Error("Hồ sơ thành phố không hợp lệ.");
+  if(id===this.sim.profile.mayorId)throw Error("Đây là mã thành phố của bạn.");
+  const grid={unlockedRadius:CONFIG.radius(level)},used=new Set(),buildings=[];
+  for(const item of layout){
+   if(!Array.isArray(item)||item.length!==4)throw Error("Bố cục công trình không hợp lệ.");
+   const [type,x,y,l]=item;
+   if(typeof type!=="string"||!Object.hasOwn(CONFIG.buildings,type)||!within(x,0,15)||!within(y,0,15)||!within(l,1,5)||
+      CONFIG.buildings[type].unlock>level||!unlocked(grid,x,y)||used.has(coord(x,y)))throw Error("Bố cục công trình không hợp lệ.");
+   used.add(coord(x,y));buildings.push(makeBuilding(type,x,y,l));
+  }
+  const friend={id,name:name.trim(),level,coins,happiness,helpsGiven,clock:0,seeded:true,world:makeWorld(buildings,level)};
+  this.adapter.add(friend);this.sim.crisis.friendRoll(friend,true);this.sim.storage.save();return friend;
+ }
+ rankings(stat){
+  const p=this.sim.profile;
+  const entries=[{id:p.mayorId,name:p.mayorName,level:p.level,coins:p.coins,happiness:p.happiness,helpsGiven:p.helpsGiven,world:this.sim.world},...this.friends()];
+  const value=e=>stat==="assets"?e.coins+e.world.buildings.reduce((sum,b)=>sum+CONFIG.buildings[b.id].price*(1+Array.from({length:b.level-1},(_,i)=>1.6**(i+1)).reduce((a,b)=>a+b,0)),0):e[stat];
+  return entries.map(e=>({...e,score:value(e)})).sort((a,b)=>b.score-a.score||b.level-a.level);
+ }
+}
+class IsoRenderer {
+ constructor(canvas,sim){
+  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();
+  this.resize();addEventListener("resize",()=>this.resize());
+ }
+ resize(){
+  const rect=this.canvas.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),oldW=this.width,oldH=this.height;
+  this.width=rect.width;this.height=rect.height;this.dpr=dpr;this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
+  if(oldW){this.camera.x+=(this.width-oldW)/2;this.camera.y+=(this.height-oldH)/2}else this.center();
+ }
+ center(){
+  const zoom=clamp(Math.min((this.width-22)/940,(this.height-98)/595),.5,1.2);
+  this.camera={x:this.width*.5,y:this.height*.54-240*zoom,zoom};this.target=null;
+ }
+ zoom(factor,x=this.width/2,y=this.height*.54){
+  const c=this.camera,newZoom=clamp(c.zoom*factor,.5,1.8),scale=newZoom/c.zoom;
+  c.x=x-(x-c.x)*scale;c.y=y-(y-c.y)*scale;c.zoom=newZoom;this.target=null;
+ }
+ pan(dx,dy){this.target=null;this.camera.x+=dx;this.camera.y+=dy}
+ focus(x,y){
+  const c=this.camera,p=IsoMath.gridToScreen(x+.5,y+.5,c);
+  this.target={x:c.x+this.width*.5-p.x,y:c.y+this.height*.51-p.y};
+ }
+ local(event){const r=this.canvas.getBoundingClientRect();return {x:event.clientX-r.left,y:event.clientY-r.top}}
+ project(x,y,z=0){const p=IsoMath.gridToScreen(x,y,this.camera);p.y-=z*this.camera.zoom;return p}
+ poly(points,fill,stroke,width=1){
+  const g=this.ctx;if(!points.length)return;
+  g.beginPath();g.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))g.lineTo(p.x,p.y);g.closePath();
+  if(fill){g.fillStyle=fill;g.fill()}if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke()}
+ }
+ line(points,color,width=1){
+  const g=this.ctx;g.beginPath();g.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))g.lineTo(p.x,p.y);g.strokeStyle=color;g.lineWidth=width;g.stroke();
+ }
+ plate(x,y,x2,y2,z=0){return [this.project(x,y,z),this.project(x2,y,z),this.project(x2,y2,z),this.project(x,y2,z)]}
+ ellipse(x,y,rx,ry,color){
+  const g=this.ctx;g.beginPath();g.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);g.fillStyle=color;g.fill();
+ }
+ tone(hex,factor){
+  const key=hex+factor;let value=this.paintCache.get(key);if(value)return value;
+  const n=parseInt(hex.slice(1),16),rgb=[n>>16,n>>8&255,n&255].map(c=>Math.min(255,Math.round(c*factor+(factor>1?(factor-1)*14:0))));
+  value="rgb("+rgb.join(",")+")";this.paintCache.set(key,value);return value;
+ }
+ block(x,y,w,d,base,height,color,hits=null,dark=false){
+  const top=this.plate(x,y,x+w,y+d,base+height),low=this.plate(x,y,x+w,y+d,base);
+  const left=[top[2],top[3],low[3],low[2]],right=[top[1],top[2],low[2],low[1]];
+  this.poly(left,this.tone(color,dark?.32:.68));this.poly(right,this.tone(color,dark?.44:.86));this.poly(top,this.tone(color,dark?.48:1.17),this.tone(color,dark?.52:1.26),.65*this.camera.zoom);
+  if(hits)hits.push(left,right,top);return top;
+ }
+ text(text,x,y,size,color,bold=true){
+  const g=this.ctx;g.font=(bold?"700 ":"500 ")+size+"px system-ui,sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillStyle=color;g.fillText(text,x,y);
+ }
+ tree(x,y,variant=0,height=1){
+  const p=this.project(x,y),z=this.camera.zoom*height;
+  const colors=[["#547a50","#8ab568","#a8c878"],["#3a7153","#5caa75","#92c78c"],["#547a55","#78a96e","#b0cc79"]][variant%3];
+  this.ellipse(p.x+3*z,p.y+1*z,10*z,3.6*z,"#172d2559");
+  this.line([{x:p.x,y:p.y+1*z},{x:p.x,y:p.y-15*z}],"#5b4931",2.8*z);
+  this.ellipse(p.x,p.y-15.5*z,9*z,10*z,colors[0]);this.ellipse(p.x-2*z,p.y-17*z,7.1*z,8.5*z,colors[1]);this.ellipse(p.x-3*z,p.y-20*z,4.5*z,4.7*z,colors[2]);
+ }
+ ambient(night,mood,world){
+  const g=this.ctx,{width:w,height:h}=this,gradient=g.createLinearGradient(0,0,w*.27,h);
+  const palette=mood==="storm"?["#253f42","#3b6262","#183538"]:night>.5?["#142f3e","#274b54","#17353d"]:mood==="heat"?["#416451","#6c8061","#254742"]:["#2a514b","#52786a","#234b49"];
+  gradient.addColorStop(0,palette[0]);gradient.addColorStop(.52,palette[1]);gradient.addColorStop(1,palette[2]);g.fillStyle=gradient;g.fillRect(0,0,w,h);
+  const size=Math.max(38,49*this.camera.zoom),ox=((this.camera.x*.14)%size+size)%size,oy=((this.camera.y*.14)%size+size)%size;
+  g.fillStyle="#d0eee026";
+  for(let x=ox;x<w;x+=size)for(let y=oy;y<h;y+=size)g.fillRect(x,y,1.5,1.5);
+  g.lineWidth=1;
+  for(let i=0;i<72;i++){
+   const x=((i*139.163+w*.31+this.camera.x*.09)%(w+120)+w+120)%(w+120)-60,y=((i*167.377+this.camera.y*.1)%(h+80)+h+80)%(h+80)-40,l=3+(i*17)%25;
+   const a=.065+.028*Math.sin(this.elapsed*.85+i);this.line([{x,y},{x:x+l,y:y-l*.13}],i%5===0?"rgba(226,245,211,"+(a*1.6)+")":"rgba(198,229,224,"+a+")",.75);
+  }
+  const c=this.camera;
+  for(let i=1;i<=4;i++){
+   const a=-i*.26,b=16+i*.26;
+   const ring=this.plate(a,a,b,b,-16);
+   for(const p of ring)p.x+=Math.sin(this.elapsed*.55+i)*1.7*c.zoom;
+   this.poly(ring,null,i%2?"#b9e4d228":"#b9e4d218",1.2);
+  }
+ }
+ ground(w){
+  const c=this.camera,z=c.zoom,g=this.ctx,base=this.plate(0,0,16,16),low=this.plate(0,0,16,16,-17);
+  const shadow=low.map(p=>({x:p.x+10*z,y:p.y+9*z}));this.poly(shadow,"#112e30a0");
+  this.poly([base[1],base[2],low[2],low[1]],"#496752","#395c48");this.poly([base[2],base[3],low[3],low[2]],"#3c5946","#365543");
+  const soil=this.plate(0,0,16,16,-9);this.line([soil[1],soil[2],soil[3]],"#9fb4866c",3*z);this.line([base[1],base[2],base[3]],"#abc8a2",2.5*z);
+  const active=["#87aa73","#8cae76","#91b079","#84a66f","#8cad74"],locked=["#59776a","#5c7b6c","#5d7d6b","#567667"];
+  for(let x=0;x<16;x++)for(let y=0;y<16;y++){
+   const avail=unlocked(w,x,y),hash=(x*11+y*17+x*y*3)%101;
+   const grass=avail?active:locked;this.poly(this.plate(x,y,x+1,y+1),grass[hash%grass.length],avail?"#53734e85":"#405f54a0",.72);
+   if(!lookup(w,x,y)){
+    const p=this.project(x+.59,y+.38);
+    if(hash%3===0)this.line([{x:p.x-4*z,y:p.y+2*z},{x:p.x-2*z,y:p.y},{x:p.x-1*z,y:p.y+2*z}],"#c2cf918d",1.1*z);
+    if(hash%7===0)this.ellipse(p.x+5*z,p.y+1.5*z,2*z,z,"#d2c87c8b");
+    if(!avail&&hash%7===2&&z>.58){
+     g.strokeStyle="#b3cbb277";g.lineWidth=z;g.beginPath();g.arc(p.x,p.y-3*z,2.3*z,Math.PI,Math.PI*2);g.stroke();
+     g.fillStyle="#bbd0ba85";g.fillRect(p.x-3.7*z,p.y-3*z,7.4*z,5*z);
+    }
+   }
+  }
+  const lo=8-w.unlockedRadius,hi=8+w.unlockedRadius;
+  if(lo>0){
+   g.save();g.setLineDash([3*z,4*z]);this.poly(this.plate(lo,lo,hi,hi),null,"#d4edaaad",1.5*z);g.restore();
+  }
+  if(z>.65)for(let i=0;i<16;i+=2){
+   const p=this.project(16.38,i+.52,-3),q=this.project(i+.52,16.38,-3);
+   this.text(String.fromCharCode(65+i),p.x,p.y,9*z,"#c5e4d389");this.text(String(i+1).padStart(2,"0"),q.x,q.y,9*z,"#c5e4d389");
+  }
+ }
+ road(b,w){
+  const {x,y}=b,z=this.camera.zoom;
+  const fill=(x1,y1,x2,y2,color)=>this.poly(this.plate(x+x1,y+y1,x+x2,y+y2),color);
+  fill(0,0,1,1,"#abb9a0");fill(.11,.11,.89,.89,"#586765");fill(.2,.2,.8,.8,"#516162");
+  const bits=[[1,0,.8,.16,1,.84],[0,1,.16,.8,.84,1],[-1,0,0,.16,.2,.84],[0,-1,.16,0,.84,.2]];
+  const linked=bits.filter(([dx,dy])=>lookup(w,x+dx,y+dy)?.id==="road");
+  for(const [dx,dy,a,c,e,f] of linked){
+   fill(a,c,e,f,"#596866");fill(dx<0?a:dx>0?a:a+.04,dy<0?c:dy>0?c:c+.04,dx?e:e-.04,dy?f:f-.04,"#516162");
+   if(linked.length<=2){
+    this.line([this.project(x+.5+dx*.08,y+.5+dy*.08),this.project(x+.5+dx*.39,y+.5+dy*.39)],"#ebd59f",1*z);
+   }else{
+    for(let k=0;k<3;k++){
+     const width=(k-1)*.16;
+     this.line([this.project(x+.5+dx*.33+dy*width,y+.5+dy*.33+dx*width),this.project(x+.5+dx*.45+dy*width,y+.5+dy*.45+dx*width)],"#e2e5c7a3",1.25*z);
+    }
+   }
+  }
+  if(!linked.length)this.ellipse(this.project(x+.5,y+.5).x,this.project(x+.5,y+.5).y,2*z,1*z,"#edce8a");
+ }
+ windows(b,x,y,w,d,height,color,night,dark,base=0){
+  const columns=height>40?4:3,rows=Math.max(1,Math.round(height/12)),z=this.camera.zoom;
+  for(let floor=0;floor<rows;floor++)for(let j=0;j<columns;j++){
+   const u=(j+.25)/columns,v=u+.48/columns,lower=base+4+floor*(height-3)/rows,upper=lower+Math.min(6,(height-3)/rows*.53);
+   if(upper>base+height-1)continue;
+   const lit=!dark&&night>.22&&(b.x*9+b.y*5+j*3+floor)%5!==1;
+   const light=dark?"#172827":lit?"#ffd987":color;
+   this.poly([this.project(x+w*u,y+d,upper),this.project(x+w*v,y+d,upper),this.project(x+w*v,y+d,lower),this.project(x+w*u,y+d,lower)],light);
+   this.poly([this.project(x+w,y+d*u,upper),this.project(x+w,y+d*v,upper),this.project(x+w,y+d*v,lower),this.project(x+w,y+d*u,lower)],lit?"#fff0ac":light);
+   if(lit&&z>.7)this.line([this.project(x+w*u,y+d,upper),this.project(x+w*v,y+d,upper)],"#fff4ca",.55);
+  }
+ }
+ gable(x,y,w,d,base,height,color,hits){
+  const back=this.project(x,y+d/2,base+height),front=this.project(x+w,y+d/2,base+height);
+  const a=this.project(x,y,base),b=this.project(x+w,y,base),c=this.project(x+w,y+d,base),e=this.project(x,y+d,base);
+  const l=[back,front,c,e],r=[a,b,front,back],end=[b,c,front];
+  this.poly(l,this.tone(color,.9));this.poly(r,this.tone(color,1.13));this.poly(end,this.tone(color,.69));this.line([back,front],this.tone(color,1.26),this.camera.zoom);
+  hits.push(l,r,end);
+ }
+ building(b,w,night){
+  const d=CONFIG.buildings[b.id],g=this.ctx,z=this.camera.zoom,x=b.x,y=b.y,polys=[];
+  const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
+  const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
+  this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
+  const p=this.project(x+.6,y+.59);this.ellipse(p.x+6*z,p.y+3*z,25*z,8*z,"#293e3455");
+  let height=0;
+  if(b.left>0){
+   const progress=clamp(1-b.left/b.total,0,1);height=11+18*progress;
+   this.block(x+.22,y+.22,.56,.56,0,height,"#9e9e85",polys);
+   for(const [a,c] of [[.14,.17],[.82,.17],[.14,.82],[.82,.82]]){
+    this.line([this.project(x+a,y+c,0),this.project(x+a,y+c,height+7)],"#f8cc76",2*z);
+   }
+   for(const v of [4,height*.55,height+5])this.line([this.project(x+.14,y+.82,v),this.project(x+.82,y+.82,v),this.project(x+.82,y+.17,v)],"#ebaf5f",1.4*z);
+   this.line([this.project(x+.14,y+.82,1),this.project(x+.82,y+.82,height),this.project(x+.82,y+.17,1)],"#8e613c",1.2*z);
+   const t=this.project(x+.5,y+.5,height+12);this.progress(t.x,t.y,progress,"#ffe081");
+  }else{
+   const extra=(b.level-1)*3;
+   const box=(a,c,wi,de,base,h,col=color)=>this.block(x+a,y+c,wi,de,base,h,col,polys,dark);
+   const details=(a,c,wi,de,h,base=0)=>this.windows(b,x+a,y+c,wi,de,h,"#3f6868",night,dark,base);
+   switch(b.id){
+    case "house_small":
+     height=25+extra;box(.16,.20,.66,.58,0,height-9,"#f4ce9c");details(.16,.20,.66,.58,height-9);this.gable(x+.12,y+.16,.74,.66,height-9,9,dark?"#754839":"#c9624c",polys);
+     box(.30,.25,.12,.12,height-2,6,"#ab6353");this.tree(x+.84,y+.83,b.x%3,.65);break;
+    case "power_plant":
+     height=35+extra;box(.16,.22,.66,.6,0,height-19);details(.16,.22,.66,.6,height-19);
+     box(.22,.27,.16,.16,height-19,19,"#9a785b");box(.21,.26,.18,.18,height-4,3,"#ecd2a0");box(.58,.32,.16,.21,height-19,7,"#527c75");
+     {const t=this.project(x+.54,y+.82,7);this.text("ϟ",t.x,t.y,10*z,"#fff1ab")}break;
+    case "water_tower":
+     height=40+extra;box(.26,.32,.45,.43,0,9,"#a8bcb4");
+     for(const [a,c] of [[.31,.35],[.67,.35],[.31,.68],[.67,.68]])this.line([this.project(x+a,y+c,7),this.project(x+a,y+c,height-8)],"#b9c9c0",2.4*z);
+     box(.19,.23,.62,.6,height-17,14);box(.23,.27,.54,.52,height-3,3,"#b7e0df");break;
+    case "park":
+     height=16+extra;this.poly(this.plate(x+.08,y+.08,x+.92,y+.92),"#88b370");
+     this.poly(this.plate(x+.42,y+.08,x+.56,y+.92),"#ded0a0");
+     this.poly(this.plate(x+.08,y+.42,x+.92,y+.56),"#ded0a0");box(.34,.34,.32,.32,0,3,"#64bcc2");
+     for(const [a,c,i] of [[.21,.24,0],[.73,.22,1],[.76,.75,2],[.21,.76,1]])this.tree(x+a,y+c,i,.75+extra*.02);break;
+    case "solar_plant":
+     height=15+extra;for(let i=0;i<3;i++){
+      const a=.13+i*.25;box(a,.16,.2,.66,0,4+extra,"#596a6f");
+      this.poly([this.project(x+a,y+.16,12+extra),this.project(x+a+.21,y+.16,12+extra),this.project(x+a+.21,y+.82,5+extra),this.project(x+a,y+.82,5+extra)],"#354f86","#a6d0f6",.8*z);
+      for(let j=1;j<4;j++)this.line([this.project(x+a,y+.16+j*.165,12+extra-j*1.75),this.project(x+a+.21,y+.16+j*.165,12+extra-j*1.75)],"#789fd0",.6*z);
+     }break;
+    case "office_tower":case "tech_tower":case "metro_wonder":case "apartment":{
+     const h={apartment:44,office_tower:62,tech_tower:78,metro_wonder:94}[b.id];height=h+extra;
+     box(.12,.12,.76,.76,0,8,"#97b9aa");box(.23,.22,.54,.56,8,height-13);details(.23,.22,.54,.56,height-13,8);
+     box(.27,.27,.45,.45,height-5,5,b.id==="metro_wonder"?"#f6dfa8":"#cae6d9");
+     if(b.id==="metro_wonder"||b.id==="tech_tower"){
+      box(.39,.38,.21,.22,height,9,"#96e0c9");
+      this.line([this.project(x+.5,y+.5,height+8),this.project(x+.5,y+.5,height+18)],"#edffcf",1.2*z);
+      const a=this.project(x+.5,y+.5,height+18);this.ellipse(a.x,a.y,2*z,2*z,"#eeffaa");height+=17;
+     }else box(.31,.34,.24,.23,height,3,"#627e75");
+     break;
+    }
+    case "night_market":
+     height=16+extra;
+     for(let i=0;i<2;i++){
+      const a=.12+i*.41;box(a,.17,.34,.67,0,height-5,"#d3b395");this.gable(x+a-.025,y+.14,.39,.73,height-5,5,i?"#c96a86":"#d6a55d",polys);
+      for(let v=0;v<4;v++){const t=this.project(x+a+.04+v*.075,y+.84,height-5);this.ellipse(t.x,t.y,1.3*z,1.3*z,i?"#ffbfab":"#fff090")}
+     }break;
+    case "trade_port":
+     height=41+extra;box(.12,.12,.76,.74,0,5,"#92a49f");box(.18,.5,.35,.27,5,10+extra,"#7caaa2");box(.52,.53,.32,.27,5,11+extra,"#b87961");box(.27,.18,.42,.26,5,9,"#d49765");
+     this.line([this.project(x+.19,y+.25,6),this.project(x+.19,y+.25,height),this.project(x+.78,y+.25,height)],"#f5d577",3*z);
+     this.line([this.project(x+.20,y+.25,height-10),this.project(x+.55,y+.25,height),this.project(x+.67,y+.25,height-15)],"#af8059",1.5*z);break;
+    default:{
+     const h={mini_mart:20,fire_station:23,police_station:29,construction_hq:26,hospital:34,waste_plant:24,mall:37,cyber_hub:42}[b.id]||24;height=h+extra;
+     box(.14,.15,.71,.68,0,height);details(.14,.15,.71,.68,height);
+     box(.11,.12,.77,.74,height,2.2);
+     box(.25,.28,.29,.25,height+2.2,3.8,"#9bb0a5");
+     if(b.id==="mini_mart"||b.id==="mall"){
+      for(let i=0;i<5;i++)box(.16+i*.13,.81,.13,.12,6,2,i%2?"#f6e3bb":"#b45b54");
+     }else{
+      const t=this.project(x+.5,y+.88,height*.64);
+      const symbol={fire_station:"▲",police_station:"★",construction_hq:"▰",hospital:"✚",waste_plant:"♻",cyber_hub:"⌘"}[b.id];
+      if(symbol){this.ellipse(t.x,t.y,6*z,5.5*z,b.id==="hospital"?"#a85251":"#344d50");this.text(symbol,t.x,t.y-.3*z,8.5*z,"#fff8df")}
+     }break;
+    }
+   }
+  }
+  this.hits.push({building:b,polys:[deck,...polys]});return height;
+ }
+ progress(x,y,value,color){
+  const g=this.ctx,z=this.camera.zoom;g.fillStyle="#142420e9";g.fillRect(x-15*z,y-3*z,30*z,6*z);g.fillStyle=color;g.fillRect(x-14*z,y-2*z,28*z*value,4*z);
+ }
+ crisis(c,height){
+  const d=CONFIG.crises[c.id],z=this.camera.zoom,g=this.ctx,t=this.elapsed,p=this.project(c.x+.5,c.y+.5,height+2),s=this.project(c.x+.5,c.y+.5,height+29+Math.sin(t*4)*2);
+  const puff=(i,col,speed=1)=>{const f=(t*speed+i*.36)%1;this.ellipse(p.x+Math.sin(i*3+t)*f*12*z,p.y-f*36*z,(3+f*6)*z,(2+f*4.5)*z,col)};
+  if(c.id==="fire"){
+   for(let i=0;i<4;i++)puff(i,"#24302bb5",.6);
+   for(let i=0;i<4;i++){const x=p.x+(i-1.5)*5*z,y=p.y+4*z,dy=(12+Math.sin(t*13+i*2)*5)*z;this.poly([{x:x-4*z,y},{x:x+Math.sin(t*8+i)*3*z,y:y-dy},{x:x+4*z,y}],i%2?"#ffc35d":"#ff7651")}
+  }else if(c.id==="blackout"){
+   const a=5+Math.sin(t*13)*3;this.line([{x:p.x+4*z,y:p.y-18*z},{x:p.x-a*z,y:p.y-9*z},{x:p.x+2*z,y:p.y-9*z},{x:p.x-4*z,y:p.y+1*z}],"#ffe083",2*z);
+  }else if(c.id==="water_leak"){
+   for(let i=0;i<9;i++){const f=(t*1.5+i*.12)%1,side=i%2?1:-1;this.ellipse(p.x+side*f*18*z,p.y-(Math.sin(f*Math.PI)*23+1)*z,(1.2+f)*z,2*z,"#86e7ff")}
+  }else if(c.id==="collapse"||c.id==="trash_pile"){
+   for(let i=0;i<5;i++)puff(i,c.id==="collapse"?"#cbc3a582":"#9fae5899",.6);
+  }else if(c.id==="traffic_jam"){
+   for(let i=0;i<2;i++)this.ellipse(p.x+(i*2-1)*7*z,p.y+4*z,6*z,3*z,(Math.floor(t*8)+i)%2?"#fe8685":"#8bbfff");
+  }else if(c.id==="flu_outbreak"){
+   for(let i=0;i<4;i++){const a=t+i*1.57;this.text("✚",p.x+Math.cos(a)*13*z,p.y+Math.sin(a)*7*z,7*z,"#ffc2b7")}
+  }else{
+   for(let i=0;i<5;i++)this.text((i+Math.floor(t*9))%2?"1":"0",p.x+((i*7)%19-9)*z,p.y-(i*4+3)*z,8*z,"#a3ffc2");
+  }
+  const r=Math.max(10,11*z),ay=s.y;
+  this.poly([{x:s.x-4*z,y:ay+r-2},{x:s.x,y:ay+r+5},{x:s.x+4*z,y:ay+r-2}],"#263631");
+  this.ellipse(s.x,ay,r+1,r+1,d.color);this.ellipse(s.x,ay,r-.6,r-.6,"#263631");
+  this.text(d.icon,s.x,ay,Math.max(11,13*z),d.color);
+  if(c.progress>0)this.progress(s.x,ay-r-6,c.progress,"#b9efa3");
+  this.hits.push({crisis:c,x:s.x,y:ay,r:r+4});
+ }
+ npc(n){
+  const t=this.elapsed,z=this.camera.zoom,p=this.project(n.x+.51,n.y+.51),d=CONFIG.npcs[n.type],color=d.color;
+  this.ellipse(p.x,p.y+1.7*z,(n.level+2)*z,2.6*z,"#1e352c99");
+  if(n.level===1){
+   const bob=n.phase==="repair"?0:Math.sin(t*15)*1.35*z;
+   this.line([{x:p.x-1*z,y:p.y-4*z},{x:p.x-2*z,y:p.y+bob}],"#283e38",1.3*z);this.line([{x:p.x+1*z,y:p.y-4*z},{x:p.x+2*z,y:p.y-bob}],"#283e38",1.3*z);
+   this.ellipse(p.x,p.y-5*z,3.2*z,4*z,color);this.ellipse(p.x,p.y-9*z,2.8*z,2.7*z,"#f5e6bf");
+  }else{
+   const h=n.level<=3?5:8+1.5*(n.level-4),width=n.level<=3?5:7+(n.level-4)*2;
+   for(const side of [-1,1])this.ellipse(p.x+side*width*.74*z,p.y+1.4*z,2.3*z,2.2*z,"#253332");
+   this.block(n.x+.36,n.y+.39,n.level<=3?.29:.39,.24,1,h,color);
+   if(n.level===2)this.ellipse(p.x,p.y-6*z,2.4*z,2.5*z,"#e8e1b6");
+   if(n.level===3)this.ellipse(p.x+2*z,p.y-6*z,2.5*z,2.5*z,"#c5e0d3");
+   if(n.level>=4){this.ellipse(p.x-1*z,p.y-(h+1)*z,2.7*z,1.5*z,"#d9ecd6");if(n.phase!=="return")this.ellipse(p.x+2*z,p.y-(h+2)*z,2*z,1.4*z,Math.floor(t*9)%2?"#ff907e":"#a6c6ff")}
+  }
+  if(n.phase==="repair"){
+   const phase=t*10%1;
+   this.ellipse(p.x+(7+7*phase)*z,p.y-(6+8*phase)*z,1.7*z,1.2*z,"#ffe7a4");
+  }
+ }
+ contains(point,poly){
+  let found=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+   const a=poly[i],b=poly[j];
+   if((a.y>point.y)!==(b.y>point.y)&&point.x<(b.x-a.x)*(point.y-a.y)/(b.y-a.y)+a.x)found=!found;
+  }return found;
+ }
+ hit(point){
+  for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.crisis&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
+  for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.building&&hit.polys.some(poly=>this.contains(point,poly)))return hit}
+  return null;
+ }
+ render(dt){
+  this.elapsed+=dt;
+  const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom;
+  const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
+  if(this.target){
+   const blend=Math.min(1,dt*10);this.camera.x+=(this.target.x-this.camera.x)*blend;this.camera.y+=(this.target.y-this.camera.y)*blend;
+   if(Math.hypot(this.camera.x-this.target.x,this.camera.y-this.target.y)<.4){this.camera.x=this.target.x;this.camera.y=this.target.y;this.target=null}
+  }
+  g.setTransform(this.dpr,0,0,this.dpr,0,0);this.ambient(night,own.weather,w);this.ground(w);this.hits=[];
+  for(const b of w.buildings)if(b.id==="road")this.road(b,w);
+  const jobs=[],heights=new Map();
+  for(let x=0;x<16;x++)for(let y=0;y<16;y++){
+   const b=lookup(w,x,y);if(b&&b.id!=="road")jobs.push({x,y,draw:()=>heights.set(coord(x,y),this.building(b,w,night))});
+   else if(!b){
+    const hash=(x*31+y*43+x*y*13)%113;
+    if((!unlocked(w,x,y)&&hash%7<2)||(unlocked(w,x,y)&&hash%17===3))jobs.push({x,y,draw:()=>this.tree(x+.53,y+.57,hash%3,.62+hash%5*.1)});
+   }
+  }
+  for(const n of w.npcs)jobs.push({x:n.x+.1,y:n.y+.1,draw:()=>this.npc(n)});
+  jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);for(const job of jobs)job.draw();
+  if(night>.01){g.fillStyle="rgba(27,50,110,"+night*.37+")";g.fillRect(0,0,this.width,this.height)}
+  if(own.weather==="heat"){g.fillStyle="#eb9e4820";g.fillRect(0,0,this.width,this.height)}
+  if(this.hover&&inside(this.hover.x,this.hover.y)){
+   const {x,y}=this.hover,mode=this.ui?.tool,standing=lookup(w,x,y);
+   if(["build","move","demo"].includes(mode)&&this.sim.social.viewMode==="own"){
+    const valid=mode==="demo"?standing&&this.sim.canAlter(standing):mode==="move"&&!this.ui.moving?!!standing:!this.sim.placement(mode==="move"?this.ui.moving.id:this.ui.selection,x,y,this.ui.moving);
+    this.poly(this.plate(x+.035,y+.035,x+.965,y+.965,1),valid?"#bfff7955":"#ff7e6960",valid?"#e0ffa2":"#ffc0aa",1.9);
+   }else if(standing)this.poly(this.plate(x,y,x+1,y+1,.8),null,"#def2bfaa",1.2);
+  }
+  for(const c of w.crises)this.crisis(c,heights.get(coord(c.x,c.y))||0);
+  for(const p of this.sim.particles)if((p.world||own)===w){
+   const a=this.project(p.x+.5,p.y+.5,(heights.get(coord(p.x|0,p.y|0))||7)+15+p.life*24);
+   g.globalAlpha=Math.min(1,(1.45-p.life)*2);this.text(p.text,a.x+1,a.y+1,Math.max(12,13*z),"#18372d");this.text(p.text,a.x,a.y,Math.max(12,13*z),p.color);g.globalAlpha=1;
+  }
+  if(own.weather==="storm"){
+   g.fillStyle="#293f571b";g.fillRect(0,0,this.width,this.height);g.beginPath();
+   for(let i=0;i<165;i++){const h=this.height+40,a=(i*164.53+this.elapsed*101)%(this.width+30)-15,b=(i*89.167+this.elapsed*(380+(i%4)*33))%h-20;g.moveTo(a,b);g.lineTo(a+6,b+13+(i%3)*3)}
+   g.strokeStyle="#b7def05e";g.lineWidth=.82;g.stroke();
+   const f=this.elapsed%12;if(f<.13||(f>.23&&f<.31)){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
+  }
+ }
+ thumbnail(id){
+  const canvas=document.createElement("canvas");canvas.width=112;canvas.height=94;
+  const saved={ctx:this.ctx,camera:this.camera,hits:this.hits};this.ctx=canvas.getContext("2d");this.camera={x:56,y:70,zoom:id==="metro_wonder"?.58:id==="tech_tower"?.66:.79};this.hits=[];
+  const b=makeBuilding(id,0,0),w=makeWorld(id==="road"?[b,makeBuilding("road",1,0),makeBuilding("road",0,-1)]:[b]);
+  if(id==="road")this.road(b,w);else this.building(b,w,0);
+  Object.assign(this,saved);return canvas.toDataURL();
+ }
+}
+class StorageManager {
+ static fresh(){
+  const buildings=[];
+  for(let x=5;x<=10;x++)buildings.push(makeBuilding("road",x,7));
+  for(let y=5;y<=10;y++)if(y!==7)buildings.push(makeBuilding("road",8,y));
+  buildings.push(makeBuilding("house_small",7,8),makeBuilding("power_plant",6,6),makeBuilding("water_tower",9,8));
+  return {
+   profile:{mayorId:"MP-"+Math.floor(1000+Math.random()*9000),mayorName:"Thị trưởng Mới",level:1,xp:0,coins:CONFIG.starterCoins,prestige:10,happiness:100,combo:0,helpsGiven:0,dailyHelpsLeft:5,lastHelpResetDate:today()},
+   world:makeWorld(buildings),milestones:{completedIds:[],claimedIds:[],stats:{crisesSolved:0,buildingsBuilt:0,roadsBuilt:0,peakIncome:0,npcLevel:1,policies:0,news500:false}},friends:[],lastSavedAt:0,sound:true
+  };
+ }
+ static load(){
+  const fallback=this.fresh();
+  try{
+   const raw=localStorage.getItem(CONFIG.key);if(!raw)return fallback;
+   const val=JSON.parse(raw);
+   if(!val.profile||!Number.isFinite(val.profile.coins)||!Number.isFinite(val.profile.xp)||!Number.isSafeInteger(val.profile.level)||val.profile.level<1||val.profile.level>100000||
+      !Array.isArray(val.world?.buildings)||val.world.buildings.length>256||val.world.buildings.some(b=>!Object.hasOwn(CONFIG.buildings,b?.id)||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!inside(b.x,b.y)))return fallback;
+   return {...fallback,...val,profile:{...fallback.profile,...val.profile},world:makeWorld(val.world.buildings,val.profile.level,val.world),
+    milestones:{...fallback.milestones,...val.milestones,stats:{...fallback.milestones.stats,...val.milestones?.stats}},
+    friends:Array.isArray(val.friends)?val.friends:[]};
+  }catch(_){return fallback}
+ }
+ constructor(sim){this.sim=sim;this.available=true;this.erasing=false}
+ save(){
+  if(this.erasing)return true;
+  const {profile,world,milestones,social,audio}=this.sim;
+  try{
+   localStorage.setItem(CONFIG.key,JSON.stringify({profile,world,milestones,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled},(key,value)=>key==="index"?undefined:value));
+   this.available=true;return true;
+  }catch(_){this.available=false;return false}
+ }
+ offline(lastSavedAt){
+  if(!Number.isFinite(lastSavedAt)||lastSavedAt<=0)return null;
+  const seconds=Math.min((Date.now()-lastSavedAt)/1000,28800);if(seconds<60)return null;
+  const {sim}=this,coins=Math.max(0,Math.floor(sim.measure(sim.world).income*seconds*.6));
+  sim.profile.coins+=coins;this.save();return {coins,seconds};
+ }
+ reset(){
+  try{this.erasing=true;localStorage.removeItem(CONFIG.key);location.reload();return true}
+  catch(_){this.erasing=false;return false}
+ }
+}
+
+class UIController {
+ constructor(sim,renderer){
+  this.sim=sim;this.renderer=renderer;renderer.ui=this;this.canvas=renderer.canvas;
+  this.tool="look";this.selection=null;this.moving=null;this.inspect=null;this.category="all";this.dialogType="";this.rank="assets";this.catalogOpen=innerWidth>780;
+  this.pointers=new Map();this.gesture=null;this.ownCamera=null;this.nodes={};this.newsCursor=0;this.displayedNews=[];this.newsAt=-30;
+  for(const id of ["logo","stats","clock","sound","settings","profile","maplabel","visit","side","filters","catalog","right","inspect","zoom","center","hint","toast","news","dock","dialog","dialog-tag","dialog-title","dialog-body"])this.nodes[id]=document.getElementById(id);
+  this.nodes.logo.innerHTML=this.icon("pulse");this.nodes.settings.innerHTML=this.icon("settings");this.nodes.center.innerHTML=this.icon("center");
+  this.thumbs=Object.fromEntries(Object.keys(CONFIG.buildings).map(id=>[id,renderer.thumbnail(id)]));
+  this.menu=[["look","Xem / Kéo","center"],["build","Xây dựng","build"],["teams","Quản lý NPC","crew"],["policies","Sắc lệnh","policy"],["missions","Nhiệm vụ","target"],["social","Bạn bè & BXH","social"],["move","Di chuyển","move"],["demo","Phá dỡ","demo"]];
+  this.sim.say("Chào mừng đến MetroPulse! Khởi đầu bằng một Nhà cấp 4 để hoàn thành nhiệm vụ đầu tiên.");
+  document.addEventListener("pointerdown",()=>sim.audio.unlock(),{passive:true});
+  document.addEventListener("keydown",e=>{
+   sim.audio.unlock();if(this.nodes.dialog.open||e.target.matches("input,textarea"))return;
+   if(e.key==="Escape"){this.setTool("look");this.refresh()}
+   if(e.key==="+"||e.key==="=")this.renderer.zoom(1.14);
+   if(e.key==="-")this.renderer.zoom(1/1.14);
+  });
+  document.addEventListener("click",e=>{const btn=e.target.closest("button[data-act]");if(btn&&!btn.disabled){sim.audio.play("click");this.action(btn)}});
+  this.nodes.dialog.addEventListener("close",()=>{this.dialogType="";this.refresh()});
+  this.wireCanvas();this.refresh(true);
+ }
+ icon(id){
+  const paths={
+   pulse:'<path d="M2 13h5l4-8 3 14 3-6h5"/>',
+   coin:'<circle cx="12" cy="12" r="8"/><path d="M10 9h3.5a1.5 1.5 0 0 1 0 3H11a1.5 1.5 0 0 0 0 3H15M12 7v10"/>',
+   gem:'<path d="M3 8l4-5h10l4 5-9 13zM3 8h18M8 8l4 13 4-13"/>',
+   crew:'<circle cx="9" cy="7" r="3"/><path d="M3 19v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2zm14-7a4 4 0 0 1 4 4v3h-3M16 4a3 3 0 0 1 0 6"/>',
+   happy:'<circle cx="12" cy="12" r="9"/><path d="M7.5 13.5a5 5 0 0 0 9 0M9 9h.01m6 0h.01"/>',
+   power:'<path d="M13 2 5 13h6l-1 9 9-12h-6z"/>',
+   water:'<path d="M12 2c-1.9 4.3-6 7.5-6 12a6 6 0 0 0 12 0c0-4.5-4.1-7.7-6-12zM9 14c0 2 1 3 3 3"/>',
+   sound:'<path d="M3 9h4l5-4v14l-5-4H3zM15 9c2 2 2 4 0 6m3-9c4 4 4 8 0 12"/>',
+   mute:'<path d="M3 9h4l5-4v14l-5-4H3zM16 9l5 6m0-6-5 6"/>',
+   settings:'<circle cx="12" cy="12" r="3"/><path d="m10 3-.8 2.3-2 .8-2.2-1-2 3.4 1.7 1.6v2.8L3 15l2 3.4 2.2-1 2 .8L10 21h4l.8-2.8 2-.8 2.2 1 2-3.4-1.7-2.1v-2.8L21 8.5l-2-3.4-2.2 1-2-.8L14 3z"/>',
+   build:'<path d="M3 20h18M5 19V9l7-5 7 5v10M9 19v-5h6v5M9 10h.01m6 0h.01"/>',
+   policy:'<path d="M5 3h11l3 3v15H5zM15 3v5h4M8 12h8m-8 4h8"/>',
+   target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
+   social:'<path d="M3 18V7h18v11M3 11h18M8 7V4h8v3M7 18h3v3H7zm7 0h3v3h-3z"/>',
+   center:'<path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4"/><circle cx="12" cy="12" r="3"/>',
+   move:'<path d="M12 2v20M2 12h20M9 5l3-3 3 3m-6 14 3 3 3-3M5 9l-3 3 3 3m14-6 3 3-3 3"/>',
+   demo:'<path d="M4 7h16M8 7V4h8v3m2 0-1 13H7L6 7m4 3v7m4-7v7"/>'
+  };
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths[id]+"</svg>";
+ }
+ html(id,value){const el=this.nodes[id];if(el._mp!==value){el.innerHTML=value;el._mp=value}}
+ text(id,value){if(this.nodes[id].textContent!==value)this.nodes[id].textContent=value}
+ btn(act,label,opts={}){
+  return '<button type="button" data-act="'+act+'"'+(opts.id!==undefined?' data-id="'+htm(opts.id)+'"':"")+(opts.cls?' class="'+opts.cls+'"':"")+(opts.disabled?" disabled":"")+(opts.title?' title="'+htm(opts.title)+'"':"")+">"+label+"</button>";
+ }
+ bar(value,style=""){return '<div class="bar '+style+'"><i style="width:'+Math.round(clamp(value,0,1)*100)+'%"></i></div>'}
+ stat(icon,label,value,extra="",cls=""){
+  return '<div class="stat">'+this.icon(icon)+'<label>'+label+'</label><b class="'+cls+'">'+value+(extra?'<em>'+extra+"</em>":"")+"</b></div>";
+ }
+ toast(message){
+  if(!message)return;this.text("toast",message);this.nodes.toast.hidden=false;clearTimeout(this.toastTimer);
+  this.toastTimer=setTimeout(()=>this.nodes.toast.hidden=true,3400);
+ }
+ setTool(name,id=null){
+  this.tool=name;this.selection=id;this.moving=null;this.inspect=null;
+  this.canvas.classList.toggle("build",["build","move","demo"].includes(name));
+ }
+ wireCanvas(){
+  const canvas=this.canvas,r=this.renderer;
+  canvas.addEventListener("contextmenu",e=>e.preventDefault());
+  canvas.addEventListener("wheel",e=>{e.preventDefault();const p=r.local(e);r.zoom(Math.exp(-clamp(e.deltaY,-260,260)*.0016),p.x,p.y)},{passive:false});
+  canvas.addEventListener("pointerdown",e=>{
+   if(e.button>2)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);
+   const p=r.local(e);this.pointers.set(e.pointerId,p);
+   if(this.pointers.size===1){
+    this.gesture={id:e.pointerId,start:p,last:p,dragged:false,drawn:false,pan:e.button!==0||this.tool==="look",touch:e.pointerType==="touch",road:e.button===0&&this.tool==="build"&&this.selection==="road",old:null};
+   }else if(this.pointers.size===2){
+    this.gesture={pinch:true};const [a,b]=this.pointers.values();this.pinch={mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},dist:Math.hypot(a.x-b.x,a.y-b.y)};
+   }
+  });
+  canvas.addEventListener("pointermove",e=>{
+   const p=r.local(e);r.hover=IsoMath.screenToGrid(p.x,p.y,r.camera);
+   if(!this.pointers.has(e.pointerId)||!this.gesture)return;
+   this.pointers.set(e.pointerId,p);const action=this.gesture;
+   if(action.pinch){
+    if(this.pointers.size!==2)return;
+    const [a,b]=this.pointers.values(),mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2},dist=Math.hypot(a.x-b.x,a.y-b.y);
+    r.pan(mid.x-this.pinch.mid.x,mid.y-this.pinch.mid.y);r.zoom(dist/Math.max(1,this.pinch.dist),mid.x,mid.y);this.pinch={mid,dist};return;
+   }
+   const dragged=Math.hypot(p.x-action.start.x,p.y-action.start.y)>5;
+   if(dragged||action.dragged){
+    if(!action.dragged&&action.road)action.old=IsoMath.screenToGrid(action.start.x,action.start.y,r.camera);
+    action.dragged=true;
+    if(action.road){
+     const now=IsoMath.screenToGrid(p.x,p.y,r.camera);
+     if(!action.drawn){if(inside(action.old.x,action.old.y))this.sim.build("road",action.old.x,action.old.y);action.drawn=true}
+     if(inside(now.x,now.y)&&inside(action.old.x,action.old.y)){
+      let x=action.old.x,y=action.old.y;
+      while(x!==now.x||y!==now.y){if(Math.abs(now.x-x)>=Math.abs(now.y-y))x+=Math.sign(now.x-x);else y+=Math.sign(now.y-y);this.sim.build("road",x,y)}
+     }else if(inside(now.x,now.y))this.sim.build("road",now.x,now.y);
+     action.old=now;
+    }else if(action.pan||action.touch){canvas.classList.add("drag");r.pan(p.x-action.last.x,p.y-action.last.y)}
+   }
+   action.last=p;
+  });
+  const release=e=>{
+   const action=this.gesture;this.pointers.delete(e.pointerId);
+   if(!this.pointers.size){this.gesture=null;canvas.classList.remove("drag")}
+   if(e.type==="pointerup"&&e.button===0&&action&&!action.pinch&&!action.dragged)this.pick(r.local(e));
+  };
+  canvas.addEventListener("pointerup",release);canvas.addEventListener("pointercancel",release);canvas.addEventListener("lostpointercapture",e=>{if(this.pointers.has(e.pointerId))release(e)});
+  canvas.addEventListener("pointerleave",()=>r.hover=null);
+ }
+ pick(point){
+  const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera),hit=this.renderer.hit(point);
+  if(hit?.crisis){this.dispatch(hit.crisis.uid);return}
+  const at=lookup(w,x,y),b=hit?.building||at;
+  if(this.tool==="build"&&this.selection){this.toast(s.build(this.selection,x,y));this.refresh();return}
+  if(this.tool==="move"){
+   if(!this.moving){if(b){this.moving=b;this.toast("Chọn ô trống để di chuyển "+CONFIG.buildings[b.id].name+".")}}
+   else{const error=s.move(this.moving,x,y);if(!error){this.moving=null;this.inspect=null;this.toast("Đã di chuyển công trình.")}else this.toast(error)}
+  }else if(this.tool==="demo"){
+   if(b)this.confirmDemolish(b);
+  }else if(this.tool==="look"){
+   this.inspect=b||null;
+  }
+  this.refresh();
+ }
+ open(type,tag,title,value){
+  this.dialogType=type;this.text("dialog-tag",tag);this.text("dialog-title",title);this.html("dialog-body",value);
+  if(!this.nodes.dialog.open)this.nodes.dialog.showModal();
+ }
+ close(){if(this.nodes.dialog.open)this.nodes.dialog.close();this.dialogType=""}
+ select(id){
+  const d=CONFIG.buildings[id];if(!d||this.sim.social.current)return;
+  if(this.sim.profile.level<d.unlock){this.toast("Mở khóa "+d.name+" khi đạt cấp "+d.unlock+".");return}
+  this.setTool("build",id);this.catalogOpen=true;if(innerWidth<=780)this.catalogOpen=false;
+ }
+ dispatch(uid){
+  const s=this.sim,w=s.social.world,c=w.crises.find(z=>z.uid===uid);if(!c)return;
+  this.renderer.focus(c.x,c.y);this.toast(s.crisis.dispatch(c,w,s.social.current));this.refresh();
+ }
+ confirmDemolish(b){
+  if(!this.sim.canAlter(b)){this.toast("Không thể phá khi có sự cố hoặc đội đang làm nhiệm vụ.");return}
+  const {name,price}=CONFIG.buildings[b.id];
+  this.open("demolish","QUY HOẠCH","Phá dỡ công trình",'<p>Phá <b>'+name+'</b> và nhận lại <b class="gold">'+fmt(price/2,price%2?1:0)+'</b> Vàng?</p>'+this.btn("do-demolish","Xác nhận phá dỡ",{id:coord(b.x,b.y),cls:"danger"}));
+ }
+ teams(){
+  const s=this.sim,rows=s.world.buildings.filter(b=>CONFIG.npcs[b.id]).map(b=>{
+   const d=CONFIG.buildings[b.id],team=CONFIG.npcs[b.id],v=CONFIG.vehicles[b.teamLevel-1],key=coord(b.x,b.y);
+   return '<div class="row"><div><b>'+team.name+'</b><small>'+d.name+' · '+String.fromCharCode(65+b.x)+(b.y+1)+'</small><small>'+(b.left>0?"Đang xây":'Cấp '+b.teamLevel+' · '+v.name+' · '+fmt(v.speed,1)+' ô/giây · sửa '+v.repair+' giây · '+(b.crew-s.crisis.busy(b))+'/'+b.crew+' rảnh')+'</small></div><div class="actions">'+
+    this.btn("team-up",b.teamLevel===5?"Tối đa":"Nâng cấp · "+fmt(Math.ceil(250*b.teamLevel**1.4))+" V",{id:key,disabled:b.teamLevel===5||b.left>0})+
+    this.btn("team-hire",b.crew===3?"Đủ 3 người":"Tuyển · "+(b.crew+1)+" UT",{id:key,disabled:b.crew===3||b.left>0})+'</div></div>';
+  }).join("");
+  this.open("teams","ĐỘI PHẢN ỨNG","Quản lý NPC",'<p class="muted">Nâng cấp kỹ năng và phương tiện để đến nhanh, sửa nhanh. Mỗi trụ sở có tối đa 3 nhân sự.</p>'+(rows||'<p>Hãy xây một trụ sở dịch vụ để bắt đầu điều phối.</p>'));
+ }
+ policies(){
+  const w=this.sim.world;
+  const rows=Object.entries(CONFIG.policies).map(([id,p])=>{
+   const delay=w.policyCooldowns[id]||0,isOn=w.activePolicy?.id===id;
+   return '<div class="row"><div><b>'+p.name+'</b><small>'+p.desc+'</small><small>'+p.duration+' giây · hồi '+p.cooldown+' giây'+(p.cost?' · '+p.cost+' Uy tín':'')+'</small></div>'+
+    this.btn("policy",isOn?Math.ceil(w.activePolicy.left)+" giây":delay?Math.ceil(delay)+" giây hồi":"Ban hành",{id,cls:"primary",disabled:!!w.activePolicy||delay>0||this.sim.profile.prestige<p.cost})+'</div>';
+  }).join("");
+  this.open("policies","TÒA THỊ CHÍNH","Sắc lệnh Thị trưởng",'<p class="muted">Chỉ một sắc lệnh có hiệu lực tại một thời điểm.</p>'+rows);
+ }
+ missions(){
+  const {completedIds,claimedIds}=this.sim.milestones;
+  const rows=CONFIG.milestones.map((m,i)=>{
+   const claimed=claimedIds.includes(m.id),complete=completedIds.includes(m.id);
+   return '<div class="row"><div><b>'+String(i+1).padStart(2,"0")+' · '+m.name+'</b><small>'+m.desc+'</small><small class="gold">+'+fmt(m.coins)+' Vàng · +'+m.xp+' XP · +'+m.prestige+' Uy tín</small></div>'+
+   this.btn("claim",claimed?"Đã nhận":complete?"Nhận thưởng":"Đang làm",{id:m.id,cls:complete&&!claimed?"primary":"",disabled:!complete||claimed})+'</div>';
+  }).join("");
+  this.open("missions","HÀNH TRÌNH THỊ TRƯỞNG","Nhiệm vụ cốt truyện",rows);
+ }
+ socials(){
+  const s=this.sim,list=s.social.friends().map(f=>'<div class="row"><div><b>'+htm(f.name)+'</b><small>'+f.id+' · Cấp '+f.level+' · '+f.world.crises.length+' sự cố</small></div>'+this.btn("visit","Thăm thành phố",{id:f.id,cls:"primary"})+'</div>').join("");
+  this.open("social","KẾT NỐI ĐÔ THỊ","Bạn bè & Bảng xếp hạng",'<div class="tabs">'+this.btn("social","Bạn bè",{cls:"active"})+this.btn("rank","Bảng xếp hạng")+this.btn("codes","Mã thành phố")+'</div><p class="muted">Còn <b id="help-left">'+s.profile.dailyHelpsLeft+'/5</b> lượt chi viện · làm mới sau <b id="help-timer">'+s.social.resetTime()+'</b>.<br>Thưởng mỗi lượt: 250 Vàng × cấp bạn, 40 XP và 2 Uy tín.</p>'+list);
+ }
+ rankings(){
+  const tabs=[["assets","Tổng Tài sản"],["happiness","Hạnh phúc Đô thị"],["helpsGiven","Thị trưởng Nghĩa hiệp"]];
+  const rows=this.sim.social.rankings(this.rank).map((f,i)=>'<div class="row"><div><b>'+String(i+1).padStart(2,"0")+' · '+htm(f.name)+(f.id===this.sim.profile.mayorId?' <span class="mint">(Bạn)</span>':'')+'</b><small>Cấp '+f.level+' · '+f.id+'</small></div><b class="gold">'+fmt(f.score)+(this.rank==="happiness"?"%":this.rank==="assets"?" Vàng":" lượt")+'</b></div>').join("");
+  this.open("rank","KẾT NỐI ĐÔ THỊ","Bảng xếp hạng Thị trưởng",'<div class="tabs">'+this.btn("social","Về Bạn bè")+tabs.map(([id,title])=>this.btn("rank",title,{id,cls:this.rank===id?"active":""})).join("")+'</div>'+rows);
+ }
+ codes(){
+  this.open("codes","KẾT NỐI ĐÔ THỊ","Mã thành phố",'<div class="tabs">'+this.btn("social","Về Bạn bè")+'</div><label for="export-code"><b>Xuất mã thành phố</b></label><textarea id="export-code" rows="3" readonly>'+this.sim.social.export()+'</textarea>'+this.btn("copy","Sao chép mã",{cls:"primary"})+'<p></p><label for="import-code"><b>Nhập mã kết bạn</b></label><textarea id="import-code" rows="3" maxlength="28000" placeholder="Dán mã Base64 của bạn bè"></textarea>'+this.btn("import","Nhập và kết bạn",{cls:"primary"}));
+ }
+ settings(){
+  const p=this.sim.profile;
+  this.open("settings","HỒ SƠ & DỮ LIỆU","Cài đặt",'<label for="mayor-name"><b>Tên Thị trưởng</b></label><input id="mayor-name" maxlength="40" value="'+htm(p.mayorName)+'"><p class="muted">Mayor ID: <b>'+p.mayorId+'</b> · Tự động lưu mỗi 5 giây vào trình duyệt.</p><div class="tabs">'+this.btn("save","Lưu ngay",{cls:"primary"})+this.btn("sound",this.sim.audio.enabled?"Tắt âm thanh":"Bật âm thanh")+this.btn("reset","Chơi lại / Xóa bản lưu",{cls:"danger"})+'</div>');
+ }
+ offline(result){
+  this.open("offline","THU NHẬP NGOẠI TUYẾN","Chào mừng trở lại!",'<p>Thành phố đã tự vận hành trong <b>'+timer(result.seconds)+'</b> (tối đa 8 giờ). Bạn nhận <b class="gold">+'+fmt(result.coins)+' Vàng</b> với hiệu suất ngoại tuyến 60%.</p>'+this.btn("welcome","Vào thành phố",{cls:"primary"}));
+ }
+ action(button){
+  const s=this.sim,r=this.renderer,act=button.dataset.act,id=button.dataset.id;
+  const tile=()=>{const k=Number(id);return lookup(s.world,k%16,k>>4)};
+  switch(act){
+   case "look":this.setTool("look");this.catalogOpen=false;break;
+   case "build":if(s.social.current)return;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
+   case "close-build":this.catalogOpen=false;this.setTool("look");break;
+   case "filter":this.category=id;this.nodes.catalog.scrollTop=0;break;
+   case "select":this.select(id);break;
+   case "move":case "demo":if(!s.social.current){this.catalogOpen=false;this.setTool(this.tool===act?"look":act)}break;
+   case "zoom-in":r.zoom(1.15);break;
+   case "zoom-out":r.zoom(1/1.15);break;
+   case "center":r.center();break;
+   case "sound":s.audio.enabled=!s.audio.enabled;if(s.audio.enabled)s.audio.play("click");s.storage.save();if(this.dialogType==="settings"){button.textContent=s.audio.enabled?"Tắt âm thanh":"Bật âm thanh"}break;
+   case "settings":this.settings();break;
+   case "save":{
+    const input=document.getElementById("mayor-name"),name=input?.value.trim();if(name)s.profile.mayorName=name;else if(input){this.toast("Tên Thị trưởng không được để trống.");return}
+    this.close();this.toast(s.storage.save()?"Đã lưu thành phố.":"Không thể lưu: trình duyệt không cho phép ghi dữ liệu.");break;
+   }
+   case "reset":this.open("reset","XÁC NHẬN","Bắt đầu lại từ đầu?",'<p>Toàn bộ tiến độ, thành phố và danh sách bạn bè trên trình duyệt này sẽ bị xóa.</p>'+this.btn("do-reset","Xóa và chơi lại",{cls:"danger"}));break;
+   case "do-reset":if(!s.storage.reset()){this.close();this.toast("Không thể xóa bản lưu trên trình duyệt này.")}break;
+   case "dispatch":this.dispatch(id);break;
+   case "quick":this.select(id);break;
+   case "focus":if(this.inspect)r.focus(this.inspect.x,this.inspect.y);break;
+   case "inspect-close":this.inspect=null;break;
+   case "upgrade":if(tile())this.toast(s.upgrade(tile())||"Đã nâng cấp công trình.");break;
+   case "accelerate":if(tile())this.toast(s.accelerate(tile())||"Đã xây xong!");break;
+   case "remove":if(tile())this.confirmDemolish(tile());break;
+   case "do-demolish":if(tile()){this.close();this.toast(s.demolish(tile())||"Đã phá dỡ công trình.");this.inspect=null}break;
+   case "teams":this.teams();break;
+   case "team-up":case "team-hire":if(tile()){const error=s.crisis.teamAction(tile(),act==="team-hire"?"hire":"upgrade");this.teams();if(error){this.close();this.toast(error)}}break;
+   case "policies":this.policies();break;
+   case "policy":{const error=s.activate(id);if(error){this.close();this.toast(error)}else this.policies();break}
+   case "missions":this.missions();break;
+   case "claim":s.claim(id);this.missions();break;
+   case "social":this.socials();break;
+   case "rank":if(id)this.rank=id;this.rankings();break;
+   case "codes":this.codes();break;
+   case "copy":{
+    const out=document.getElementById("export-code");out.select();
+    if(navigator.clipboard)navigator.clipboard.writeText(out.value).then(()=>button.textContent="Đã sao chép").catch(()=>button.textContent="Đã chọn · Ctrl+C");
+    else button.textContent=document.execCommand("copy")?"Đã sao chép":"Đã chọn · Ctrl+C";
+    break;
+   }
+   case "import":{
+    const input=document.getElementById("import-code");let feedback=document.getElementById("code-message");
+    if(!feedback){feedback=document.createElement("p");feedback.id="code-message";feedback.setAttribute("role","status");input.after(feedback)}
+    try{const friend=s.social.import(input.value);feedback.className="mint";feedback.textContent="Đã kết bạn với "+friend.name+".";input.value=""}
+    catch(error){feedback.className="warn";feedback.textContent=error.message}
+    break;
+   }
+   case "visit":
+    if(!s.social.current)this.ownCamera={...r.camera};
+    s.social.visit(id);r.center();this.setTool("look");this.catalogOpen=false;r.hover=null;this.close();break;
+   case "return":
+    s.social.own();if(this.ownCamera)r.camera={...this.ownCamera};else r.center();r.target=null;r.hover=null;this.setTool("look");this.close();break;
+   case "close-dialog":this.close();break;
+   case "welcome":s.audio.play("money");this.close();break;
+  }
+  this.refresh();
+ }
+ refresh(initial=false){
+  const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend;
+  this.html("profile",'<span class="profile-avatar">'+this.icon("crew")+'</span><span class="profile-meta"><b>'+htm(p.mayorName)+'</b><small>CẤP '+p.level+' · '+fmt(p.xp)+' / '+fmt(CONFIG.xpNext(p.level))+' XP</small>'+this.bar(p.xp/CONFIG.xpNext(p.level))+'</span>');
+  this.html("stats",[
+   this.stat("coin","Vàng",fmt(Math.floor(p.coins)),"+"+fmt(m.income,1)+"/s","gold"),
+   this.stat("gem","Uy tín",fmt(p.prestige,p.prestige%1?1:0),"","mint"),this.stat("crew","Dân số",fmt(m.pop)),
+   this.stat("happy","Hạnh phúc",fmt(m.happiness)+"%","","mint"),
+   this.stat("power","Điện","+"+m.ps+" / −"+m.pd,"",m.ps<m.pd?"warn":""),
+   this.stat("water","Nước","+"+m.ws+" / −"+m.wd,"",m.ws<m.wd?"warn":"")
+  ].join(""));
+  const t=Math.floor(s.world.timeOfDay*1440),phase=t<360||t>=1140?"Đêm":t<660?"Buổi sáng":t<960?"Buổi trưa":"Hoàng hôn",weather=CONFIG.weather[s.world.weather];
+  this.html("clock",'<b>'+String(Math.floor(t/60)).padStart(2,"0")+':'+String(t%60).padStart(2,"0")+' · '+phase+'</b><small>'+weather[0]+' '+weather[1]+'</small>');
+  this.html("sound",this.icon(s.audio.enabled?"sound":"mute"));this.nodes.sound.setAttribute("aria-pressed",String(s.audio.enabled));
+  this.html("maplabel",'<small>Bản đồ quy hoạch · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?"Thành phố của tôi":htm(friend.name))+'</h1>');
+  this.nodes.visit.hidden=own;
+  if(friend)this.html("visit",'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
+  const pending=s.milestones.completedIds.some(id=>!s.milestones.claimedIds.includes(id));
+  this.html("dock",this.menu.map(([id,name,icon])=>this.btn(id,this.icon(icon)+name+(id==="missions"&&pending?'<sup aria-label="Có thưởng"></sup>':""),{
+   cls:((id==="build"&&(this.catalogOpen||this.tool==="build"))||(id!=="build"&&this.tool===id)||(this.dialogType===id))?"active":"",
+   disabled:!own&&["build","move","demo"].includes(id)
+  })).join(""));
+  this.nodes.side.hidden=!this.catalogOpen||!own;
+  if(this.catalogOpen&&own){
+   this.html("filters",Object.entries(CONFIG.groups).map(([id,name])=>this.btn("filter",name,{id,cls:this.category===id?"active":""})).join(""));
+   const rows=Object.values(CONFIG.buildings).filter(d=>this.category==="all"||d.group===this.category);
+   this.html("catalog",rows.map(d=>{
+    const locked=p.level<d.unlock,title=d.name+" · "+d.desc+" "+d.duration+" giây xây; +"+d.income+" Vàng/giây; Điện "+d.power+"; Nước "+d.water+".";
+    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt=""><span><b>'+d.name+'</b><small>'+(locked?'🔒 Cấp '+d.unlock:CONFIG.groups[d.group]+' · '+(d.duration?d.duration+' giây':'Tức thì'))+'</small></span><span class="price gold">'+fmt(d.price)+' V</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
+   }).join(""));
+  }
+  this.inspectCard();this.sidebar();
+  this.text("zoom",Math.round(this.renderer.camera.zoom*100)+"%");
+  let hint="Kéo để quan sát · Cuộn để thu phóng";
+  if(friend)hint="Chỉ xem · Chạm sự cố để chi viện · Còn "+p.dailyHelpsLeft+"/5 lượt";
+  else if(this.tool==="build"&&this.selection)hint=CONFIG.buildings[this.selection].name+" · "+(this.selection==="road"?"Kéo vẽ đường liên tiếp":"Chạm một ô đất sáng để đặt")+" · Esc để hủy";
+  else if(this.tool==="move")hint=this.moving?"Chạm ô trống để đặt lại công trình":"Chạm công trình muốn di chuyển";
+  else if(this.tool==="demo")hint="Chạm công trình để phá dỡ · Hoàn lại 50% giá gốc";
+  this.text("hint",hint);
+  if(s.news.length&&(!this.displayedNews.includes(s.news[0])||s.elapsed-this.newsAt>=24||initial)){
+   const next=!this.displayedNews.includes(s.news[0])?s.news[0]:s.news[this.newsCursor++%s.news.length];
+   this.displayedNews.unshift(next);this.displayedNews.length=Math.min(this.displayedNews.length,12);
+   this.text("news",next+"   •   MetroPulse — Nhịp Đập Đô Thị");
+   for(const animation of this.nodes.news.getAnimations())animation.currentTime=0;
+   this.newsAt=s.elapsed;
+  }
+  if(this.dialogType==="social"){
+   const timer=document.getElementById("help-timer"),left=document.getElementById("help-left");
+   if(timer)timer.textContent=s.social.resetTime();if(left)left.textContent=p.dailyHelpsLeft+"/5";
+  }
+  if(this.dialogType==="policies"&&this.nodes.dialog.open&&Math.floor(s.elapsed)!==this.policyFrame){this.policyFrame=Math.floor(s.elapsed);this.policies()}
+ }
+ inspectCard(){
+  const b=this.inspect,card=this.nodes.inspect,s=this.sim;
+  if(!b||!s.social.world.buildings.includes(b)){card.hidden=true;return}
+  card.hidden=false;
+  const d=CONFIG.buildings[b.id],key=coord(b.x,b.y),team=CONFIG.npcs[b.id],w=s.social.world;
+  let actions="";
+  if(!s.social.current){
+   actions=(b.left>0?this.btn("accelerate","Tăng tốc · 1 UT",{id:key,cls:"primary"}):this.btn("upgrade",b.level>=5?"Cấp tối đa":"Nâng cấp · "+fmt(CONFIG.upgrade(b))+" V",{id:key,cls:"primary",disabled:b.level>=5}))+
+    (team?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
+  }
+  this.html("inspect",'<div style="display:flex;justify-content:space-between;align-items:start;gap:5px"><div><div class="eyebrow">'+CONFIG.groups[d.group]+'</div><h3>'+d.name+'</h3></div>'+this.btn("inspect-close","×",{cls:"ghost icon",title:"Đóng thẻ"})+'</div><small>Ô '+String.fromCharCode(65+b.x)+(b.y+1)+' · Cấp '+b.level+'</small><p class="muted" style="font-size:11px;margin-top:5px">'+d.desc+'</p>'+
+   (b.left>0?'<small>Đang xây · '+Math.ceil(b.left)+' giây</small>'+this.bar(1-b.left/b.total):'<small class="gold">+'+fmt(s.production(b,w),1)+' V/s</small><small> · Điện '+(d.power>0?"+":"")+d.power+' · Nước '+(d.water>0?"+":"")+d.water+' · Rác '+(d.waste>0?"+":"")+d.waste+(d.pop?' · +'+d.pop+' Dân':'')+'</small>')+'<div class="actions">'+actions+'</div>');
+ }
+ sidebar(){
+  const s=this.sim,w=s.social.world,friend=s.social.current;
+  let result=w.crises.map(c=>{
+   const d=CONFIG.crises[c.id],job=w.npcs.find(n=>n.target===c.uid&&n.phase!=="return"),teams=s.crisis.teams(d.hq);
+   let status=job?(job.blocked?"Đang chờ mở lối":c.progress>0?"Đang sửa · "+Math.round(c.progress*100)+"%":"Đội đang trên đường"):c.late?"Quá ngưỡng nguy hiểm":"Nguy hiểm sau "+Math.max(0,Math.ceil(d.danger-c.age))+" giây";
+   if(!teams.length&&!job)status="Cần xây "+CONFIG.buildings[d.hq].name+" để điều phối "+d.npc+"!";
+   const button=job?this.btn("dispatch","Đang điều phối",{id:c.uid,disabled:true}):this.btn("dispatch",friend?"Chi viện NPC":"Điều phối NPC",{id:c.uid,cls:"primary"});
+   return '<div class="incident glass interactive"><div class="eyebrow">'+htm(d.icon)+' · '+(friend?"Sự cố thành phố bạn":"Cảnh báo sự cố")+'</div><h3>'+d.name+'</h3><p>'+d.penalty+'</p><small>'+status+'</small>'+this.bar(job&&c.progress>0?c.progress:c.age/d.danger,job?"blue":"danger")+button+
+    (!teams.length&&!friend?this.btn("quick","Xây nhanh Trụ sở",{id:d.hq}):"")+'</div>';
+  }).join("");
+  if(!friend&&!result){
+   const goal=CONFIG.milestones.find(m=>!s.milestones.claimedIds.includes(m.id));
+   if(goal){
+    const ready=s.milestones.completedIds.includes(goal.id);
+    result='<div class="mission glass interactive"><div class="eyebrow">◆ Lộ trình Thị trưởng</div><h3>'+goal.name+'</h3><p>'+goal.desc+'</p>'+
+     (goal.id==="roots"?this.bar((Math.min(2,s.count("house_small"))+Math.min(1,s.count("power_plant")))/3):"")+
+     this.btn(ready?"claim":"missions",ready?"Nhận thưởng":"Xem nhiệm vụ",{cls:ready?"primary":"",id:goal.id})+'</div>';
+   }
+  }
+  this.html("right",result);
+ }
+}
+
+const audio=new AudioEngine(),data=StorageManager.load();
+audio.enabled=data.sound!==false;
+const sim=new SimulationEngine(data,audio);
+sim.crisis=new CrisisAndNPCManager(sim);
+sim.social=new SocialManager(sim,data.friends);
+sim.storage=new StorageManager(sim);
+const renderer=new IsoRenderer(document.getElementById("map"),sim),ui=new UIController(sim,renderer);
+sim.refreshMilestones();
+const offline=sim.storage.offline(data.lastSavedAt);
+if(offline)ui.offline(offline);else sim.storage.save();
+addEventListener("pagehide",()=>sim.storage.save());
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")sim.storage.save()});
+sim.start(renderer,ui);
+</script>
+</body>
+</html>
