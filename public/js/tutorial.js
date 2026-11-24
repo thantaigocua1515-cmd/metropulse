@@ -53,7 +53,7 @@ class TutorialManager {
   if(s.prog.loginState().available)s.pending.push({type:"login"});
   s.storage.save();
  }
- hide(){if(!this.node.hidden){this.node.hidden=true;this.renderer().guide=null;this.shown=""}}
+ hide(){this.ui.pinCommands(false);if(!this.node.hidden){this.node.hidden=true;this.renderer().guide=null;this.shown=""}}
  renderer(){return this.ui.renderer}
  update(){
   const s=this.sim,ui=this.ui;
@@ -71,9 +71,11 @@ class TutorialManager {
   const html='<div class="coach-row">'+ui.portrait("mai")+'<div><div class="eyebrow">Hướng dẫn · Bước '+(this.state.step+1)+'/'+list.length+'</div><p>'+step.text+'</p></div></div>'+ui.btn("coach-skip","Bỏ qua hướng dẫn",{cls:"ghost"});
   if(this.shown!==html){this.bubble.innerHTML=html;this.shown=html}
   const r=this.renderer(),tile=step.tile?.();let box=null;
+  const target=step.target?.();
+  ui.pinCommands(!!target?.closest("#command-drawer"));
   r.guide=tile&&!step.lift?{x:tile.x,y:tile.y}:null;
   if(tile){const p=r.project(tile.x+.5,tile.y+.5,step.lift||0),z=r.camera.zoom;box={left:p.x-34*z,top:p.y-(step.lift?20:18)*z,width:68*z,height:(step.lift?40:36)*z,round:true}}
-  else{const el=step.target?.();if(el){const rect=el.getBoundingClientRect();if(rect.width)box={left:rect.left-5,top:rect.top-5,width:rect.width+10,height:rect.height+10}}}
+  else if(target){const rect=target.getBoundingClientRect();if(rect.width)box={left:rect.left-5,top:rect.top-5,width:rect.width+10,height:rect.height+10}}
   this.ring.hidden=!box;
   if(box){Object.assign(this.ring.style,{left:box.left+"px",top:box.top+"px",width:box.width+"px",height:box.height+"px"});this.ring.classList.toggle("tile",!!box.round)}
  }

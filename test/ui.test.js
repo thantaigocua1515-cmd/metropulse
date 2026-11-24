@@ -5,7 +5,8 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 
 const script = name => fs.readFileSync(path.join(__dirname, "../public/js", name + ".js"), "utf8");
-const UIController = vm.runInNewContext(["core", "ui-input", "ui"].map(script).concat("UIController").join("\n"));
+const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui", "ui-dialogs"].map(script).concat("UIController").join("\n"), globals);
+const UIController = loadUI({});
 
 test("quest tracker expands, prioritizes claimable quests, and hides during visits", () => {
   const ui = Object.create(UIController.prototype);
@@ -75,4 +76,102 @@ test("prestige balances and reward amounts use the medal without replacing their
   assert.match(reward, medal);
   assert.match(reward, /\+3 Uy tín/);
   assert.doesNotMatch(ui.reward({ coins: 100, know: 2 }), medal);
+});
+
+test("mission and achievement tabs show ready, unfinished, then rewarded entries", () => {
+  const items = ["claimed", "pending", "ready", "pending2"].map(id => ({ id, name: id }));
+  const content = { chapters: [], login: [], achievements: items, dailyReward: () => ({}), dailyBonus: () => ({}), achievementReward: () => ({}) };
+  const ui = Object.create(loadUI({ CONTENT: content }).prototype);
+  const state = ({ id }) => ({ id, text: id, claimed: id === "claimed", done: ["claimed", "ready"].includes(id), cur: 1, goal: 2 });
+  ui.tabs = {};
+  ui.sim = {
+    profile: { level: 1 },
+    progress: { story: { claimed: ["claimed"] }, daily: { quests: items } },
+    social: { resetTime: () => "" },
+    prog: {
+      chapter: () => ({ quests: items, reward: {} }),
+      questState: state,
+      dailyState: state,
+      loginState: () => ({ available: false }),
+      dailyBonusReady: () => false,
+      badges: () => ({ daily: 1, login: 0 }),
+      achState: ({ id }) => ({ claimable: id === "ready", complete: id === "claimed", goal: 2, value: 1, tier: 0 })
+    }
+  };
+  for (const tab of ["story", "daily", "ach"]) {
+    ui.tabs.missions = tab;
+    let body;
+    ui.open = (_type, _tag, _title, html) => { body = html; };
+    ui.missions();
+    assert.deepEqual([...body.matchAll(/<b>(claimed|pending|ready|pending2)<\/b>/g)].map(m => m[1]), ["ready", "pending", "pending2", "claimed"]);
+    assert.deepEqual(items.map(x => x.id), ["claimed", "pending", "ready", "pending2"]);
+  }
+});
+
+test("command drawer resets its idle timer and stays open while pinned", () => {
+  let expire;
+  const ui = Object.create(loadUI({
+    document: { activeElement: null },
+    setTimeout: (fn, ms) => { assert.equal(ms, 5000); expire = fn; return fn; },
+    clearTimeout: fn => { if (expire === fn) expire = null; }
+  }).prototype);
+  const toggle = { setAttribute(name, value) { this[name] = value; } };
+  const drawer = { contains: () => false };
+  ui.nodes = { "rail-toggle": toggle, "command-drawer": drawer };
+  ui.commandBadges = 3;
+  ui.setCommands(false);
+  assert.equal(drawer.inert, true);
+  assert.match(toggle.innerHTML, />3<\/sup>/);
+  ui.action({ dataset: { act: "rail-toggle" } });
+  assert.equal(toggle["aria-expanded"], "true");
+  assert.equal(drawer.inert, false);
+  assert.doesNotMatch(toggle.innerHTML, /<sup/);
+  const first = expire;
+  ui.scheduleCommandClose();
+  assert.notEqual(expire, first);
+  expire();
+  assert.equal(drawer.inert, true);
+  ui.pinCommands(true);
+  ui.setCommands(false);
+  assert.equal(drawer.inert, false);
+  assert.equal(expire, null);
+  ui.pinCommands(false);
+  expire();
+  assert.equal(drawer.inert, true);
+});
+
+test("touch jitter taps, but dragging, holding, pinch and cancellation do not", () => {
+  const listeners = {};
+  const ui = Object.create(UIController.prototype);
+  const picked = [], pans = [], zooms = [];
+  ui.canvas = { addEventListener: (type, fn) => { listeners[type] = fn; }, setPointerCapture() {}, classList: { add() {}, remove() {} } };
+  ui.renderer = { camera: { x: 0, y: 0, zoom: 1 }, local: e => ({ x: e.x, y: e.y }), pan: (...args) => pans.push(args), zoom: (...args) => zooms.push(args) };
+  ui.tool = "look";
+  ui.pointers = new Map();
+  ui.pick = p => picked.push([p.x, p.y]);
+  ui.wireCanvas();
+  const send = (type, x, y, id = 1, timeStamp = 50) => listeners[type]({ type, x, y, timeStamp, button: 0, pointerType: "touch", pointerId: id, preventDefault() {} });
+  send("pointerdown", 20, 30);
+  send("pointermove", 26, 30);
+  send("pointerup", 26, 30);
+  assert.deepEqual(picked, [[20, 30]]);
+  assert.deepEqual(pans, []);
+  send("pointerdown", 20, 30);
+  send("pointermove", 30, 30);
+  send("pointerup", 20, 30);
+  assert.deepEqual(pans, [[2, 0]]);
+  send("pointerdown", 20, 30);
+  send("pointerup", 20, 30, 1, 600);
+  send("pointerdown", 20, 30);
+  send("pointercancel", 20, 30);
+  send("pointerup", 20, 30);
+  send("pointerdown", 20, 30);
+  send("pointerdown", 40, 30, 2);
+  send("pointermove", 50, 30, 2);
+  send("pointerup", 50, 30, 2);
+  send("pointermove", 40, 30);
+  send("pointerup", 40, 30);
+  assert.deepEqual(zooms, [[1.5, 35, 30]]);
+  assert.deepEqual(picked, [[20, 30]]);
+  assert.equal(ui.pointers.size, 0);
 });

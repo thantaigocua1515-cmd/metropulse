@@ -6,8 +6,8 @@ class UIController {
   this.tool="look";this.selection=null;this.moving=null;this.inspect=null;this.category="all";this.dialogType="";this.catalogOpen=false;
   this.tabs={missions:"story",social:"friends",profile:"me",account:"register"};this.rank="score";this.rankScope="friends";this.globalRows=null;this.mail=[];
   this.pointers=new Map();this.gesture=null;this.ownCamera=null;this.nodes={};this.newsCursor=0;this.displayedNews=[];this.newsAt=-30;this.sceneState=null;
-  this.questOpen=false;
-  for(const id of ["stats","utilities","clock","cloud","sound","profile","maplabel","visit","side","filters","catalog","right","quest-track","inspect","fab","zoom","look","hint","toast","news","build-tools","action-rail","dialog","dialog-tag","dialog-title","dialog-body","scene","scene-body","coach"])this.nodes[id]=document.getElementById(id);
+  this.questOpen=false;this.commandsOpen=false;this.commandsPinned=false;this.commandBadges=0;
+  for(const id of ["stats","utilities","clock","cloud","sound","profile","maplabel","visit","side","filters","catalog","right","quest-track","inspect","fab","zoom","look","hint","toast","news","build-tools","command-rail","rail-toggle","command-drawer","action-rail","dialog","dialog-tag","dialog-title","dialog-body","scene","scene-body","coach"])this.nodes[id]=document.getElementById(id);
   for(const id of ["center","look","help","settings"])document.getElementById(id).innerHTML=this.icon(id);
   this.html("stats",[
    this.resource("coin","Vàng",true,{act:"login-open",label:"Kiếm Vàng từ điểm danh"}),
@@ -19,6 +19,9 @@ class UIController {
   this.thumbs=Object.fromEntries(Object.keys(CONFIG.buildings).map(id=>[id,renderer.thumbnail(id)]));
   this.sim.say("Chào mừng đến Bình Minh! Hãy xây thêm nhà và nối đường để thị trấn sống lại.");
   document.addEventListener("pointerdown",()=>sim.audio.unlock(),{passive:true});
+  document.addEventListener("touchstart",()=>sim.audio.unlock(),{passive:true});
+  document.addEventListener("contextmenu",e=>{if(!e.target.closest('input,textarea,[contenteditable="true"]'))e.preventDefault()});
+  for(const type of ["pointerdown","click"])this.nodes["command-rail"].addEventListener(type,()=>this.scheduleCommandClose(),{passive:true});
   document.addEventListener("submit",e=>{const kind=e.target.dataset?.auth;if(kind){e.preventDefault();this.auth(kind)}});
   document.addEventListener("keydown",e=>{
    sim.audio.unlock();
@@ -40,6 +43,28 @@ class UIController {
  icon(id){
   if(id==="prestige")return '<img class="prestige-icon" src="img/prestige.svg" alt="">';
   return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="img/hud.svg#'+id+'"/></svg>';
+ }
+ scheduleCommandClose(){
+  clearTimeout(this.commandTimer);
+  if(this.commandsOpen&&!this.commandsPinned)this.commandTimer=setTimeout(()=>this.setCommands(false),5000);
+ }
+ setCommands(open){
+  const drawer=this.nodes["command-drawer"],toggle=this.nodes["rail-toggle"];
+  this.commandsOpen=open||this.commandsPinned;
+  if(!this.commandsOpen&&drawer.contains(document.activeElement))toggle.focus({preventScroll:true});
+  drawer.inert=!this.commandsOpen;
+  toggle.setAttribute("aria-expanded",String(this.commandsOpen));
+  this.renderCommandToggle();this.scheduleCommandClose();
+ }
+ pinCommands(pinned){
+  if(this.commandsPinned===pinned)return;
+  this.commandsPinned=pinned;
+  if(pinned)this.setCommands(true);else this.scheduleCommandClose();
+ }
+ renderCommandToggle(){
+  const button=this.nodes["rail-toggle"],count=this.commandsOpen?0:this.commandBadges,label=this.commandsOpen?"Thu gọn chức năng":"Mở chức năng";
+  this.html("rail-toggle",this.icon("commands")+(count?'<sup aria-hidden="true">'+count+'</sup>':""));
+  button.title=label;button.setAttribute("aria-label",label+(count?" · "+count+" thông báo":""));
  }
  refreshCloud(){
   const cloud=this.sim.cloud,state=!cloud?.enabled?"local":cloud.status;
@@ -82,6 +107,10 @@ class UIController {
   });
  }
  prestigeAmount(value){return this.icon("prestige")+" "+value+" Uy tín"}
+ orderedProgress(items,read){
+  const rank=st=>st.claimed||st.complete?2:(st.claimable??st.done)?0:1;
+  return items.map(item=>({item,st:read(item)})).sort((a,b)=>rank(a.st)-rank(b.st));
+ }
  reward(r){
   return [r.coins&&'<span class="gold">+'+fmt(r.coins)+' Vàng</span>',r.xp&&'<span>+'+r.xp+' XP</span>',r.prestige&&'<span class="mint">'+this.prestigeAmount("+"+r.prestige)+'</span>',r.know&&'<span class="teal">+'+r.know+' Tri thức</span>'].filter(Boolean).join(" · ");
  }
@@ -137,6 +166,7 @@ class UIController {
   const tile=()=>{const k=Number(id);return lookup(s.world,k%16,k>>4)};
   const say=text=>{if(text)this.toast(text)};
   switch(act){
+   case "rail-toggle":this.setCommands(!this.commandsOpen);return;
    case "look":this.setTool("look");this.catalogOpen=false;break;
    case "build":if(s.social.current)return;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
    case "close-build":this.catalogOpen=false;this.setTool("look");break;
@@ -242,6 +272,7 @@ class UIController {
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
   const dots={missions:badges.missions,research:badges.research};
+  this.commandBadges=Object.values(dots).reduce((total,count)=>total+count,0);this.renderCommandToggle();
   this.html("action-rail",[
    ["missions","Nhiệm vụ","checklist"],["research","Nghiên cứu","flask"],["policies","Sắc lệnh","policy"],["social","Bạn bè","social"],["teams","Đội NPC","crew"]
   ].map(([id,name,icon])=>this.gameButton(id,name,icon,{count:dots[id],active:this.dialogType===id})).join(""));
@@ -361,8 +392,8 @@ class UIController {
   const summary=chapter?chapter.title:"Đô thị kiểu mẫu";
   const header=this.btn("quest-toggle",this.icon("story")+'<span><small>THEO DÕI CỐT TRUYỆN</small><b>'+summary+'</b></span>'+
    (chapter?'<i>'+claimed+'/'+chapter.quests.length+'</i>':"")+'<span class="quest-chevron" aria-hidden="true"></span>',{cls:"quest-toggle",expanded:this.questOpen,label:"Theo dõi cốt truyện · "+summary+(badges.story?" · "+badges.story+" phần thưởng":"")});
-  const list=this.questOpen&&chapter?chapter.quests.map(q=>({q,st:s.prog.questState(q)})).filter(x=>!x.st.claimed).sort((a,b)=>b.st.done-a.st.done).slice(0,1):[];
-  const body=list.map(({q,st})=>'<div class="quest'+(st.done?" ready":"")+'"><b>'+q.name+'</b><small>'+q.desc+'</small>'+
+  const list=this.questOpen&&chapter?this.orderedProgress(chapter.quests,q=>s.prog.questState(q)).filter(x=>!x.st.claimed).slice(0,1):[];
+  const body=list.map(({item:q,st})=>'<div class="quest'+(st.done?" ready":"")+'"><b>'+q.name+'</b><small>'+q.desc+'</small>'+
    (st.done?this.btn("claim","Nhận thưởng",{cls:"primary",id:q.id}):this.bar(st.cur/st.goal)+'<small class="count">'+fmt(st.cur)+' / '+fmt(st.goal)+'</small>')+'</div>').join("");
   this.html("quest-track",'<div class="quest-tracker game-frame interactive">'+header+(this.questOpen?'<div class="quest-body">'+body+
    this.btn("missions",chapter?"Xem tất cả nhiệm vụ":"Xem thành tựu",{id:chapter?"story":"ach"})+'</div>':"")+'</div>');

@@ -35,8 +35,7 @@ const UIDialogs = {
    if(current){
     const done=current.quests.filter(q=>s.progress.story.claimed.includes(q.id)).length;
     body+='<div class="chapter"><div><div class="eyebrow">'+current.subtitle+'</div><h3>'+current.title+'</h3><small>Thưởng hoàn thành chương: '+this.reward(current.reward)+'</small></div>'+this.btn("replay","Xem lại lời dẫn",{id:current.id,cls:"ghost"})+'</div>'+this.bar(done/current.quests.length)+
-     current.quests.map(q=>{
-      const st=prog.questState(q);
+     this.orderedProgress(current.quests,q=>prog.questState(q)).map(({item:q,st})=>{
       return '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+q.name+'</b><small>'+q.desc+'</small>'+this.bar(st.cur/st.goal,st.done?"":"blue")+'<small>'+fmt(st.cur)+' / '+fmt(st.goal)+' · '+this.reward(q)+'</small></div>'+
        this.btn("claim",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Đang làm",{id:q.id,cls:st.done&&!st.claimed?"primary":"",disabled:!st.done||st.claimed})+'</div>';
      }).join("");
@@ -49,15 +48,14 @@ const UIDialogs = {
     return '<div class="day '+state+'"><small>Ngày '+(i+1)+'</small><b>'+(i===6?"🎁":r.coins?"V":r.know?"✦":this.icon("prestige"))+'</b><small>'+this.reward(prog.loginReward(i)).replaceAll(" · ","<br>")+'</small></div>';
    }).join("")+'</div>'+this.btn("claim-login",login.available?"Điểm danh hôm nay":"Đã điểm danh · quay lại ngày mai",{cls:"primary block",disabled:!login.available})+
    '<h4>Nhiệm vụ hôm nay <small class="muted">làm mới sau '+s.social.resetTime()+'</small></h4>'+
-   s.progress.daily.quests.map(item=>{
-    const st=prog.dailyState(item);
+   this.orderedProgress(s.progress.daily.quests,item=>prog.dailyState(item)).map(({st})=>{
     return '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+st.text+'</b>'+this.bar(st.cur/st.goal,st.done?"":"blue")+'<small>'+st.cur+' / '+st.goal+' · '+this.reward(CONTENT.dailyReward(level))+'</small></div>'+
      this.btn("claim-daily",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Đang làm",{id:st.id,cls:st.done&&!st.claimed?"primary":"",disabled:!st.done||st.claimed})+'</div>';
    }).join("")+
    '<div class="row chest"><div class="grow"><b>🎁 Rương hoàn thành cả 3 nhiệm vụ</b><small>'+this.reward(CONTENT.dailyBonus(level))+'</small></div>'+this.btn("claim-bonus",s.progress.daily.bonus?"Đã mở":"Mở rương",{cls:"primary",disabled:!prog.dailyBonusReady()})+'</div>';
   }else{
-   body+='<div class="grid">'+CONTENT.achievements.map(a=>{
-    const st=prog.achState(a),reward=CONTENT.achievementReward(Math.min(2,st.tier));
+   body+='<div class="grid">'+this.orderedProgress(CONTENT.achievements,a=>prog.achState(a)).map(({item:a,st})=>{
+    const reward=CONTENT.achievementReward(Math.min(2,st.tier));
     return '<div class="card'+(st.complete?" dim":"")+'"><div class="medals">'+[0,1,2].map(i=>'<i class="'+(i<st.tier?"on":"")+'"></i>').join("")+'</div><b>'+a.name+'</b><small>'+(st.complete?"Đã đạt mọi bậc":st.desc)+'</small>'+
      (st.complete?"":this.bar(st.value/st.goal)+'<small>'+fmt(Math.min(st.value,st.goal))+' / '+fmt(st.goal)+' · '+this.reward(reward)+'</small>'+this.btn("claim-ach",st.claimable?"Nhận thưởng":"Chưa đạt",{id:a.id,cls:st.claimable?"primary":"",disabled:!st.claimable}))+'</div>';
    }).join("")+'</div>';

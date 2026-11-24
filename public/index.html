@@ -18,13 +18,16 @@
  </header>
  <div class="city-sign"><div id="maplabel" class="maplabel"></div><div id="clock" class="clock"></div></div>
  <div id="utilities" class="utilities" aria-label="Tiện ích thành phố"></div>
- <nav class="command-rail" aria-label="Điều hành">
-  <div id="action-rail" class="rail-main"></div>
-  <div class="rail-system">
-   <button id="settings" class="game-btn round" data-act="profile" data-id="settings" aria-label="Cài đặt" title="Cài đặt"></button>
-   <button id="cloud" class="game-btn round" data-act="profile" data-id="account"></button>
-   <button id="sound" class="game-btn round" data-act="sound" aria-label="Âm thanh" title="Âm thanh"></button>
-   <button id="help" class="game-btn round" data-act="help" aria-label="Cẩm nang Thị trưởng" title="Cẩm nang Thị trưởng"></button>
+ <nav id="command-rail" class="command-rail" aria-label="Điều hành">
+  <button id="rail-toggle" class="game-btn round rail-toggle" data-act="rail-toggle" aria-expanded="false" aria-controls="command-drawer" aria-label="Mở chức năng" title="Mở chức năng"></button>
+  <div id="command-drawer" class="rail-drawer" inert>
+   <div id="action-rail" class="rail-main"></div>
+   <div class="rail-system">
+    <button id="settings" class="game-btn round" data-act="profile" data-id="settings" aria-label="Cài đặt" title="Cài đặt"></button>
+    <button id="cloud" class="game-btn round" data-act="profile" data-id="account"></button>
+    <button id="sound" class="game-btn round" data-act="sound" aria-label="Âm thanh" title="Âm thanh"></button>
+    <button id="help" class="game-btn round" data-act="help" aria-label="Cẩm nang Thị trưởng" title="Cẩm nang Thị trưởng"></button>
+   </div>
   </div>
  </nav>
  <div id="visit" class="visit interactive" hidden></div>

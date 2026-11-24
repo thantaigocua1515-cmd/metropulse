@@ -124,6 +124,12 @@
   <path d="m31 53 13-14q-3-8 5-12l-1 7 5 4 7-3q0 10-10 11L38 59q-5 5-9-1-1-2 2-5z" fill="url(#blue)" stroke="#244561" stroke-width="3" stroke-linejoin="round"/>
   <path d="m35 54 10-10" stroke="#ecffff" stroke-width="2.3" stroke-linecap="round"/>
  </symbol>
+ <symbol id="commands" viewBox="0 0 64 64">
+  <g stroke="#244561" stroke-width="3">
+   <rect x="8" y="8" width="20" height="20" rx="5" fill="url(#gold)"/><rect x="36" y="8" width="20" height="20" rx="5" fill="url(#blue)"/>
+   <rect x="8" y="36" width="20" height="20" rx="5" fill="url(#green)"/><rect x="36" y="36" width="20" height="20" rx="5" fill="url(#violet)"/>
+  </g><path d="M13 14h8m20 0h8M13 42h8m20 0h8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
  <symbol id="settings" viewBox="0 0 64 64">
   <path d="m26 6 12 0 2 8 5 3 8-2 6 10-6 6v5l6 5-6 10-8-2-5 3-2 7H26l-2-7-5-3-8 2-6-10 6-5v-5l-6-6 6-10 8 2 5-3z" fill="url(#cream)" stroke="#344561" stroke-width="3" stroke-linejoin="round"/>
   <circle cx="32" cy="32" r="12" fill="url(#deep)" stroke="#344561" stroke-width="3"/>
