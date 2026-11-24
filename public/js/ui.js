@@ -199,7 +199,7 @@ class UIController {
    case "upgrade":if(tile()){const error=s.upgrade(tile());this.toast(error||"Đã nâng cấp công trình.");if(!error)this.closeUp(tile())}break;
    case "spec":if(tile())this.toast(s.specialize(tile(),arg)||"Đã chọn chuyên môn hóa.");break;
    case "accelerate":if(tile())this.toast(s.accelerate(tile())||"Đã xây xong!");break;
-   case "rotate":{const b=tile();if(b&&SPRITES[b.id]){b.rot=(r.facing(b,s.world)+1)%4;s.audio.play("click");s.storage.save()}}break;
+   case "rotate":{const b=tile();if(b&&b.id!=="road"&&b.left<=0&&SPRITES[b.id]){b.rot=(r.facing(b,s.world)+1)%4;s.audio.play("click");s.storage.save()}}break;
    case "remove":if(tile())this.confirmDemolish(tile());break;
    case "do-demolish":if(tile()){this.close();this.toast(s.demolish(tile())||"Đã phá dỡ công trình.");this.inspect=null}break;
    case "teams":this.teams();break;
@@ -291,7 +291,7 @@ class UIController {
    this.html("catalog",rows.map(d=>{
     const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,title=d.name+" · "+d.desc;
     const facts=[d.income&&"+"+d.income+" V/s",d.pop&&"+"+d.pop+" dân",d.power>0&&"+"+d.power+" điện",d.water>0&&"+"+d.water+" nước",d.happy>0&&"+"+d.happy+" HP",d.know&&"Tri thức"].filter(Boolean).slice(0,2).join(" · ");
-    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt=""><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small></span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
+    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt="" loading="lazy"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small></span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
    }).join(""));
   }
   this.inspectCard();this.sidebar();this.questTracker(badges);this.fab(badges);
@@ -357,10 +357,10 @@ class UIController {
     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
     actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary",disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
    }
-   actions+=(SPRITES[b.id]&&b.left<=0?this.btn("rotate","⟳ Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
+   actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate","⟳ Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
-  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close","×",{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(SPRITES[b.id]&&b.left<=0?"img/bld/"+b.id+"/"+String(b.level).padStart(2,"0")+"_"+this.renderer.facing(b,w)+".webp":this.thumbs[b.id])+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
+  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close","×",{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumbs[b.id])+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
  sidebar(){
   const s=this.sim,w=s.social.world,friend=s.social.current;

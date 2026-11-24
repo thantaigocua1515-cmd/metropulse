@@ -119,6 +119,8 @@ class IsoRenderer {
  }
  road(b,w){
   const {x,y}=b,z=this.camera.zoom;
+  const frame=this.roadFrame(b,w),meta=SPRITES.road,art=frame&&meta&&this.sprite("road",frame);
+  if(art){this.drawSprite(art,meta,x,y);return}
   const fill=(x1,y1,x2,y2,color)=>this.poly(this.plate(x+x1,y+y1,x+x2,y+y2),color);
   fill(0,0,1,1,"#abb9a0");fill(.11,.11,.89,.89,"#586765");fill(.2,.2,.8,.8,"#516162");
   const bits=[[1,0,.8,.16,1,.84],[0,1,.16,.8,.84,1],[-1,0,0,.16,.2,.84],[0,-1,.16,0,.84,.2]];
@@ -135,6 +137,12 @@ class IsoRenderer {
    }
   }
   if(!linked.length)this.ellipse(this.project(x+.5,y+.5).x,this.project(x+.5,y+.5).y,2*z,1*z,"#edce8a");
+ }
+ roadFrame(b,w){
+  const link=(dx,dy)=>lookup(w,b.x+dx,b.y+dy)?.id==="road";
+  const mask=(link(1,0)?1:0)|(link(0,-1)?2:0)|(link(-1,0)?4:0)|(link(0,1)?8:0);
+  return [null,"end_3","end_0","corner_1","end_1","straight_1","corner_2","tee_1",
+   "end_2","corner_0","straight_0","tee_0","corner_3","tee_3","tee_2","cross_0"][mask];
  }
  windows(b,x,y,w,d,height,color,night,dark,base=0){
   const columns=height>40?4:3,rows=Math.max(1,Math.round(height/12)),z=this.camera.zoom;
@@ -156,21 +164,19 @@ class IsoRenderer {
   hits.push(l,r,end);
  }
  building(b,w,night){
-  const d=CONFIG.buildings[b.id],g=this.ctx,z=this.camera.zoom,x=b.x,y=b.y,polys=[];
+  const d=CONFIG.buildings[b.id],z=this.camera.zoom,x=b.x,y=b.y,polys=[];
   const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
-  const meta=SPRITES[b.id],art=meta&&b.left<=0?this.sprite(b.id,b.level,this.facing(b,w),dark):false;
-  let height=0;
+  const meta=SPRITES[b.id],rot=meta&&b.left<=0?this.facing(b,w):null;
+  const art=rot===null?false:this.sprite(b.id,this.buildingFrame(b,rot),dark);
+  let height=0,sprite=null;
   if(art===false){
    this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
    const p=this.project(x+.6,y+.59);this.ellipse(p.x+6*z,p.y+3*z,25*z,8*z,"#293e3455");
   }
   if(art!==false){
-   // Sprite đã có sẵn thảm cỏ và bóng đổ; trong lúc ảnh đang tải chỉ vẽ nền ô.
-   const c=this.project(x+.5,y+.5);height=meta.tops[b.level-1];
-   if(art)g.drawImage(art,c.x-meta.ax*z,c.y-meta.ay*z,meta.w*z,meta.h*z);else this.poly(deck,"#a9bd9c","#637f637d",.7);
-   const top=this.plate(x+.24,y+.24,x+.76,y+.76,height),low=this.plate(x+.24,y+.24,x+.76,y+.76);
-   polys.push([top[2],top[3],low[3],low[2]],[top[1],top[2],low[2],low[1]],top);
+   height=meta.tops[b.level-1][rot];
+   if(art)sprite=this.drawSprite(art,meta,x,y);
   }else if(b.left>0){
    const progress=clamp(1-b.left/b.total,0,1);height=11+18*progress;
    this.block(x+.22,y+.22,.56,.56,0,height,"#9e9e85",polys);
@@ -289,12 +295,25 @@ class IsoRenderer {
    for(let k=0;k<tier;k++){const cx=t.x+(k-(tier-1)/2)*9*z;this.poly([{x:cx,y:t.y-4*z},{x:cx+3.4*z,y:t.y},{x:cx,y:t.y+4*z},{x:cx-3.4*z,y:t.y}],"#ffd36e","#7a5a1c",.8*z)}
    if(b.spec)this.ellipse(t.x,t.y-(tier?8:0)*z,2.6*z,2.6*z,b.spec==="a"?"#ffb38a":"#9ae4cb");
   }
-  this.hits.push({building:b,polys:[deck,...polys]});return height;
+  this.hits.push({building:b,polys:sprite?polys:[deck,...polys],sprite});return height;
  }
- // Sprite công trình tải lười theo (id, cấp, góc): trả về ảnh khi sẵn sàng, null khi đang tải, false khi lỗi (quay về nét vẽ Canvas).
- sprite(id,level,rot,dark){
-  const key=id+"/"+String(level).padStart(2,"0")+"_"+rot;let s=this.sprites.get(key);
-  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src="img/bld/"+key+".webp";this.sprites.set(key,s)}
+ drawSprite(art,meta,x,y){
+  const c=this.project(x+.5,y+.5),z=this.camera.zoom;
+  const box={art,x:c.x-meta.ax*z,y:c.y-meta.ay*z,w:meta.w*z,h:meta.h*z};
+  this.ctx.drawImage(art,box.x,box.y,box.w,box.h);
+  return box;
+ }
+ spritePath(id,frame){return "img/bld/"+id+"/"+frame+".webp"}
+ buildingFrame(b,rot){return String(b.level).padStart(2,"0")+"_"+rot}
+ spritePreview(b,w){
+  if(!SPRITES[b.id]||b.left>0)return null;
+  const frame=b.id==="road"?this.roadFrame(b,w):this.buildingFrame(b,this.facing(b,w));
+  return frame?this.spritePath(b.id,frame):null;
+ }
+ // Trả về ảnh khi sẵn sàng, null khi đang tải, false khi lỗi.
+ sprite(id,frame,dark=false){
+  const key=id+"/"+frame;let s=this.sprites.get(key);
+  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src=this.spritePath(id,frame);this.sprites.set(key,s)}
   if(s.state<1)return s.state?false:null;
   if(!dark)return s.img;
   if(!s.dark){
@@ -375,9 +394,20 @@ class IsoRenderer {
    if((a.y>point.y)!==(b.y>point.y)&&point.x<(b.x-a.x)*(point.y-a.y)/(b.y-a.y)+a.x)found=!found;
   }return found;
  }
+ containsSprite(point,box){
+  const u=(point.x-box.x)/box.w,v=(point.y-box.y)/box.h;
+  if(u<0||v<0||u>=1||v>=1)return false;
+  if(!this.hitContext){
+   const canvas=document.createElement("canvas");canvas.width=canvas.height=1;
+   this.hitContext=canvas.getContext("2d",{willReadFrequently:true});
+  }
+  const g=this.hitContext,im=box.art;
+  g.clearRect(0,0,1,1);g.drawImage(im,Math.floor(u*im.width),Math.floor(v*im.height),1,1,0,0,1,1);
+  return g.getImageData(0,0,1,1).data[3]>48;
+ }
  hit(point){
   for(const kind of ["crisis","bubble","citizen"])for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit[kind]&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
-  for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.building&&hit.polys.some(poly=>this.contains(point,poly)))return hit}
+  for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.building&&(hit.sprite?this.containsSprite(point,hit.sprite):hit.polys.some(poly=>this.contains(point,poly))))return hit}
   return null;
  }
  render(dt){
@@ -432,8 +462,8 @@ class IsoRenderer {
   }
  }
  thumbnail(id){
+  if(SPRITES[id])return this.spritePath(id,"thumb");
   const canvas=document.createElement("canvas");canvas.width=112;canvas.height=94;
-  if(SPRITES[id])return "img/bld/"+id+"/thumb.webp";
   const saved={ctx:this.ctx,camera:this.camera,hits:this.hits};this.ctx=canvas.getContext("2d");this.camera={x:56,y:70,zoom:id==="metro_wonder"?.58:["tech_tower","wind_farm","airport","office_tower","university"].includes(id)?.66:.79};this.hits=[];
   const b=makeBuilding(id,0,0),w=makeWorld(id==="road"?[b,makeBuilding("road",1,0),makeBuilding("road",0,-1)]:[b]);
   if(id==="road")this.road(b,w);else this.building(b,w,0);
