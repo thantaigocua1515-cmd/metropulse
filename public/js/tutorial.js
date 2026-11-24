@@ -19,17 +19,18 @@ class TutorialManager {
   return best;
  }
  steps(){
-  const s=this.sim,ui=this.ui,w=s.world,q=sel=>document.querySelector(sel),m=this.mark;
+ const s=this.sim,ui=this.ui,w=s.world,q=sel=>document.querySelector(sel),m=this.mark;
+  const build=()=>q('#build-tools [data-act="build"]');
   return [
-   {text:"Trước hết mình cần thêm nhà cho dân về ở. Bấm <b>Xây dựng</b> để mở Kho bản vẽ.",target:()=>q('#dock [data-act="build"]'),done:()=>ui.catalogOpen||ui.tool==="build"},
-   {text:"Chọn bản vẽ <b>Nhà cấp 4</b> trong danh sách.",target:()=>q('.blueprint[data-id="house_small"]')||q('#dock [data-act="build"]'),done:()=>ui.selection==="house_small"},
+   {text:"Trước hết mình cần thêm nhà cho dân về ở. Bấm <b>Xây dựng</b> để mở Kho bản vẽ.",target:build,done:()=>ui.catalogOpen||ui.tool==="build"},
+   {text:"Chọn bản vẽ <b>Nhà cấp 4</b> trong danh sách.",target:()=>q('.blueprint[data-id="house_small"]')||build(),done:()=>ui.selection==="house_small"},
    {text:"Giờ chạm vào <b>ô đất đang nhấp nháy</b> cạnh đường để đặt nhà. Nhà kề đường mới thu đủ thuế.",tile:()=>this.freeTile(),
     back:()=>ui.selection!=="house_small"&&this.houses()<=m.houses,done:()=>this.houses()>m.houses},
-   {text:"Tốt lắm! Tiếp theo chọn <b>Đường nhựa</b> rồi <b>kéo</b> trên bản đồ để vẽ thêm ít nhất 2 ô đường.",target:()=>ui.selection==="road"?null:q('.blueprint[data-id="road"]')||q('#dock [data-act="build"]'),done:()=>s.stats.roadsBuilt>=m.roads+2},
+   {text:"Tốt lắm! Tiếp theo chọn <b>Đường nhựa</b> rồi <b>kéo</b> trên bản đồ để vẽ thêm ít nhất 2 ô đường.",target:()=>ui.selection==="road"?null:q('.blueprint[data-id="road"]')||build(),done:()=>s.stats.roadsBuilt>=m.roads+2},
    {text:"Ôi, có sự cố rồi! Bấm <b>Điều phối NPC</b> trên thẻ cảnh báo để cử đội đi sửa.",enter:()=>this.stage(),target:()=>q('.incident [data-act="dispatch"]'),done:()=>w.npcs.length>0||s.stats.crisesSolved>m.solved||!w.crises.length},
    {text:"Đội đang chạy theo đường tới hiện trường. Đường càng thông suốt, đội đến càng nhanh — xử lý kịp thời sẽ được thưởng thêm.",done:()=>s.stats.crisesSolved>m.solved||(!w.crises.length&&!w.npcs.length)},
    {text:"Cư dân nộp thuế kìa! Chọn <b>Quan sát</b> rồi chạm vào <b>túi vàng</b> đang nổi trên công trình để thu.",enter:()=>this.coin(),tile:()=>w.bubbles[0],lift:44,done:()=>s.stats.bubbles>m.bubbles||!w.bubbles.length},
-   {text:"Cuối cùng, mở <b>Nhiệm vụ</b> để xem cốt truyện và nhận thưởng nhé!",target:()=>q('#dock [data-act="missions"]'),done:()=>ui.dialogType==="missions"}
+   {text:"Cuối cùng, mở <b>Nhiệm vụ</b> để xem cốt truyện và nhận thưởng nhé!",target:()=>q('#action-rail [data-act="missions"]'),done:()=>ui.dialogType==="missions"}
   ];
  }
  stage(){

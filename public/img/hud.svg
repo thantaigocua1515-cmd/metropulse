@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <linearGradient id="gold" x2=".25" y2="1"><stop stop-color="#fff4a0"/><stop offset=".52" stop-color="#ffd057"/><stop offset="1" stop-color="#f49128"/></linearGradient>
+  <linearGradient id="blue" x2=".22" y2="1"><stop stop-color="#d2fbff"/><stop offset=".48" stop-color="#70d9ff"/><stop offset="1" stop-color="#3290dc"/></linearGradient>
+  <linearGradient id="deep" x2=".2" y2="1"><stop stop-color="#6396c0"/><stop offset="1" stop-color="#284c7a"/></linearGradient>
+  <linearGradient id="red" x2=".2" y2="1"><stop stop-color="#ffd0a0"/><stop offset=".52" stop-color="#ff7761"/><stop offset="1" stop-color="#d74450"/></linearGradient>
+  <linearGradient id="green" x2=".24" y2="1"><stop stop-color="#e5ffad"/><stop offset=".44" stop-color="#a4e16f"/><stop offset="1" stop-color="#46a457"/></linearGradient>
+  <linearGradient id="cream" x2=".2" y2="1"><stop stop-color="#fffef0"/><stop offset="1" stop-color="#f3d6a3"/></linearGradient>
+  <linearGradient id="violet" x2=".24" y2="1"><stop stop-color="#f9d9ff"/><stop offset=".5" stop-color="#d29af1"/><stop offset="1" stop-color="#8d60d2"/></linearGradient>
+ </defs>
+ <symbol id="star" viewBox="0 0 64 64">
+  <g stroke="#703d18" stroke-width="3" stroke-linejoin="round">
+   <path fill="#df8726" d="m32 6 8 17 19 3-13 14 2 18-16-8-16 8 2-18L5 26l19-3z"/>
+   <path fill="url(#gold)" d="m32 3 8 17 19 3-14 13 3 18-16-8-16 8 3-18L5 23l19-3z"/>
+  </g>
+  <path d="m31 10-5 13-13 2m29 14 2 8" fill="none" stroke="#fff6c4" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="coin" viewBox="0 0 64 64">
+  <g stroke="#79441b" stroke-width="3">
+   <ellipse cx="35" cy="34" rx="22" ry="25" fill="#e28829"/><ellipse cx="29" cy="31" rx="22" ry="25" fill="url(#gold)"/>
+   <ellipse cx="29" cy="31" rx="15" ry="18" fill="#e48126" stroke="#fff2a2" stroke-width="2"/>
+   <path d="m29 20 3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z" fill="#ffe277" stroke-width="1.6"/>
+  </g><path d="M12 22q2-6 8-9m24 31 3-5" stroke="#fff6cf" fill="none" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="gem" viewBox="0 0 64 64">
+  <g stroke="#543279" stroke-width="3" stroke-linejoin="round">
+   <path fill="url(#violet)" d="m6 25 11-13h30l11 13-26 30z"/>
+   <path fill="#b273e0" d="M6 25h52L32 55z"/>
+   <path fill="#edb6ff" d="m32 12-12 13 12 30 12-30z"/>
+  </g><path d="m17 16-6 7h12m12-7 5 6" fill="none" stroke="#fff2ff" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="brain" viewBox="0 0 64 64">
+  <g stroke="#224668" stroke-width="3" stroke-linejoin="round">
+   <path fill="url(#deep)" d="m8 29 22-10 27 8v20L34 57 8 48z"/>
+   <path fill="url(#cream)" d="m11 19 21-8 21 7v24l-19 10-23-8z"/>
+   <path fill="url(#blue)" d="M32 13Q22 5 7 11v29q15-3 25 10 10-13 25-10V11q-15-6-25 2z"/>
+   <path d="M32 14v33" fill="none"/><path d="M13 18q7-2 13 2m-13 5q7-1 13 3m12-8q6-4 13-2m-13 10q6-4 13-3" fill="none" stroke="#f3fdff" stroke-width="2" stroke-linecap="round"/>
+  </g>
+ </symbol>
+ <symbol id="people" viewBox="0 0 64 64">
+  <g stroke="#244d3d" stroke-width="3" stroke-linejoin="round">
+   <path fill="url(#green)" d="M33 51V40c0-14 25-14 25 0v9q-9 7-25 2z"/><circle cx="46" cy="22" r="10" fill="url(#cream)"/>
+   <path fill="url(#blue)" d="M5 52V40c0-18 35-18 35 0v12q-16 12-35 0z"/><circle cx="23" cy="20" r="12" fill="url(#cream)"/>
+   <path fill="url(#deep)" d="M11 18a12 12 0 0 1 24-1q-13 5-24 1Z"/>
+  </g><path d="M12 43v6m2-34q2-4 6-5" fill="none" stroke="#ecffff" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="happy" viewBox="0 0 64 64">
+  <circle cx="32" cy="33" r="25" fill="url(#gold)" stroke="#774222" stroke-width="3"/>
+  <path d="M18 35q14 7 28-1-2 16-14 17-12-1-14-16Z" fill="#7a3826" stroke="#774222" stroke-width="2"/>
+  <path d="M22 40q10 2 20-1" fill="none" stroke="#fff2cd" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="23" cy="27" rx="2.7" ry="4.5" fill="#673720"/><ellipse cx="40" cy="27" rx="2.7" ry="4.5" fill="#673720"/>
+  <path d="M13 22q4-8 13-10" fill="none" stroke="#fff9cd" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="power" viewBox="0 0 64 64">
+  <path fill="url(#gold)" stroke="#6e431a" stroke-width="3.5" stroke-linejoin="round" d="M38 4 12 35h18l-6 24 28-34H33z"/>
+  <path d="m33 12-13 18h10" fill="none" stroke="#fff9c4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+ </symbol>
+ <symbol id="water" viewBox="0 0 64 64">
+  <path fill="url(#blue)" stroke="#245585" stroke-width="3.5" d="M32 5C27 17 12 27 12 40a20 20 0 0 0 40 0C52 27 37 17 32 5z"/>
+  <path d="M25 25q-8 8-7 16m3 6 3 3" fill="none" stroke="#ecfdff" stroke-width="3.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="shop" viewBox="0 0 64 64">
+  <g stroke="#213b59" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M8 51h48v8H8z" fill="url(#deep)"/><path d="M10 24h44v28H10z" fill="url(#cream)"/>
+   <path d="M15 31h19v15H15z" fill="url(#blue)"/><path d="M40 32h9v20h-9z" fill="url(#deep)"/><path d="M13 48h24v4H13z" fill="url(#deep)"/>
+   <path d="m11 7 42 0 7 20q-6 7-12 1-5 6-10 0-6 6-12 0-5 6-10 0-6 6-12-1z" fill="url(#red)"/>
+   <path d="m20 8-4 19q5 6 10 0l1-19zm17 0 1 19q5 6 10 0L44 8z" fill="url(#cream)" stroke="none"/>
+  </g><path d="M15 11h34m-31 24h12" stroke="#fffcf3" stroke-width="2.2" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="move" viewBox="0 0 64 64">
+  <path fill="url(#blue)" stroke="#214569" stroke-width="3" stroke-linejoin="round" d="m32 5 12 13h-7v9h9v-7l13 12-13 12v-7h-9v9h7L32 59 20 46h7v-9h-9v7L5 32l13-12v7h9v-9h-7z"/>
+  <path d="m32 10-5 5h4v15H16v-4l-6 6" fill="none" stroke="#e8ffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+ </symbol>
+ <symbol id="demo" viewBox="0 0 64 64">
+  <g transform="rotate(34 32 32)" stroke="#583b29" stroke-width="3" stroke-linejoin="round">
+   <rect x="26" y="23" width="12" height="34" rx="4" fill="url(#gold)"/>
+   <path d="M10 10h43v17H10l-4-4v-9z" fill="url(#deep)"/><path d="M42 10h11v17H42zM11 10h9v17h-9z" fill="url(#blue)"/>
+   <path d="M12 14h34m-15 19v17" fill="none" stroke="#fff2ce" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+ </symbol>
+ <symbol id="target" viewBox="0 0 64 64">
+  <g stroke="#604225" stroke-width="3" stroke-linejoin="round">
+   <rect x="12" y="10" width="40" height="47" rx="6" fill="url(#gold)"/><rect x="17" y="15" width="30" height="36" rx="2" fill="url(#cream)"/>
+   <path d="M23 9h4a5 5 0 0 1 10 0h4v12H23z" fill="url(#blue)"/>
+   <path d="m23 34 6 6 11-13" fill="none" stroke="#398951" stroke-width="4" stroke-linecap="round"/>
+  </g><path d="M25 13h13" stroke="#e7fbff" stroke-width="2" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="flask" viewBox="0 0 64 64">
+  <g stroke="#225577" stroke-width="3" stroke-linejoin="round">
+   <path d="M23 10h18v14l12 24q5 10-5 10H16q-10 0-5-10l12-24z" fill="url(#blue)"/>
+   <path d="M16 38q12-7 20 1t12-1l5 11q3 9-6 9H17q-10 0-6-9z" fill="url(#green)"/>
+   <rect x="21" y="6" width="22" height="8" rx="3" fill="url(#cream)"/>
+  </g><path d="m22 34-5 11m6 5h1m15-4h1" stroke="#effffd" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="policy" viewBox="0 0 64 64">
+  <g stroke="#654825" stroke-width="3" stroke-linejoin="round">
+   <path d="M16 10h34q6 0 6 7v3H43v29q0 7-7 7H14V16q0-5 2-6z" fill="url(#cream)"/>
+   <path d="M14 56h24q6-2 5-9H9q-1 8 5 9z" fill="url(#gold)"/><path d="M21 21h13m-13 7h13m-13 7h7" fill="none" stroke="#a98653" stroke-linecap="round"/>
+   <path d="m44 41-2 16 6-3 5 4 1-17" fill="#da4a54"/><circle cx="48" cy="39" r="10" fill="url(#red)"/>
+  </g><path d="M44 36q2-3 6-2" fill="none" stroke="#ffe6da" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="social" viewBox="0 0 64 64">
+  <g stroke="#2b506e" stroke-width="3" stroke-linejoin="round">
+   <path fill="url(#blue)" d="M8 9h38q8 0 8 8v17q0 8-8 8H23L10 51l3-9H8q-5 0-5-7V17q0-8 5-8z"/>
+   <path fill="url(#cream)" d="M29 27h24q8 0 8 7v10q0 7-8 7h-4l4 8-12-8H29q-7 0-7-7V34q0-7 7-7z"/>
+  </g><path d="M12 17h25M31 38h2m5 0h2m5 0h2" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="crew" viewBox="0 0 64 64">
+  <g stroke="#694621" stroke-width="3" stroke-linejoin="round">
+   <path d="M11 29q0-19 21-19t21 19v10H11z" fill="url(#gold)"/>
+   <path d="M25 12v16h14V12l-3-5h-8z" fill="#ffe881"/>
+   <rect x="5" y="32" width="54" height="12" rx="5" fill="url(#gold)"/><path d="M15 44h34q-3 12-17 12t-17-12z" fill="url(#cream)"/>
+  </g><path d="M15 28q0-7 6-11m-9 19h39" fill="none" stroke="#fff4b8" stroke-width="2.8" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="settings" viewBox="0 0 64 64">
+  <path d="m26 6 12 0 2 8 5 3 8-2 6 10-6 6v5l6 5-6 10-8-2-5 3-2 7H26l-2-7-5-3-8 2-6-10 6-5v-5l-6-6 6-10 8 2 5-3z" fill="url(#cream)" stroke="#344561" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="12" fill="url(#deep)" stroke="#344561" stroke-width="3"/>
+  <path d="m28 10-2 7-7 4-6-2m11 13q0-5 5-7" fill="none" stroke="#fffdec" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="sound" viewBox="0 0 64 64">
+  <path d="M7 24h13l14-11v38L20 40H7z" fill="url(#gold)" stroke="#5e4028" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M42 23q11 9 0 18m7-25q17 16 0 32" fill="none" stroke="#254663" stroke-width="5" stroke-linecap="round"/>
+  <path d="M42 22q11 10 0 18m7-25q17 16 0 32" fill="none" stroke="#f2fcff" stroke-width="2.2" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="mute" viewBox="0 0 64 64">
+  <path d="M7 24h13l14-11v38L20 40H7z" fill="url(#cream)" stroke="#5e4028" stroke-width="3" stroke-linejoin="round"/>
+  <path d="m43 26 12 12m0-12L43 38" fill="none" stroke="#713a41" stroke-width="7" stroke-linecap="round"/>
+  <path d="m43 25 12 12m0-12L43 37" fill="none" stroke="#ffa59b" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="cloud" viewBox="0 0 64 64">
+  <path d="M16 49a12 12 0 1 1 3-23 15 15 0 0 1 29 3 10 10 0 1 1 1 20z" fill="url(#blue)" stroke="#274e78" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M8 37q2-6 8-7m9-7q3-7 11-6" fill="none" stroke="#effeff" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="help" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="24" fill="url(#violet)" stroke="#513877" stroke-width="3"/>
+  <path d="M24 23q3-8 13-6 9 2 5 10-2 4-8 7-2 2-2 4m0 8h.1" fill="none" stroke="#62418e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M24 22q3-8 13-6 9 2 5 10-2 4-8 7-2 2-2 4m0 8h.1" fill="none" stroke="#fff7ff" stroke-width="4" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="gift" viewBox="0 0 64 64">
+  <g stroke="#663641" stroke-width="3" stroke-linejoin="round">
+   <path d="M11 25h42v30H11z" fill="url(#red)"/><path d="M6 19h52v13H6z" fill="url(#red)"/>
+   <path fill="url(#gold)" d="M27 18h10v37H27zM31 19Q9 21 15 9q6-11 16 10Zm2 0Q55 21 49 9q-6-11-16 10Z"/>
+  </g><path d="M12 23h10m20 0h10" fill="none" stroke="#ffe0c4" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="mail" viewBox="0 0 64 64">
+  <g stroke="#6b482c" stroke-width="3" stroke-linejoin="round">
+   <rect x="7" y="15" width="50" height="36" rx="5" fill="url(#cream)"/>
+   <path d="m9 46 16-14m30 14L39 32m-30-14 23 20 23-20" fill="none"/>
+   <circle cx="32" cy="36" r="8" fill="url(#red)"/>
+  </g><path d="M13 20h8" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="look" viewBox="0 0 64 64">
+  <g stroke="#223d60" stroke-width="3" stroke-linejoin="round">
+   <path d="M8 21h13l4-7h17l4 7h10a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V25a4 4 0 0 1 4-4z" fill="url(#deep)"/>
+   <circle cx="34" cy="36" r="14" fill="url(#cream)"/><circle cx="34" cy="36" r="10" fill="url(#blue)"/>
+  </g><path d="M27 33q2-4 7-4M9 27h8m34 1h4" fill="none" stroke="#e8fbff" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="center" viewBox="0 0 64 64">
+  <circle cx="32" cy="33" r="24" fill="url(#gold)" stroke="#684623" stroke-width="3"/>
+  <circle cx="32" cy="33" r="18" fill="url(#blue)" stroke="#254a71" stroke-width="2.5"/>
+  <path d="m42 20-5 17-15 9 5-17z" fill="url(#red)" stroke="#253f63" stroke-width="2" stroke-linejoin="round"/>
+  <path d="m27 29-5 17 15-9z" fill="#faffed" stroke="#253f63" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M15 25q4-9 13-10" fill="none" stroke="#fff9c4" stroke-width="2.5" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="sun" viewBox="0 0 64 64">
+  <path d="M32 5v9m0 36v9M5 32h9m36 0h9M13 13l7 7m24 24 7 7m0-38-7 7M20 44l-7 7" fill="none" stroke="#a86428" stroke-linecap="round" stroke-width="4"/>
+  <circle cx="32" cy="32" r="15" fill="url(#gold)" stroke="#a86428" stroke-width="3"/><path d="M24 30q1-5 7-6" fill="none" stroke="#fff6c2" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="storm" viewBox="0 0 64 64">
+  <path d="M15 39a11 11 0 0 1 2-22 14 14 0 0 1 26 5 9 9 0 1 1 6 17Z" fill="url(#deep)" stroke="#294766" stroke-width="3"/>
+  <path d="m33 32-10 13h8l-2 12 12-17h-9l4-8z" fill="url(#gold)" stroke="#805928" stroke-width="2" stroke-linejoin="round"/>
+  <path d="m15 44-4 8m39-8-4 8M22 17q4-5 9-4" fill="none" stroke="#ade6ff" stroke-width="3" stroke-linecap="round"/>
+ </symbol>
+ <symbol id="moon" viewBox="0 0 64 64">
+  <path d="M32 8a23 23 0 1 0 24 29A20 20 0 0 1 32 8z" fill="url(#gold)" stroke="#765026" stroke-width="3"/><path d="M17 26q3-7 9-10m21-1v8m-4-4h8" stroke="#fff5bb" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+ </symbol>
+ <symbol id="pulse" viewBox="0 0 64 64">
+  <path d="M14 12h36a7 7 0 0 1 7 7v26a7 7 0 0 1-7 7H14a7 7 0 0 1-7-7V19a7 7 0 0 1 7-7z" fill="url(#green)" stroke="#285643" stroke-width="3"/>
+  <path d="M13 34h10l5-12 8 23 6-11h9" fill="none" stroke="#215141" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M13 33h10l5-12 8 23 6-11h9" fill="none" stroke="#f9ffda" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+ </symbol>
+</svg>
