@@ -11,16 +11,27 @@ class IsoRenderer {
  }
  center(){
   const zoom=clamp(Math.min((this.width-22)/940,(this.height-98)/595),.5,1.2);
-  this.camera={x:this.width*.5,y:this.height*.54-240*zoom,zoom};this.target=null;
+  this.camera={x:this.width*.5,y:this.height*.54-240*zoom,zoom};this.target=null;this.back=null;
  }
  zoom(factor,x=this.width/2,y=this.height*.54){
   const c=this.camera,newZoom=clamp(c.zoom*factor,.5,1.8),scale=newZoom/c.zoom;
-  c.x=x-(x-c.x)*scale;c.y=y-(y-c.y)*scale;c.zoom=newZoom;this.target=null;
+  c.x=x-(x-c.x)*scale;c.y=y-(y-c.y)*scale;c.zoom=newZoom;this.target=null;this.back=null;
  }
- pan(dx,dy){this.target=null;this.camera.x+=dx;this.camera.y+=dy}
+ pan(dx,dy){this.target=null;this.back=null;this.camera.x+=dx;this.camera.y+=dy}
  focus(x,y){
   const c=this.camera,p=IsoMath.gridToScreen(x+.5,y+.5,c);
   this.target={x:c.x+this.width*.5-p.x,y:c.y+this.height*.51-p.y};
+ }
+ // Lướt tới một ô và phóng gần lên; nhớ mức thu phóng cũ để closeDown() trả lại. Người chơi tự kéo hay thu phóng thì thôi không trả.
+ closeUp(x,y,anchor=.51){
+  const c=this.camera,zoom=Math.max(c.zoom,this.width<780?1.05:1.5),k=zoom/c.zoom,p=IsoMath.gridToScreen(x+.5,y+.5,c);
+  if(this.back==null&&zoom>c.zoom)this.back=c.zoom;
+  this.target={x:this.width*.5-(p.x-c.x)*k,y:this.height*anchor-(p.y-c.y)*k,zoom};
+ }
+ closeDown(){
+  if(this.back==null)return;
+  const c=this.camera,zoom=this.back,k=zoom/c.zoom,cx=this.width*.5,cy=this.height*.51;this.back=null;
+  this.target={x:cx-(cx-c.x)*k,y:cy-(cy-c.y)*k,zoom};
  }
  local(event){const r=this.canvas.getBoundingClientRect();return {x:event.clientX-r.left,y:event.clientY-r.top}}
  project(x,y,z=0){const p=IsoMath.gridToScreen(x,y,this.camera);p.y-=z*this.camera.zoom;return p}
@@ -368,12 +379,13 @@ class IsoRenderer {
  }
  render(dt){
   this.elapsed+=dt;
+  if(this.target){
+   const t=this.target,c=this.camera,blend=Math.min(1,dt*(t.zoom?6:10));
+   c.x+=(t.x-c.x)*blend;c.y+=(t.y-c.y)*blend;if(t.zoom)c.zoom+=(t.zoom-c.zoom)*blend;
+   if(Math.hypot(c.x-t.x,c.y-t.y)<.4&&(!t.zoom||Math.abs(c.zoom-t.zoom)<.003)){c.x=t.x;c.y=t.y;if(t.zoom)c.zoom=t.zoom;this.target=null}
+  }
   const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom;
   const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
-  if(this.target){
-   const blend=Math.min(1,dt*10);this.camera.x+=(this.target.x-this.camera.x)*blend;this.camera.y+=(this.target.y-this.camera.y)*blend;
-   if(Math.hypot(this.camera.x-this.target.x,this.camera.y-this.target.y)<.4){this.camera.x=this.target.x;this.camera.y=this.target.y;this.target=null}
-  }
   g.setTransform(this.dpr,0,0,this.dpr,0,0);this.ambient(night,own.weather,w);this.ground(w);this.hits=[];
   for(const b of w.buildings)if(b.id==="road")this.road(b,w);
   const jobs=[],heights=new Map();

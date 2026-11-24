@@ -92,14 +92,14 @@ class UIController {
   if(hit?.bubble&&this.tool==="look"){this.toast(s.collect(hit.bubble.uid));this.refresh();return}
   if(hit?.citizen&&this.tool==="look"){this.renderer.life.poke(hit.citizen);s.audio.play("click");return}
   const at=lookup(w,x,y),b=hit?.building||at;
-  if(this.tool==="build"&&this.selection){this.toast(s.build(this.selection,x,y));this.refresh();return}
+  if(this.tool==="build"&&this.selection){const error=s.build(this.selection,x,y);this.toast(error);if(!error&&this.selection!=="road")this.renderer.closeUp(x,y);this.refresh();return}
   if(this.tool==="move"){
    if(!this.moving){if(b){this.moving=b;this.toast("Chọn ô trống để di chuyển "+CONFIG.buildingName(b)+".")}}
    else{const error=s.move(this.moving,x,y);if(!error){this.moving=null;this.inspect=null;this.toast("Đã di chuyển công trình.")}else this.toast(error)}
   }else if(this.tool==="demo"){
    if(b)this.confirmDemolish(b);
   }else if(this.tool==="look"){
-   this.inspect=b||null;
+   this.inspect=b||null;if(b&&b.id!=="road")this.closeUp(b);
   }
   this.refresh();
  }
@@ -109,6 +109,8 @@ class UIController {
   if(!this.nodes.dialog.open)this.nodes.dialog.showModal();
  }
  close(){if(this.nodes.dialog.open)this.nodes.dialog.close();this.dialogType=""}
+ // Đưa công trình đang xem lại gần; trên điện thoại đẩy nó lên trên để thẻ thông tin không che.
+ closeUp(b){this.renderer.closeUp(b.x,b.y,innerWidth<=780?.34:.46)}
  select(id){
   const d=CONFIG.buildings[id];if(!d||this.sim.social.current)return;
   if(this.sim.profile.level<d.unlock){this.toast("Mở khóa "+d.name+" khi đạt cấp "+d.unlock+".");return}
@@ -157,7 +159,7 @@ class UIController {
    case "quick":this.select(id);break;
    case "focus":if(this.inspect)r.focus(this.inspect.x,this.inspect.y);break;
    case "inspect-close":this.inspect=null;break;
-   case "upgrade":if(tile())this.toast(s.upgrade(tile())||"Đã nâng cấp công trình.");break;
+   case "upgrade":if(tile()){const error=s.upgrade(tile());this.toast(error||"Đã nâng cấp công trình.");if(!error)this.closeUp(tile())}break;
    case "spec":if(tile())this.toast(s.specialize(tile(),arg)||"Đã chọn chuyên môn hóa.");break;
    case "accelerate":if(tile())this.toast(s.accelerate(tile())||"Đã xây xong!");break;
    case "rotate":{const b=tile();if(b&&SPRITES[b.id]){b.rot=(r.facing(b,s.world)+1)%4;s.audio.play("click");s.storage.save()}}break;
@@ -193,7 +195,7 @@ class UIController {
     if(!s.social.current)this.ownCamera={...r.camera};
     s.social.visit(id);r.center();this.setTool("look");this.catalogOpen=false;r.hover=null;this.close();break;
    case "return":
-    s.social.own();if(this.ownCamera)r.camera={...this.ownCamera};else r.center();r.target=null;r.hover=null;this.setTool("look");this.close();break;
+    s.social.own();if(this.ownCamera)r.camera={...this.ownCamera};else r.center();r.target=null;r.back=null;r.hover=null;this.setTool("look");this.close();break;
    case "login-open":this.loginDialog();break;
    case "mail-open":this.mailDialog();break;
    case "mail-claim":this.claimMail();return;
@@ -207,6 +209,7 @@ class UIController {
  }
  reopen(){({missions:()=>this.missions(),social:()=>this.socials(),profile:()=>this.profileDialog()})[this.dialogType]?.()}
  refresh(initial=false){
+  if(!this.inspect&&this.tool!=="build")this.renderer.closeDown();
   const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score);
   this.html("profile",this.face(p.avatar,p.level)+'<span class="profile-meta"><b>'+htm(p.mayorName)+'</b><small>'+rank.name+' '+htm(p.cityName)+' · '+fmt(p.xp)+' / '+fmt(CONFIG.xpNext(p.level))+' XP</small>'+this.bar(p.xp/CONFIG.xpNext(p.level))+'</span>');
   this.html("stats",[
