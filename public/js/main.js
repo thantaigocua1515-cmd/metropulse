@@ -4,10 +4,18 @@
 (async()=>{
  const boot=document.getElementById("boot"),audio=new AudioEngine(),cloud=new CloudClient();
  let data=StorageManager.load();
- const remote=await cloud.init();
+ let remote=await cloud.init(),force=false;
+ if(cloud.online&&!cloud.account){
+  boot.hidden=true;
+  const mode=await AuthGate.open(cloud,!!data.restored);
+  boot.hidden=false;
+  if(mode!=="offline")remote=await cloud.pull();
+  // Đăng nhập sang tài khoản khác: thành phố của tài khoản luôn được ưu tiên hơn bản lưu trên trình duyệt.
+  force=mode==="login"&&data.profile.mayorId!==cloud.account?.code;
+ }
  if(remote?.data){
   const cloudData=StorageManager.normalize(remote.data);
-  if(cloudData&&(!data.restored||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0)))data=cloudData;
+  if(cloudData&&(force||!data.restored||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0)))data=cloudData;
  }
  audio.enabled=data.sound!==false;
  const sim=new SimulationEngine(data,audio);

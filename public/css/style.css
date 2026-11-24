@@ -281,6 +281,26 @@ dialog::backdrop{background:#071410b0;backdrop-filter:blur(3px)}
 .coach-row p{margin:3px 0 0;font-size:13px;line-height:1.45}
 .coach-bubble button{font-size:10px;padding:3px 8px;float:right}
 
+.authbox label{margin-top:2px;font-size:12px;color:var(--muted)}
+.authbox label input{margin-top:4px;color:var(--ink)}
+.auth{position:fixed;inset:0;z-index:41;display:grid;place-items:center;padding:14px;overflow:auto;background:radial-gradient(900px 520px at 50% 0,#23473d,#122120 70%)}
+.auth-card{width:min(400px,100%);background:#182b25;border:1px solid var(--line2);border-radius:18px;box-shadow:0 25px 95px #08130ecf;padding:22px 22px 18px;animation:pop .18s ease-out}
+.auth-brand{text-align:center}
+.auth-brand b{display:block;font-size:30px;letter-spacing:-.03em;color:var(--mint)}
+.auth-brand small{letter-spacing:.14em;text-transform:uppercase}
+.auth-lead{text-align:center;color:var(--muted);margin:10px 0 14px}
+.auth-card .tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:4px}
+.auth-card .tabs button{font-size:13px;padding:9px}
+.auth-card label{font-size:12px;color:var(--muted);margin-top:10px}
+.auth-card label input:not([type=checkbox]){margin-top:4px;color:var(--ink);font-size:16px}
+.auth-card .check,.authbox .check{display:flex;align-items:center;gap:7px;cursor:pointer}
+.check input{width:auto;margin:0;accent-color:var(--mint)}
+.auth-card p[role=status]{min-height:20px;margin:8px 0 0;font-size:12px}
+.auth-card small{display:block;text-align:center;margin-top:8px}
+.auth-card small:empty{display:none}
+.auth-or{display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.cloud[data-state="expired"]{color:var(--gold)}
 .boot{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:#122120;text-align:center}
 .boot b{display:block;font-size:30px;letter-spacing:-.03em;color:var(--mint)}
 .boot small{letter-spacing:.14em;text-transform:uppercase}

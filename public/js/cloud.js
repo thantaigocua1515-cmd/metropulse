@@ -21,20 +21,23 @@ class CloudClient {
   }finally{clearTimeout(timer)}
  }
  setToken(token){this.token=token;try{if(token)localStorage.setItem(this.tokenKey,token);else localStorage.removeItem(this.tokenKey)}catch(_){}}
- async session(){
-  if(this.token){
-   try{this.account=(await this.api("/me")).account;return}
-   catch(error){if(error.status!==401)throw error;this.setToken(null)}
-  }
-  const r=await this.api("/auth/guest",{method:"POST",body:{}});this.setToken(r.token);this.account=r.account;
- }
- // Trả về bản lưu trên máy chủ (nếu có) để so sánh với bản lưu trong trình duyệt.
+ adopt(r){this.setToken(r.token);this.account=r.account}
+ async guest(){this.adopt(await this.api("/auth/guest",{method:"POST",body:{}}))}
+ async signup(username,password){this.adopt(await this.api("/auth/signup",{method:"POST",body:{username,password}}))}
+ async signin(username,password){this.adopt(await this.api("/auth/login",{method:"POST",body:{username,password}}))}
+ // Kiểm tra máy chủ và phiên đã lưu. Chưa có phiên hợp lệ thì account vẫn là null để màn hình chào hỏi người chơi.
  async init(){
   if(!this.enabled)return null;
   try{
-   await this.api("/health",{timeout:2500});await this.session();this.online=true;this.status="synced";
-   const r=await this.api("/save");this.rev=r.rev||0;return r.data?r:null;
+   await this.api("/health",{timeout:8000});this.online=true;
+   if(this.token)try{this.account=(await this.api("/me")).account}catch(error){if(error.status!==401)throw error;this.setToken(null)}
+   return this.account?await this.pull():null;
   }catch(_){this.online=false;this.status="offline";return null}
+ }
+ // Trả về bản lưu trên máy chủ (nếu có) để so sánh với bản lưu trong trình duyệt.
+ async pull(){
+  try{const r=await this.api("/save");this.rev=r.rev||0;this.status="synced";return r.data?r:null}
+  catch(_){this.online=false;this.status="offline";return null}
  }
  attach(sim){
   this.sim=sim;sim.cloud=this;
@@ -52,7 +55,9 @@ class CloudClient {
    this.rev=r.rev;this.status="synced";this.lastSync=Date.now();return true;
   }catch(error){
    // Thiết bị khác đã lưu bản mới hơn: thiết bị đang chơi sẽ ghi đè ở lần đồng bộ kế tiếp.
-   if(error.status===409&&error.data?.rev){this.rev=error.data.rev;this.status="syncing"}else this.status=error.status===0?"offline":"error";
+   if(error.status===409&&error.data?.rev){this.rev=error.data.rev;this.status="syncing"}
+   else if(error.status===401){this.online=false;this.status="expired"}
+   else this.status=error.status===0?"offline":"error";
    this.dirty=true;return false;
   }finally{this.busy=false}
  }
@@ -64,10 +69,12 @@ class CloudClient {
   location.reload();
  }
  async login(username,password){
-  await this.flush(true);
-  const r=await this.api("/auth/login",{method:"POST",body:{username,password}});this.setToken(r.token);this.account=r.account;
+  await this.flush(true);await this.signin(username,password);
   this.swap(await this.api("/save"));
  }
+ async password(current,password){return this.api("/auth/password",{method:"POST",body:{current,password}})}
+ // Phiên hết hạn (ví dụ đổi mật khẩu ở thiết bị khác): giữ bản lưu trên máy, mở lại màn hình đăng nhập.
+ relogin(){this.sim.storage.save();this.setToken(null);location.reload()}
  async logout(){
   await this.flush(true);try{await this.api("/auth/logout",{method:"POST",body:{}})}catch(_){}
   this.setToken(null);this.swap(null);

@@ -63,6 +63,26 @@ test("đăng ký, đăng nhập thiết bị khác và đăng xuất",async()=>{
  assert.equal((await call("/me",{token})).status,200);
 });
 
+test("đăng ký trực tiếp, đổi mật khẩu và thu hồi phiên cũ",async()=>{
+ assert.equal((await call("/auth/signup",{method:"POST",body:{username:"x",password:"123456"}})).status,400);
+ assert.equal((await call("/auth/signup",{method:"POST",body:{username:"thi.truong",password:"123"}})).status,400);
+ const made=await call("/auth/signup",{method:"POST",body:{username:"Thi.Truong",password:"matkhau1"}});
+ assert.equal(made.status,201);assert.equal(made.data.account.username,"Thi.Truong");assert.match(made.data.account.code,/^MP-[A-Z0-9]{6}$/);
+ assert.equal((await call("/auth/signup",{method:"POST",body:{username:"thi.truong",password:"matkhau2"}})).status,409);
+ const token=made.data.token;
+ assert.deepEqual((await call("/save",{token})).data,{rev:0,data:null});
+ const second=(await call("/auth/login",{method:"POST",body:{username:"thi.truong",password:"matkhau1"}})).data.token;
+ assert.equal((await call("/auth/password",{method:"POST",token,body:{current:"sai",password:"matkhau9"}})).status,403);
+ assert.equal((await call("/auth/password",{method:"POST",token,body:{current:"matkhau1",password:"123"}})).status,400);
+ assert.equal((await call("/auth/password",{method:"POST",token,body:{current:"matkhau1",password:"matkhau9"}})).status,200);
+ assert.equal((await call("/me",{token})).status,200);
+ assert.equal((await call("/me",{token:second})).status,401);
+ assert.equal((await call("/auth/login",{method:"POST",body:{username:"thi.truong",password:"matkhau1"}})).status,401);
+ assert.equal((await call("/auth/login",{method:"POST",body:{username:"thi.truong",password:"matkhau9"}})).status,200);
+ const guest=(await call("/auth/guest",{method:"POST",body:{}})).data.token;
+ assert.equal((await call("/auth/password",{method:"POST",token:guest,body:{current:"",password:"matkhau9"}})).status,400);
+});
+
 test("bạn bè, chi viện, hộp thư và bảng xếp hạng",async()=>{
  const a=(await call("/auth/guest",{method:"POST",body:{}})).data,b=(await call("/auth/guest",{method:"POST",body:{}})).data;
  await call("/save",{method:"PUT",token:a.token,body:{rev:0,data:city(3,[{id:"apartment",x:6,y:8,level:3,left:0}])}});

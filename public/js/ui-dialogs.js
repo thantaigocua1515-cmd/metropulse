@@ -135,14 +135,24 @@ const UIDialogs = {
     '<div class="statgrid">'+cells.map(([k,v])=>'<div><small>'+k+'</small><b>'+v+'</b></div>').join("")+'</div>';
   }else if(tab==="account"){
    if(!cloud?.enabled)body+='<p class="empty">Bạn đang mở trò chơi trực tiếp từ tệp. Tiến độ được lưu trong trình duyệt. Chạy máy chủ (npm start) để dùng lưu đám mây, bảng xếp hạng toàn cầu và kết bạn trực tuyến.</p>';
+   else if(cloud.status==="expired")body+='<p class="empty">Phiên đăng nhập đã hết hạn (có thể do đổi mật khẩu ở thiết bị khác). Thành phố vẫn được lưu trên trình duyệt này.</p><div class="actions">'+this.btn("auth","Đăng nhập lại",{id:"relogin",cls:"primary"})+'</div>';
    else if(!cloud.online)body+='<p class="empty">Không kết nối được máy chủ. Trò chơi vẫn tự lưu trên trình duyệt và sẽ đồng bộ lại khi tải lại trang.</p>';
    else{
-    const a=cloud.account;
-    body+='<div class="row"><div class="grow"><b>'+(a.username?"Tài khoản: "+htm(a.username):"Tài khoản khách")+'</b><small>Mã thành phố: <span class="mint">'+a.code+'</span> · '+(cloud.lastSync?"đồng bộ lần cuối "+new Date(cloud.lastSync).toLocaleTimeString("vi-VN"):"chưa đồng bộ trong phiên này")+'</small></div>'+this.btn("sync","Đồng bộ ngay",{cls:"primary"})+'</div>'+
-     (a.username?'<p class="muted">Đăng nhập tên này trên thiết bị khác để chơi tiếp thành phố của bạn.</p><div class="actions">'+this.btn("auth","Đăng xuất",{id:"logout",cls:"danger"})+'</div>':
-     '<p class="muted">Tài khoản khách chỉ gắn với trình duyệt này. Đặt tên đăng nhập và mật khẩu để giữ thành phố khi đổi máy.</p>')+
-     '<div class="authbox"><input id="auth-user" maxlength="20" placeholder="Tên đăng nhập (3–20 ký tự)" autocomplete="username"><input id="auth-pass" type="password" maxlength="72" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password"><div class="actions">'+
-     (a.username?"":this.btn("auth","Tạo tài khoản & giữ thành phố này",{id:"register",cls:"primary"}))+this.btn("auth","Đăng nhập tài khoản có sẵn",{id:"login"})+'</div><p id="auth-message" role="status"></p></div>';
+    const a=cloud.account,field=(id,label,type,auto,hint="")=>'<label>'+label+'<input id="'+id+'" '+(type==="password"?'type="password" maxlength="72"':'maxlength="20" autocapitalize="none" spellcheck="false"')+' autocomplete="'+auto+'" placeholder="'+hint+'"></label>';
+    body+='<div class="row"><div class="grow"><b>'+(a.username?"Tài khoản: "+htm(a.username):"Tài khoản khách")+'</b><small>Mã thành phố: <span class="mint">'+a.code+'</span> · '+(cloud.lastSync?"đồng bộ lần cuối "+new Date(cloud.lastSync).toLocaleTimeString("vi-VN"):"chưa đồng bộ trong phiên này")+'</small></div>'+this.btn("sync","Đồng bộ ngay",{cls:"primary"})+'</div>';
+    if(a.username){
+     body+='<p class="muted">Đăng nhập tên này trên thiết bị khác để chơi tiếp thành phố của bạn.</p><h4>Đổi mật khẩu</h4><form class="authbox" data-auth="password">'+
+      field("auth-current","Mật khẩu hiện tại","password","current-password")+field("auth-pass","Mật khẩu mới","password","new-password","Từ 6 ký tự")+field("auth-again","Nhập lại mật khẩu mới","password","new-password")+
+      '<div class="actions"><button type="submit" class="primary">Đổi mật khẩu</button>'+this.btn("auth","Đăng xuất",{id:"logout",cls:"danger"})+'</div><small>Đổi mật khẩu sẽ đăng xuất tài khoản khỏi các thiết bị khác.</small><p id="auth-message" role="status"></p></form>';
+    }else{
+     const mode=this.tabs.account==="login"?"login":"register";
+     body+='<p class="muted">Tài khoản khách chỉ gắn với trình duyệt này. Tạo tài khoản để giữ thành phố khi đổi máy hoặc xóa dữ liệu trình duyệt.</p>'+
+      '<div class="tabs sub">'+this.btn("tab","Tạo tài khoản",{id:"account",arg:"register",cls:mode==="register"?"active":""})+this.btn("tab","Đăng nhập tài khoản có sẵn",{id:"account",arg:"login",cls:mode==="login"?"active":""})+'</div>'+
+      '<form class="authbox" data-auth="'+mode+'">'+field("auth-user","Tên đăng nhập","text","username","3–20 ký tự: chữ, số, dấu chấm, gạch dưới")+field("auth-pass","Mật khẩu","password",mode==="register"?"new-password":"current-password","Từ 6 ký tự")+
+      (mode==="register"?field("auth-again","Nhập lại mật khẩu","password","new-password"):"")+
+      '<div class="actions"><button type="submit" class="primary">'+(mode==="register"?"Tạo tài khoản & giữ thành phố này":"Đăng nhập")+'</button></div>'+
+      '<small>'+(mode==="register"?"Thành phố hiện tại sẽ được gắn vào tài khoản mới.":"Thành phố của tài khoản sẽ thay cho thành phố khách đang chơi trên trình duyệt này.")+'</small><p id="auth-message" role="status"></p></form>';
+    }
    }
   }else{
    body+='<div class="row"><div class="grow"><b>Âm thanh</b><small>Hiệu ứng tổng hợp bằng Web Audio.</small></div>'+this.btn("sound",s.audio.enabled?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
@@ -153,15 +163,21 @@ const UIDialogs = {
   this.open("profile","THỊ TRƯỞNG","Hồ sơ & Cài đặt",body,true);
  },
  async auth(kind){
-  const cloud=this.sim.cloud,feedback=document.getElementById("auth-message"),say=(text,ok=false)=>{if(feedback){feedback.className=ok?"mint":"warn";feedback.textContent=text}else this.toast(text)};
+  const cloud=this.sim.cloud,feedback=document.getElementById("auth-message"),value=id=>document.getElementById(id)?.value||"";
+  const say=(text,ok=false)=>{const el=document.getElementById("auth-message");if(el){el.className=ok?"mint":"warn";el.textContent=text}else this.toast(text)};
+  if(this.authBusy)return;
   try{
-   if(kind==="logout"){await cloud.logout();return}
-   const user=document.getElementById("auth-user").value.trim(),pass=document.getElementById("auth-pass").value;
-   if(!/^[a-zA-Z0-9_.]{3,20}$/.test(user)){say("Tên đăng nhập gồm 3–20 chữ cái, số, dấu chấm hoặc gạch dưới.");return}
-   if(pass.length<6){say("Mật khẩu cần ít nhất 6 ký tự.");return}
-   if(kind==="register"){await cloud.register(user,pass);this.profileDialog();this.toast("Đã tạo tài khoản. Thành phố của bạn được giữ trên máy chủ.")}
-   else{say("Đang đăng nhập…",true);await cloud.login(user,pass)}
+   if(kind==="relogin"){cloud.relogin();return}
+   if(kind==="logout"){this.authBusy=true;await cloud.logout();return}
+   const user=value("auth-user").trim(),pass=value("auth-pass");
+   const problem=(kind!=="password"&&AuthGate.rules.user(user))||AuthGate.rules.pass(pass)||(kind!=="login"&&pass!==value("auth-again")?"Hai lần nhập mật khẩu chưa khớp.":"");
+   if(problem){say(problem);return}
+   this.authBusy=true;say("Đang xử lý…",true);
+   if(kind==="register"){await cloud.register(user,pass);cloud.flush(true);this.profileDialog();this.toast("Đã tạo tài khoản. Thành phố của bạn được giữ trên máy chủ.")}
+   else if(kind==="password"){await cloud.password(value("auth-current"),pass);this.profileDialog();this.toast("Đã đổi mật khẩu.")}
+   else await cloud.login(user,pass);
   }catch(error){say(error.message)}
+  finally{this.authBusy=false}
  },
  loginDialog(){
   const prog=this.sim.prog,login=prog.loginState();

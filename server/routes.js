@@ -12,7 +12,7 @@ const account=p=>({code:p.code,name:p.name,username:p.username||null,createdAt:p
 module.exports=function routes(getDb){
  const router=express.Router();
  const players=()=>getDb().collection("players"),saves=()=>getDb().collection("saves"),gifts=()=>getDb().collection("gifts");
- const authLimit=limiter(20,10*60000),guestLimit=limiter(30,60*60000),saveLimit=limiter(40,60000),socialLimit=limiter(120,60000);
+ const authLimit=limiter(20,10*60000),nameLimit=limiter(10,10*60000),guestLimit=limiter(30,60*60000),saveLimit=limiter(40,60000),socialLimit=limiter(120,60000);
  const ip=req=>req.ip||"local";
 
  router.use((req,res,next)=>{if(!getDb())return next(fail(503,"Máy chủ chưa kết nối được cơ sở dữ liệu."));next()});
@@ -24,24 +24,40 @@ module.exports=function routes(getDb){
   await players().updateOne({_id:id},{$push:{tokens:{$each:[{hash:sha(token),createdAt:new Date()}],$slice:-5}}});
   return token;
  };
- const createGuest=async()=>{
+ // Kiểm tra tên đăng nhập và mật khẩu mới; trả về dữ liệu đã chuẩn hóa.
+ const credentials=body=>{
+  const {username,password}=body||{};
+  if(typeof username!=="string"||!/^[a-zA-Z0-9_.]{3,20}$/.test(username))throw fail(400,"Tên đăng nhập gồm 3–20 chữ cái, số, dấu chấm hoặc gạch dưới.");
+  checkPassword(password);
+  return {username,password};
+ };
+ const checkPassword=password=>{if(typeof password!=="string"||password.length<6||password.length>72)throw fail(400,"Mật khẩu cần từ 6 đến 72 ký tự.")};
+ const taken=error=>error.code===11000&&error.keyPattern?.usernameLower;
+ const createPlayer=async(extra={})=>{
   for(let attempt=0;attempt<5;attempt++){
-   const now=new Date(),doc={code:newCode(),name:"Thị trưởng Mới",tokens:[],friends:[],coins:0,city:[],summary:{level:1,score:0,assets:0,happiness:100,helpsGiven:0,pop:0},createdAt:now,updatedAt:now,lastSeenAt:now};
+   const now=new Date(),doc={...extra,code:newCode(),name:"Thị trưởng Mới",tokens:[],friends:[],coins:0,city:[],summary:{level:1,score:0,assets:0,happiness:100,helpsGiven:0,pop:0},createdAt:now,updatedAt:now,lastSeenAt:now};
    try{const r=await players().insertOne(doc);return {...doc,_id:r.insertedId}}
-   catch(error){if(error.code!==11000)throw error}
+   catch(error){if(taken(error))throw fail(409,"Tên đăng nhập đã có người dùng.");if(error.code!==11000)throw error}
   }
   throw fail(500,"Không tạo được mã thành phố.");
  };
 
  router.post("/auth/guest",wrap(async(req,res)=>{
   if(!guestLimit(ip(req)))throw fail(429,"Tạo quá nhiều tài khoản. Hãy thử lại sau.");
-  const player=await createGuest(),token=await issueToken(player._id);
+  const player=await createPlayer(),token=await issueToken(player._id);
   res.status(201).json({token,account:account(player)});
  }));
+ // Đăng ký tài khoản mới ngay từ màn hình chào (không cần phiên khách trước đó).
+ router.post("/auth/signup",wrap(async(req,res)=>{
+  if(!authLimit(ip(req)))throw fail(429,"Thao tác quá nhanh. Hãy đợi vài phút.");
+  const {username,password}=credentials(req.body);
+  const player=await createPlayer({username,usernameLower:username.toLowerCase(),pass:await hashPassword(password)});
+  res.status(201).json({token:await issueToken(player._id),account:account(player)});
+ }));
  router.post("/auth/login",wrap(async(req,res)=>{
-  if(!authLimit(ip(req)))throw fail(429,"Thử đăng nhập quá nhiều lần. Hãy đợi vài phút.");
   const {username,password}=req.body||{};
   if(typeof username!=="string"||typeof password!=="string")throw fail(400,"Thiếu tên đăng nhập hoặc mật khẩu.");
+  if(!authLimit(ip(req))||!nameLimit(username.trim().toLowerCase().slice(0,40)))throw fail(429,"Thử đăng nhập quá nhiều lần. Hãy đợi vài phút.");
   const player=await players().findOne({usernameLower:username.trim().toLowerCase()});
   if(!player||!(await verifyPassword(password,player.pass)))throw fail(401,"Sai tên đăng nhập hoặc mật khẩu.");
   res.json({token:await issueToken(player._id),account:account(player)});
@@ -66,13 +82,21 @@ module.exports=function routes(getDb){
  }));
  router.post("/auth/register",wrap(async(req,res)=>{
   if(!authLimit(ip(req)))throw fail(429,"Thao tác quá nhanh. Hãy đợi vài phút.");
-  const {username,password}=req.body||{};
-  if(typeof username!=="string"||!/^[a-zA-Z0-9_.]{3,20}$/.test(username))throw fail(400,"Tên đăng nhập gồm 3–20 chữ cái, số, dấu chấm hoặc gạch dưới.");
-  if(typeof password!=="string"||password.length<6||password.length>72)throw fail(400,"Mật khẩu cần từ 6 đến 72 ký tự.");
+  const {username,password}=credentials(req.body);
   if(req.player.username)throw fail(409,"Tài khoản này đã có tên đăng nhập.");
   try{await players().updateOne({_id:req.player._id},{$set:{username,usernameLower:username.toLowerCase(),pass:await hashPassword(password)}})}
-  catch(error){if(error.code===11000)throw fail(409,"Tên đăng nhập đã có người dùng.");throw error}
+  catch(error){if(taken(error))throw fail(409,"Tên đăng nhập đã có người dùng.");throw error}
   res.json({account:account({...req.player,username})});
+ }));
+ // Đổi mật khẩu: cần mật khẩu hiện tại; các thiết bị khác bị đăng xuất.
+ router.post("/auth/password",wrap(async(req,res)=>{
+  if(!authLimit(ip(req)))throw fail(429,"Thao tác quá nhanh. Hãy đợi vài phút.");
+  if(!req.player.username)throw fail(400,"Tài khoản khách chưa có mật khẩu.");
+  const {current,password}=req.body||{};checkPassword(password);
+  const stored=await players().findOne({_id:req.player._id},{projection:{pass:1}});
+  if(typeof current!=="string"||!(await verifyPassword(current,stored?.pass)))throw fail(403,"Mật khẩu hiện tại không đúng.");
+  await players().updateOne({_id:req.player._id},{$set:{pass:await hashPassword(password),tokens:[{hash:req.tokenHash,createdAt:new Date()}]}});
+  res.json({ok:true});
  }));
  router.post("/auth/logout",wrap(async(req,res)=>{
   await players().updateOne({_id:req.player._id},{$pull:{tokens:{hash:req.tokenHash}}});res.json({ok:true});

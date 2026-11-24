@@ -4,7 +4,7 @@ class UIController {
  constructor(sim,renderer){
   this.sim=sim;this.renderer=renderer;renderer.ui=this;this.canvas=renderer.canvas;
   this.tool="look";this.selection=null;this.moving=null;this.inspect=null;this.category="all";this.dialogType="";this.catalogOpen=false;
-  this.tabs={missions:"story",social:"friends",profile:"me"};this.rank="score";this.rankScope="friends";this.globalRows=null;this.mail=[];
+  this.tabs={missions:"story",social:"friends",profile:"me",account:"register"};this.rank="score";this.rankScope="friends";this.globalRows=null;this.mail=[];
   this.pointers=new Map();this.gesture=null;this.ownCamera=null;this.nodes={};this.newsCursor=0;this.displayedNews=[];this.newsAt=-30;this.sceneState=null;
   for(const id of ["logo","stats","clock","cloud","sound","profile","maplabel","visit","side","filters","catalog","right","inspect","fab","zoom","center","hint","toast","news","dock","dialog","dialog-tag","dialog-title","dialog-body","scene","scene-body","coach"])this.nodes[id]=document.getElementById(id);
   this.nodes.logo.innerHTML=this.icon("pulse");this.nodes.center.innerHTML=this.icon("center");
@@ -13,6 +13,7 @@ class UIController {
   this.menu=[["look","Quan sát","center"],["build","Xây dựng","build"],["teams","Đội NPC","crew"],["policies","Sắc lệnh","policy"],["missions","Nhiệm vụ","target"],["research","Nghiên cứu","flask"],["social","Bạn bè","social"],["move","Di chuyển","move"],["demo","Phá dỡ","demo"]];
   this.sim.say("Chào mừng đến Bình Minh! Hãy xây thêm nhà và nối đường để thị trấn sống lại.");
   document.addEventListener("pointerdown",()=>sim.audio.unlock(),{passive:true});
+  document.addEventListener("submit",e=>{const kind=e.target.dataset?.auth;if(kind){e.preventDefault();this.auth(kind)}});
   document.addEventListener("keydown",e=>{
    sim.audio.unlock();
    if(this.sceneState){if(e.key==="Enter"||e.key===" "||e.key==="Escape"){e.preventDefault();this.sceneNext()}return}
@@ -228,7 +229,8 @@ class UIController {
   this.html("clock",'<b>'+String(Math.floor(t/60)).padStart(2,"0")+':'+String(t%60).padStart(2,"0")+' · '+phase+'</b><small>'+weather[0]+' '+weather[1]+'</small>');
   this.html("sound",this.icon(s.audio.enabled?"sound":"mute"));this.nodes.sound.setAttribute("aria-pressed",String(s.audio.enabled));
   const cloud=s.cloud,state=!cloud?.enabled?"local":cloud.status;
-  this.html("cloud",this.icon("cloud")+'<span>'+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ"}[state])+'</span>');this.nodes.cloud.dataset.state=state;
+  const who=cloud?.online&&cloud.account?(cloud.account.username?htm(cloud.account.username):"Khách")+" · ":"";
+  this.html("cloud",this.icon("cloud")+'<span>'+who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state])+'</span>');this.nodes.cloud.dataset.state=state;
   this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));

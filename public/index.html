@@ -42,6 +42,23 @@
 </div>
 <div id="scene" class="scene" hidden><div id="scene-body" class="scene-body"></div></div>
 <dialog id="dialog"><div class="dialog-head"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="icon ghost" data-act="close-dialog" aria-label="Đóng hộp thoại">×</button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<div id="auth" class="auth" hidden>
+ <form id="auth-form" class="auth-card" novalidate>
+  <div class="auth-brand"><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div>
+  <p class="auth-lead">Đăng nhập để chơi tiếp thành phố của bạn trên mọi thiết bị.</p>
+  <div class="tabs" role="tablist"><button type="button" data-mode-tab="login" role="tab">Đăng nhập</button><button type="button" data-mode-tab="register" role="tab">Đăng ký</button></div>
+  <label>Tên đăng nhập<input id="gate-user" name="username" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="3–20 ký tự: chữ, số, dấu chấm, gạch dưới"></label>
+  <label>Mật khẩu<input id="gate-pass" name="password" type="password" maxlength="72" autocomplete="current-password" placeholder="Từ 6 ký tự"></label>
+  <label id="gate-again-row" hidden>Nhập lại mật khẩu<input id="gate-again" type="password" maxlength="72" autocomplete="new-password"></label>
+  <label class="check"><input id="gate-show" type="checkbox"> Hiện mật khẩu</label>
+  <p id="gate-message" role="status" aria-live="polite"></p>
+  <button id="gate-submit" type="submit" class="primary block">Đăng nhập</button>
+  <small id="gate-note"></small>
+  <div class="auth-or"><span>hoặc</span></div>
+  <button id="gate-guest" type="button" class="block">Chơi ngay không cần tài khoản</button>
+  <small>Chơi khách vẫn được lưu; bạn có thể tạo tài khoản sau trong Hồ sơ → Tài khoản.</small>
+ </form>
+</div>
 <div id="boot" class="boot"><div><b>MetroPulse</b><small>Đang mở cổng thành phố…</small></div></div>
 <script src="js/config.js"></script>
 <script src="js/content.js"></script>
@@ -54,6 +71,7 @@
 <script src="js/renderer.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/cloud.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/ui-input.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-dialogs.js"></script>
