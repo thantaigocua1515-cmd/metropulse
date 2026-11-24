@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+ <defs>
+  <linearGradient id="gold" x2=".2" y2="1"><stop stop-color="#fff5aa"/><stop offset=".5" stop-color="#ffd35c"/><stop offset="1" stop-color="#ea8a2c"/></linearGradient>
+  <linearGradient id="red" x2=".2" y2="1"><stop stop-color="#ffad84"/><stop offset=".48" stop-color="#ec6155"/><stop offset="1" stop-color="#b63648"/></linearGradient>
+ </defs>
+ <path d="M12 5h13l12 25-11 7Z" fill="url(#red)" stroke="#713640" stroke-width="3" stroke-linejoin="round"/>
+ <path d="M39 5h13L38 37l-11-7Z" fill="url(#red)" stroke="#713640" stroke-width="3" stroke-linejoin="round"/>
+ <path d="m17 8 10 21M47 8 37 29" fill="none" stroke="#ffe39a" stroke-width="2.5" stroke-linecap="round"/>
+ <circle cx="32" cy="41" r="18" fill="url(#gold)" stroke="#75451e" stroke-width="3"/>
+ <circle cx="32" cy="41" r="12.5" fill="#de882e" stroke="#fff1a2" stroke-width="2"/>
+ <path d="m32 31 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="#fff0a3" stroke="#884823" stroke-width="1.6" stroke-linejoin="round"/>
+ <path d="M18 39q2-9 11-11" fill="none" stroke="#fff5be" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

@@ -22,13 +22,6 @@
    <path d="m29 20 3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z" fill="#ffe277" stroke-width="1.6"/>
   </g><path d="M12 22q2-6 8-9m24 31 3-5" stroke="#fff6cf" fill="none" stroke-width="3" stroke-linecap="round"/>
  </symbol>
- <symbol id="gem" viewBox="0 0 64 64">
-  <g stroke="#543279" stroke-width="3" stroke-linejoin="round">
-   <path fill="url(#violet)" d="m6 25 11-13h30l11 13-26 30z"/>
-   <path fill="#b273e0" d="M6 25h52L32 55z"/>
-   <path fill="#edb6ff" d="m32 12-12 13 12 30 12-30z"/>
-  </g><path d="m17 16-6 7h12m12-7 5 6" fill="none" stroke="#fff2ff" stroke-width="2.5" stroke-linecap="round"/>
- </symbol>
  <symbol id="brain" viewBox="0 0 64 64">
   <g stroke="#224668" stroke-width="3" stroke-linejoin="round">
    <path fill="url(#deep)" d="m8 29 22-10 27 8v20L34 57 8 48z"/>

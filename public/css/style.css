@@ -298,9 +298,10 @@ button.profile:hover:not(:disabled){background:radial-gradient(ellipse at 36% 14
 .profile .bar i{background:linear-gradient(#fdffab 10%,#d6f679 51%,#92d75d 100%)}
 .resource{--res:#6c502b;--cream:#fff6d5;position:relative;display:flex;align-items:center;gap:6px;min-height:37px;min-width:110px;padding:4px 9px 4px 30px;border-radius:20px;
  border:2px solid var(--res);background:linear-gradient(#fffef6,var(--cream));color:#263a4a;box-shadow:inset 0 2px #fff,inset 0 -2px #25273019,0 3px 0 #142c43b8,0 4px 9px #23324a3d}
-.resource-gem{--res:#67488b;--cream:#f4e7ff}.resource-brain{--res:#2d6181;--cream:#dff6ff}.resource-people{--res:#47714a;--cream:#e9f5d8}
+.resource-prestige{--res:#873f43;--cream:#fff0e9}.resource-brain{--res:#2d6181;--cream:#dff6ff}.resource-people{--res:#47714a;--cream:#e9f5d8}
 .resource-icon{position:absolute;left:-13px;top:50%;transform:translateY(-50%);width:42px;height:42px;filter:drop-shadow(0 2px 1px #12294265)}
-.resource-icon svg,.utility-icon svg{width:100%;height:100%;display:block}
+.prestige-icon{width:1.35em;height:1.35em;vertical-align:-.28em}
+.resource-icon svg,.resource-icon img,.utility-icon svg{width:100%;height:100%;display:block}
 .resource-data{display:grid;gap:1px;min-width:0;line-height:1}
 .resource-data small{color:var(--res);letter-spacing:.035em;font-weight:850;font-size:9px;white-space:nowrap}
 .resource-data b{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

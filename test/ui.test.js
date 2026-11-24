@@ -66,3 +66,13 @@ test("cloud status has distinct connected and disconnected icons and accessible 
   assert.ok(button.innerHTML.includes('href="img/hud.svg#cloud-off"'));
   assert.equal(button.title, "Tài khoản · Lưu trên máy");
 });
+
+test("prestige balances and reward amounts use the medal without replacing their text", () => {
+  const ui = Object.create(UIController.prototype);
+  const medal = /<img class="prestige-icon" src="img\/prestige\.svg" alt="">/;
+  assert.match(ui.resource("prestige", "Uy tín"), medal);
+  const reward = ui.reward({ coins: 100, prestige: 3, know: 2 });
+  assert.match(reward, medal);
+  assert.match(reward, /\+3 Uy tín/);
+  assert.doesNotMatch(ui.reward({ coins: 100, know: 2 }), medal);
+});

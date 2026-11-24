@@ -11,7 +11,7 @@ class UIController {
   for(const id of ["center","look","help","settings"])document.getElementById(id).innerHTML=this.icon(id);
   this.html("stats",[
    this.resource("coin","Vàng",true,{act:"login-open",label:"Kiếm Vàng từ điểm danh"}),
-   this.resource("gem","Uy tín"),
+   this.resource("prestige","Uy tín"),
    this.resource("brain","Tri thức",true,{act:"research",label:"Mở Viện Quy hoạch"}),
    this.resource("people","Dân số")
   ].join(""));
@@ -38,6 +38,7 @@ class UIController {
   this.wireCanvas();this.refresh(true);
  }
  icon(id){
+  if(id==="prestige")return '<img class="prestige-icon" src="img/prestige.svg" alt="">';
   return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="img/hud.svg#'+id+'"/></svg>';
  }
  refreshCloud(){
@@ -80,8 +81,9 @@ class UIController {
    cls:"game-btn "+(shop?"shop":"round")+(active?" active":""),disabled,title:label,label:label+(count?" · "+count+" thông báo":"")
   });
  }
+ prestigeAmount(value){return this.icon("prestige")+" "+value+" Uy tín"}
  reward(r){
-  return [r.coins&&'<span class="gold">+'+fmt(r.coins)+' Vàng</span>',r.xp&&'<span>+'+r.xp+' XP</span>',r.prestige&&'<span class="mint">+'+r.prestige+' Uy tín</span>',r.know&&'<span class="teal">+'+r.know+' Tri thức</span>'].filter(Boolean).join(" · ");
+  return [r.coins&&'<span class="gold">+'+fmt(r.coins)+' Vàng</span>',r.xp&&'<span>+'+r.xp+' XP</span>',r.prestige&&'<span class="mint">'+this.prestigeAmount("+"+r.prestige)+'</span>',r.know&&'<span class="teal">+'+r.know+' Tri thức</span>'].filter(Boolean).join(" · ");
  }
  toast(message){
   if(!message)return;this.text("toast",message);this.nodes.toast.hidden=false;clearTimeout(this.toastTimer);
@@ -222,7 +224,7 @@ class UIController {
   this.nodes.profile.title="Hồ sơ · "+p.mayorName+" · Cấp "+p.level+" · "+fmt(p.xp)+" / "+fmt(xpNext)+" XP";
   this.nodes.profile.setAttribute("aria-label",this.nodes.profile.title);
   this.updateResource("coin",fmt(Math.floor(p.coins)),"+"+fmt(m.income,1)+"/s");
-  this.updateResource("gem",fmt(Math.floor(p.prestige)));
+  this.updateResource("prestige",fmt(Math.floor(p.prestige)));
   this.updateResource("brain",fmt(Math.floor(p.knowledge)),"+"+fmt(m.know*60,1)+"/ph");
   this.updateResource("people",fmt(m.pop));
   const coverage=(supply,demand)=>demand?supply/demand:(supply?1:0);
@@ -319,7 +321,7 @@ class UIController {
    else if(own&&group&&b.level<CONFIG.specLevel)extra+='<small class="muted">Chuyên môn hóa mở ở cấp '+CONFIG.specLevel+'.</small>';
   }
   if(own){
-   if(b.left>0)actions=this.btn("accelerate","Tăng tốc · 1 Uy tín",{id:key,cls:"primary"});
+   if(b.left>0)actions=this.btn("accelerate","Tăng tốc · "+this.prestigeAmount(1),{id:key,cls:"primary"});
    else if(b.id!=="road"){
     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
     actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary",disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});

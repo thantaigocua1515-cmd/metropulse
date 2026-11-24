@@ -2,6 +2,7 @@
 class IsoRenderer {
  constructor(canvas,sim){
   this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
+  this.prestigeIcon=new Image();this.prestigeIcon.src="img/prestige.svg";
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
@@ -339,10 +340,12 @@ class IsoRenderer {
  }
  bubble(b,height){
   const z=this.camera.zoom,t=this.elapsed,p=this.project(b.x+.5,b.y+.5,height+24+Math.sin(t*3+b.x)*3),r=Math.max(10,11*z);
-  const look={coin:["#ffd36e","#7a5a1c","V"],know:["#9ae4cb","#1d5a4a","✦"],gem:["#d1fb8b","#3f5a1c","◆"]}[b.kind];
+  const look={coin:["#ffd36e","#7a5a1c","V"],know:["#9ae4cb","#1d5a4a","✦"],gem:["#ffe5a5","#75451e","🏅"]}[b.kind];
   this.ellipse(p.x,p.y+r+5*z,r*.6,r*.22,"#14262155");
   this.ellipse(p.x,p.y,r+2,r+2,"#fff8dc");this.ellipse(p.x,p.y,r,r,look[0]);this.ellipse(p.x-r*.3,p.y-r*.35,r*.28,r*.18,"#ffffffaa");
-  this.text(look[2],p.x,p.y+.5,Math.max(11,12*z),look[1]);
+  if(b.kind==="gem"&&this.prestigeIcon.naturalWidth){
+   this.ctx.drawImage(this.prestigeIcon,p.x-r,p.y-r,2*r,2*r);
+  }else this.text(look[2],p.x,p.y+.5,Math.max(11,12*z),look[1]);
   this.hits.push({bubble:b,x:p.x,y:p.y,r:r+6});
  }
  // Cư dân và xe cộ đi lại trên đường (chỉ để trang trí).
