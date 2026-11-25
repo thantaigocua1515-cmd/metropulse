@@ -191,7 +191,10 @@ const UIDialogs = {
     }
    }
   }else{
-   body+='<div class="row"><div class="grow"><b>Âm thanh</b><small>Hiệu ứng tổng hợp bằng Web Audio.</small></div>'+this.btn("sound",s.audio.enabled?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
+   const volume=Math.round(s.audio.musicVolume*100);
+   body+='<div class="row"><div class="grow"><b>Hiệu ứng âm thanh</b><small>Âm thanh khi xây dựng, nhận thưởng và thao tác.</small></div>'+this.btn("sound",s.audio.enabled?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
+    '<div class="row"><div class="grow"><b>Nhạc nền</b><small>Turning Pages — Kanto Daydream</small></div>'+this.btn("music",s.audio.musicEnabled?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
+    '<div class="row music-volume"><label for="music-volume">Âm lượng nhạc nền</label><input id="music-volume" type="range" min="0" max="100" value="'+volume+'"><output id="music-volume-value" for="music-volume">'+volume+'%</output></div>'+
     '<div class="row"><div class="grow"><b>Giảm hiệu ứng</b><small>Tắt rung nảy, pháo giấy, hiệu ứng thu thưởng và chớp sáng.</small></div>'+this.btn("reduce-effects",s.reduceEffects?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
     '<div class="row"><div class="grow"><b>Hướng dẫn tân thủ</b><small>Xem lại các bước làm quen cùng thư ký Mai.</small></div>'+this.btn("replay-tutorial","Xem lại")+'</div>'+
     '<div class="row"><div class="grow"><b>Cẩm nang Thị trưởng</b><small>Giải thích mọi hệ thống trong trò chơi.</small></div>'+this.btn("help","Mở cẩm nang")+'</div>'+

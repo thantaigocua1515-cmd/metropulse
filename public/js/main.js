@@ -37,6 +37,7 @@ function enableOffline(sprites){
  }
  stage(3,"Đang dựng thành phố…");
  audio.enabled=data.sound!==false;
+ audio.setMusic(data.musicEnabled,data.musicVolume);
  if(typeof data.reduceEffects!=="boolean")data.reduceEffects=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const sim=new SimulationEngine(data,audio);
  sim.crisis=new CrisisAndNPCManager(sim);
@@ -58,7 +59,7 @@ function enableOffline(sprites){
  }
  const persist=()=>{sim.storage.save();cloud.flush(true,true)};
  addEventListener("pagehide",persist);
- document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")persist()});
+ document.addEventListener("visibilitychange",()=>{audio.syncMusic();if(document.visibilityState==="hidden")persist()});
  window.MetroPulse={sim,renderer,ui,cloud};
  stage(4,"Thành phố đã sẵn sàng.");
  sim.start(renderer,ui);

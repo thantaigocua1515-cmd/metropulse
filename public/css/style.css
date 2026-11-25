@@ -609,6 +609,8 @@ button.blueprint-info{isolation:isolate;padding:6px 10px 0 0}
 .blueprint-detail{display:flex;align-items:center;gap:14px}
 .blueprint-detail img{width:92px;height:76px;object-fit:contain;border-radius:12px;background:#e3ece8}
 .blueprint-facts{columns:2;padding-left:20px}
+.music-volume input{width:min(34vw,190px);margin-left:auto;accent-color:#6d846b}
+.music-volume output{min-width:3em;text-align:right;font-variant-numeric:tabular-nums}
 body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 140px);bottom:auto}
 @media(max-width:650px), (max-width:730px) and (min-height:641px){
  #hud{--hud-bottom:25px}

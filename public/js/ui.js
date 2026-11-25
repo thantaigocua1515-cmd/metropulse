@@ -23,6 +23,12 @@ class UIController {
   document.addEventListener("contextmenu",e=>{if(!e.target.closest('input,textarea,[contenteditable="true"]'))e.preventDefault()});
   for(const type of ["pointerdown","click"])this.nodes["command-rail"].addEventListener(type,()=>this.scheduleCommandClose(),{passive:true});
   document.addEventListener("submit",e=>{const kind=e.target.dataset?.auth;if(kind){e.preventDefault();this.auth(kind)}});
+  document.addEventListener("input",e=>{
+   if(e.target.id!=="music-volume")return;
+   sim.audio.setMusic(sim.audio.musicEnabled,Number(e.target.value)/100);
+   document.getElementById("music-volume-value").textContent=e.target.value+"%";
+  });
+  document.addEventListener("change",e=>{if(e.target.id==="music-volume")sim.storage.save()});
   document.addEventListener("keydown",e=>{
    sim.audio.unlock();
    if(this.sceneState){if(e.key==="Enter"||e.key===" "||e.key==="Escape"){e.preventDefault();this.sceneNext()}return}
@@ -36,7 +42,7 @@ class UIController {
     if(button&&!button.disabled)button.click();
    }
   });
-  document.addEventListener("click",e=>{const btn=e.target.closest("button[data-act]");if(btn&&!btn.disabled){sim.audio.play(btn.dataset.act==="tab"?"tab":"click");this.action(btn)}});
+  document.addEventListener("click",e=>{sim.audio.unlock();const btn=e.target.closest("button[data-act]");if(btn&&!btn.disabled){sim.audio.play(btn.dataset.act==="tab"?"tab":"click");this.action(btn)}});
   this.nodes.dialog.addEventListener("close",()=>{this.dialogType="";this.refresh()});
   this.wireCanvas();this.refresh(true);
  }
@@ -189,6 +195,7 @@ class UIController {
    case "zoom-out":r.zoom(1/1.15);break;
    case "center":r.center();break;
    case "sound":s.audio.enabled=!s.audio.enabled;if(s.audio.enabled)s.audio.play("click");s.storage.save();if(this.dialogType==="profile")this.profileDialog();break;
+   case "music":s.audio.setMusic(!s.audio.musicEnabled,s.audio.musicVolume);s.storage.save();this.profileDialog();break;
    case "reduce-effects":s.reduceEffects=!s.reduceEffects;s.fx.length=0;s.storage.save();this.profileDialog();break;
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
@@ -284,7 +291,8 @@ class UIController {
   const t=Math.floor(s.world.timeOfDay*1440),phase=t<360||t>=1140?"Đêm":t<660?"Buổi sáng":t<960?"Buổi trưa":"Hoàng hôn",weather=CONFIG.weather[s.world.weather];
   this.html("clock",this.icon(s.world.weather!=="sunny"?s.world.weather:phase==="Đêm"?"moon":"sun")+'<b>'+String(Math.floor(t/60)).padStart(2,"0")+':'+String(t%60).padStart(2,"0")+'</b><small>'+phase+' · '+weather[1]+'</small>');
   this.html("sound",this.icon(s.audio.enabled?"sound":"mute"));this.nodes.sound.setAttribute("aria-pressed",String(s.audio.enabled));
-  this.nodes.sound.title=s.audio.enabled?"Tắt âm thanh":"Bật âm thanh";
+  this.nodes.sound.title=s.audio.enabled?"Tắt hiệu ứng âm thanh":"Bật hiệu ứng âm thanh";
+  this.nodes.sound.setAttribute("aria-label",this.nodes.sound.title);
   this.refreshCloud();
   this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
   this.eventBanner(own);

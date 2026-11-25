@@ -43,7 +43,7 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
     async delete(key) { return stores.delete(key); }
   };
   vm.runInNewContext(read("sw.js"), {
-    self, caches, URL,
+    self, caches, URL, Response,
     async fetch(input) {
       if (offline) throw Error("offline");
       const href = typeof input === "string" ? input : input.url;
@@ -58,16 +58,24 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
   await wait("install");
   await wait("activate");
   assert.deepEqual(await caches.keys(), ["another-app", "metropulse-static-"+version]);
-  const request = (endpoint, method="GET", mode="same-origin") => {
+  const request = (endpoint, method="GET", mode="same-origin", headers=new Headers()) => {
     let result;
-    events.fetch({ request: { url: origin+endpoint, method, mode }, respondWith(promise) { result = promise; } });
+    events.fetch({ request: { url: origin+endpoint, method, mode, headers }, respondWith(promise) { result = promise; } });
     return result;
   };
   const sprite = "img/bld/house_small/01_0.webp?v="+version;
+  const music = "audio/turning-pages.mp3?v="+version;
+  assert.ok(!fetched.includes(origin+music));
+  const seek = () => request(music,"GET","same-origin",new Headers({range:"bytes=1-3"}));
+  assert.equal(await (await seek()).text(), "sse");
   await wait("message", { data: { type:"warm", version, urls:[sprite, "api/auth/me?v="+version, "https://other.example/img/hud.svg?v="+version] } });
   assert.equal(fetched.filter(url => url === origin+sprite).length, 1);
   assert.ok(!fetched.some(url => url.includes("/api/") || url.includes("other.example")));
   offline = true;
+  const audio = await seek();
+  assert.equal(audio.status,206);
+  assert.equal(audio.headers.get("content-range"),"bytes 1-3/5");
+  assert.equal(await audio.text(),"sse");
   assert.equal(await (await request(sprite)).text(), "asset");
   assert.equal(await (await request("js/main.js?v="+version)).text(), "asset");
   assert.equal(await (await request("?event=tet", "GET", "navigate")).text(), html);

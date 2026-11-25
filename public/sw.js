@@ -1,12 +1,12 @@
 "use strict";
 
-const VERSION="4.1.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
+const VERSION="4.2.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
 const root=new URL(self.registration.scope),shell=new URL("./",root).href;
 const build=url=>new URL(url,root).href;
 let cacheHandle;
 const currentCache=()=>cacheHandle??=caches.has(CACHE).then(exists=>exists?caches.open(CACHE):null);
 const staticPath=url=>url.origin===root.origin&&url.pathname.startsWith(root.pathname)&&
- /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|img\/(?:[\w-]+\.svg|(?:bld|npc)\/[\w/-]+\.webp))$/.test(url.pathname.slice(root.pathname.length))&&
+ /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|img\/(?:[\w-]+\.svg|(?:bld|npc)\/[\w/-]+\.webp)|audio\/turning-pages\.mp3)$/.test(url.pathname.slice(root.pathname.length))&&
  url.search==="?v="+VERSION;
 const isAsset=res=>res.ok&&!res.redirected&&!/^text\/html\b/i.test(res.headers.get("content-type")||"");
 
@@ -14,8 +14,23 @@ async function cacheStatic(cache,href,request){
  const hit=await cache.match(href);
  if(hit)return hit;
  const res=await fetch(request||href,{cache:"force-cache"});
- if(isAsset(res))await cache.put(href,res.clone());
+ if(res.status===200&&isAsset(res))await cache.put(href,res.clone());
  return res;
+}
+
+async function musicResponse(cache,href,request){
+ const range=request.headers.get("range");
+ if(!range)return cacheStatic(cache,href,request);
+ const match=/^bytes=(\d*)-(\d*)$/i.exec(range);
+ if(!match||!match[1]&&!match[2])return fetch(request);
+ const full=await cacheStatic(cache,href);
+ if(full.status!==200)return full;
+ const data=await full.blob(),size=data.size;
+ const start=match[1]?Number(match[1]):Math.max(0,size-Number(match[2]));
+ const end=match[1]&&match[2]?Math.min(Number(match[2]),size-1):size-1;
+ const headers={"Accept-Ranges":"bytes","Content-Type":full.headers.get("content-type")||"audio/mpeg"};
+ if(start>end||start>=size)return new Response(null,{status:416,headers:{...headers,"Content-Range":"bytes */"+size}});
+ return new Response(data.slice(start,end+1),{status:206,headers:{...headers,"Content-Range":"bytes "+start+"-"+end+"/"+size,"Content-Length":end-start+1}});
 }
 
 self.addEventListener("install",event=>event.waitUntil((async()=>{
@@ -54,7 +69,7 @@ self.addEventListener("fetch",event=>{
    }
   })());
  }else if(staticPath(url)){
-  event.respondWith(currentCache().then(cache=>cache?cacheStatic(cache,url.href,request):fetch(request)));
+  event.respondWith(currentCache().then(cache=>!cache?fetch(request):path.startsWith("audio/")?musicResponse(cache,url.href,request):cacheStatic(cache,url.href,request)));
  }
 });
 
@@ -67,7 +82,7 @@ self.addEventListener("message",event=>{
   for(const value of data.urls.slice(0,300)){
    if(typeof value!=="string")continue;
    const url=new URL(value,root);
-   if(staticPath(url)&&url.pathname.slice(root.pathname.length).startsWith("img/"))urls.add(url.href);
+   if(staticPath(url)&&/^(?:img|audio)\//.test(url.pathname.slice(root.pathname.length)))urls.add(url.href);
   }
   await Promise.allSettled([...urls].map(href=>cacheStatic(cache,href)));
  })());

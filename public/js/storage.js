@@ -17,7 +17,7 @@ class StorageManager {
   return {
    version:2,
    profile:{mayorId:"MP-"+Math.floor(1000+Math.random()*9000),mayorName:"Thị trưởng Mới",cityName:"Bình Minh",avatar:CONFIG.avatars.fallback,level:1,xp:0,coins:CONFIG.starterCoins,prestige:10,knowledge:0,happiness:100,combo:0,helpsGiven:0,dailyHelpsLeft:5,lastHelpResetDate:today()},
-   world:makeWorld(buildings),progress:this.freshProgress(),friends:[],lastSavedAt:0,sound:true
+   world:makeWorld(buildings),progress:this.freshProgress(),friends:[],lastSavedAt:0,sound:true,musicEnabled:true,musicVolume:.35
   };
  }
  // Kiểm tra và chuẩn hóa một bản lưu (từ trình duyệt hoặc máy chủ). Trả về null nếu không hợp lệ.
@@ -55,7 +55,7 @@ class StorageManager {
  constructor(sim){this.sim=sim;this.available=true;this.erasing=false}
  serialize(){
   const {profile,world,progress,social,audio,reduceEffects}=this.sim;
-  return JSON.parse(JSON.stringify({version:2,profile,world,progress,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled,reduceEffects},
+  return JSON.parse(JSON.stringify({version:2,profile,world,progress,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled,musicEnabled:audio.musicEnabled,musicVolume:audio.musicVolume,reduceEffects},
    (key,value)=>key==="index"||key==="_metros"||key==="_airport"?undefined:value));
  }
  save(){
