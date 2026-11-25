@@ -6,21 +6,26 @@ const UIDialogs = {
   const el=this.nodes["event-banner"]??=document.getElementById("event-banner"),e=this.sim.events;
   el.hidden=!own||!e;
   if(el.hidden)return;
-  const ready=e.def.jobs.some((_,i)=>{const q=e.quest(i);return q.done&&!q.claimed})||
-   SeasonalEvents.tiers.some((t,i)=>e.points>=t.need&&!e.data.tiers.includes(i));
-  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
+  const flash=this.sim.flash?.def?this.sim.flash:null;
+  const claimable=event=>event.def.jobs.some((_,i)=>{const q=event.quest(i);return q.done&&!q.claimed})||
+   event.tiers.some((t,i)=>event.points>=t.need&&!event.data.tiers.includes(i));
+  const ready=claimable(e)||flash&&claimable(flash);
+  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+(flash?" · "+flash.def.name:"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
   el.style.setProperty("--event-tone",e.def.tone);
  },
+ currentEvent(){return this.eventTab==="flash"&&this.sim.flash?.def?this.sim.flash:this.sim.events},
  eventDialog(){
-  const e=this.sim.events,def=e.def,c=CONTENT.cast[def.who],jobs=def.jobs.map((_,i)=>e.quest(i));
+  const e=this.currentEvent(),def=e.def,c=CONTENT.cast[def.who],jobs=def.jobs.map((_,i)=>e.quest(i));
+  const tabs=this.sim.flash?.def?'<div class="tabs">'+this.btn("event-tab",this.sim.events.def.name,{id:"season",cls:e.flash?"":"active"})+
+   this.btn("event-tab",this.sim.flash.def.name,{id:"flash",cls:e.flash?"active":""})+'</div>':'<p class="muted">Sự kiện ngắn: Giờ Cao Điểm 18:00–20:00 ngày thường; Chợ Cuối Tuần từ 08:00 thứ Bảy đến hết Chủ nhật (giờ Việt Nam).</p>';
   const quests=this.orderedProgress(jobs,q=>q).map(({st:q})=>'<div class="row'+(q.claimed?" dim":"")+'"><div class="grow"><b>'+q.name+'</b><small>'+q.text+' · '+q.cur+'/'+q.goal+' · +10 '+def.points+'</small>'+this.bar(q.cur/q.goal)+'</div>'+
    this.btn("event-quest",q.claimed?"Đã nhận":q.done?"Nhận điểm":"Đang làm",{id:q.id,cls:q.done?"primary":"",disabled:!q.done||q.claimed})+'</div>').join("");
-  const rewards=this.orderedProgress(SeasonalEvents.tiers.map((t,i)=>({...t,i})),t=>({claimed:e.data.tiers.includes(t.i),done:e.points>=t.need})).map(({item:t,st})=>
+  const rewards=this.orderedProgress(e.tiers.map((t,i)=>({...t,i})),t=>({claimed:e.data.tiers.includes(t.i),done:e.points>=t.need})).map(({item:t,st})=>
    '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+t.need+' '+def.points+'</b><small>'+this.reward(t.reward)+(t.skin?' · Trang trí '+def.skin:"")+'</small></div>'+
    this.btn("event-tier",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Chưa mở",{id:t.i,cls:st.done?"primary":"",disabled:!st.done||st.claimed})+'</div>').join("");
   const skins=Object.keys(e.data.skins).filter(id=>Object.hasOwn(EventContent,id));
-  this.open("event",e.force?"XEM THỬ · KHÔNG LƯU THƯỞNG":"LỄ HỘI BÌNH MINH",def.name,
-   '<div class="event-intro" style="--event-tone:'+def.tone+'">'+this.portrait(def.who)+'<div><b>'+c.name+'</b><p>'+def.line+'</p></div></div>'+
+  this.open("event",e.force?"XEM THỬ · KHÔNG LƯU THƯỞNG":e.flash?"SỰ KIỆN NGẮN":"LỄ HỘI BÌNH MINH",def.name,
+   tabs+'<div class="event-intro" style="--event-tone:'+def.tone+'">'+this.portrait(def.who)+'<div><b>'+c.name+'</b><p>'+def.line+'</p></div></div>'+
    '<div class="event-track"><b>'+e.points+'/60 '+def.points+'</b><small>Còn '+e.countdown()+' · giờ Việt Nam</small>'+this.bar(e.points/60)+'</div>'+
    '<h4>Nhiệm vụ sự kiện</h4>'+quests+'<h4>Mốc phần thưởng</h4>'+rewards+
    (skins.length?'<h4>Trang trí đã mở khóa</h4><div class="actions">'+this.btn("event-skin","Mặc định",{id:"",cls:e.skin?"":"primary"})+
@@ -123,7 +128,9 @@ const UIDialogs = {
   if(tab==="friends"){
    if(online&&!this.friendsSynced){this.friendsSynced=true;cloud.syncFriends().then(()=>{if(this.dialogType==="social"&&this.tabs.social==="friends")this.socials()}).catch(()=>{})}
    const list=s.social.friends().map(f=>'<div class="row">'+this.face(f.avatar,f.level)+'<div class="grow"><b>'+htm(f.name)+(f.cloud?' <span class="tag">trực tuyến</span>':String(f.id).startsWith("MP-MAU")?' <span class="tag muted">mẫu</span>':'')+'</b><small>'+f.id+' · Cấp '+f.level+' · '+(f.world.crises.length?'<span class="warn">'+f.world.crises.length+' sự cố cần chi viện</span>':'đang yên ổn')+'</small></div><div class="actions">'+
-    (String(f.id).startsWith("MP-MAU")?"":this.btn("unfriend","Xóa",{id:f.id,cls:"ghost"}))+this.btn("visit","Thăm",{id:f.id,cls:"primary"})+'</div></div>').join("");
+    (String(f.id).startsWith("MP-MAU")?"":this.btn("unfriend","Xóa",{id:f.id,cls:"ghost"}))+
+    (online&&f.cloud?this.btn("chat-open","Nhắn tin",{id:f.id})+this.btn("coop-open","Nhiệm vụ chung",{id:f.id}):"")+
+    this.btn("visit","Thăm",{id:f.id,cls:"primary"})+'</div></div>').join("");
    body+='<p class="muted">Còn <b id="help-left">'+s.profile.dailyHelpsLeft+'/5</b> lượt chi viện · làm mới sau <b id="help-timer">'+s.social.resetTime()+'</b>. Mỗi lượt: 250 Vàng × cấp bạn, 40 XP và '+this.prestigeAmount(2)+(online?"; bạn bè trực tuyến còn nhận được quà cảm ơn":"")+'.</p>'+
     (online?'<div class="inline"><input id="friend-code" maxlength="12" placeholder="Nhập mã thành phố, ví dụ MP-7K2QF9" autocomplete="off">'+this.btn("add-friend","Kết bạn",{cls:"primary"})+'</div><p id="friend-message" role="status"></p>':"")+list;
   }else if(tab==="rank"){

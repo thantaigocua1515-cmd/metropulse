@@ -320,6 +320,7 @@ class SimulationEngine {
  }
  tick(dt){
   this.events?.refresh();
+  this.flash?.refresh();
   const w=this.world;this.elapsed+=dt;this.stats.playTime+=dt;w.timeOfDay=(w.timeOfDay+dt/180)%1;w.weatherClock+=dt;
   if(w.weatherClock>=90){
    w.weatherClock-=90;const order=["sunny","heat","storm"];w.weather=order[(order.indexOf(w.weather)+1)%3];

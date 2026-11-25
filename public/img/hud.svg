@@ -44,4 +44,5 @@
  <symbol id="minus" viewBox="0 0 64 64"><g stroke-linecap="round" stroke-linejoin="round"><path d="M18 32h28" fill="none" stroke="#5f6259" stroke-width="6"/></g></symbol>
  <symbol id="close" viewBox="0 0 64 64"><g stroke-linecap="round" stroke-linejoin="round"><path d="m21 21 22 22m0-22L21 43" fill="none" stroke="#fbf1dc" stroke-width="6"/></g></symbol>
  <symbol id="rotate" viewBox="0 0 64 64"><g stroke="#796f64" stroke-width="1.4" stroke-linejoin="round"><path d="M47 17a23 23 0 1 0 7 21H43a12 12 0 1 1-4-14l-7 8 23-2-1-24Z" fill="url(#blue)"/></g></symbol>
+ <symbol id="chat" viewBox="0 0 64 64"><g stroke="#796f64" stroke-width="1.4" stroke-linejoin="round"><path d="M24 19h24a10 10 0 0 1 10 10v13a10 10 0 0 1-10 10h-2l-10 6v-6H24a10 10 0 0 1-10-10V29a10 10 0 0 1 10-10Z" fill="url(#sage)"/><path d="M15 8h27a10 10 0 0 1 10 10v13a10 10 0 0 1-10 10H21l-12 8v-9a10 10 0 0 1-4-8V18A10 10 0 0 1 15 8Z" fill="url(#blue)"/><path d="M17 25h1m10 0h1m10 0h1" stroke="#456174" stroke-width="4" stroke-linecap="round"/></g></symbol>
 </svg>

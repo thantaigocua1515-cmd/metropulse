@@ -45,6 +45,14 @@ const EventCalendar=(()=>{
   ];
  };
  const weekly=["pho-xanh","cho-phien","xom-vui"];
+ const flash=ms=>{
+  const n=civil(ms),dow=(n+3)%7,base=instant(n),hour=3600000;
+  if(dow===5||dow===6){
+   const saturday=base-(dow-5)*day,start=saturday+8*hour;
+   if(ms>=start)return {id:"weekend-market",start,end:saturday+2*day};
+  }else if(ms>=base+18*hour&&ms<base+20*hour)return {id:"rush-hour",start:base+18*hour,end:base+20*hour};
+  return null;
+ };
  const active=ms=>{
   const n=civil(ms),year=new Date(n*day).getUTCFullYear(),range=[...seasons(year-1),...seasons(year),...seasons(year+1)];
   const current=range.find(e=>e.start<=n&&n<e.end);
@@ -57,7 +65,7 @@ const EventCalendar=(()=>{
   }
   return {id:weekly[(week%weekly.length+weekly.length)%weekly.length],start,end};
  };
- return {civil,instant,active,seasons,weekly};
+ return {civil,instant,active,flash,seasons,weekly};
 })();
 
 const EventContent={
@@ -84,26 +92,50 @@ const EventContent={
  ]}
 };
 
+const FlashContent={
+ "rush-hour":{name:"Giờ Cao Điểm",points:"Nhịp phố",icon:"⚡",tone:"#806b48",who:"mai",line:"Tan tầm rồi! Nối thêm đường và giúp bà con về nhà an toàn nhé.",jobs:[
+  ["roadsBuilt",3,"Thông tuyến"],["crisesSolved",1,"Giải tỏa sự cố"],["bubbles",3,"Thu quỹ giao thông"],["upgrades",1,"Tân trang trục phố"],["buildingsBuilt",1,"Điểm dừng mới"],["dailyDone",1,"Giao ban cuối ngày"]
+ ]},
+ "weekend-market":{name:"Chợ Cuối Tuần",points:"Phiếu chợ",icon:"◆",tone:"#987354",who:"hanh",line:"Chợ cuối tuần đã mở. Nhờ Thị trưởng dành thêm chỗ cho những gian hàng nhỏ!",jobs:[
+  ["buildingsBuilt",2,"Dựng gian chợ"],["bubbles",5,"Thu phiếu chợ"],["roadsBuilt",4,"Lối đi của khách"],["upgrades",2,"Sửa sang sạp"],["dailyDone",2,"Đón khách hai buổi"],["crisesSolved",1,"Phiên chợ bình an"]
+ ]}
+};
+
 class SeasonalEvents {
  static aliases={trungthu:"trung-thu",quockhanh:"quoc-khanh",giangsinh:"giang-sinh",christmas:"giang-sinh",midautumn:"trung-thu",national:"quoc-khanh"};
  static statNames={buildingsBuilt:"Hoàn thành công trình",roadsBuilt:"Xây ô đường",upgrades:"Nâng cấp công trình",bubbles:"Nhặt túi thưởng",crisesSolved:"Giải quyết sự cố",dailyDone:"Nhận thưởng nhiệm vụ ngày"};
  static tiers=[{need:20,reward:{coins:180}},{need:40,reward:{coins:350,prestige:2}},{need:60,reward:{coins:550,prestige:3},skin:true}];
- constructor(sim,force=""){
-  this.sim=sim;
+ static flashTiers=[{need:20,reward:{coins:80}},{need:40,reward:{coins:120,prestige:1}},{need:60,reward:{coins:180,prestige:1}}];
+ constructor(sim,force="",flash=false){
+  this.sim=sim;this.flash=flash;
   const id=Object.hasOwn(SeasonalEvents.aliases,force)?SeasonalEvents.aliases[force]:force;
-  this.force=id==="weekly"||Object.hasOwn(EventContent,id)?id:"";
+  this.force=(flash?Object.hasOwn(FlashContent,id):id==="weekly"||Object.hasOwn(EventContent,id))?id:"";
   this.preview={};this.refresh();
  }
- get data(){return this.force?this.preview:(this.sim.progress.events??={})}
+ get data(){return this.force?this.preview:(this.sim.progress[this.flash?"flash":"events"]??={})}
+ get tiers(){return this.flash?SeasonalEvents.flashTiers:SeasonalEvents.tiers}
  refresh(){
   const now=Date.now(),day=EventCalendar.civil(now);
-  if(this.day===day)return;
-  this.day=day;
-  const current=EventCalendar.active(now);
-  const id=this.force==="weekly"?EventCalendar.weekly.find(id=>id===current.id)||EventCalendar.weekly[0]:this.force||current.id;
-  this.event=this.force?{id,start:day,end:day+7}:current;
-  this.def=EventContent[this.event.id];
-  const key=this.event.id+":"+this.event.start,data=this.data;
+  if(this.flash){
+   const minute=Math.floor(now/60000);
+   if(this.minute===minute)return;
+   this.minute=minute;
+   if(this.force&&!this.previewSlot)this.previewSlot={id:this.force,start:now,end:now+7200000};
+   this.event=this.previewSlot||EventCalendar.flash(now);
+   this.def=this.event&&FlashContent[this.event.id];
+  }else{
+   if(this.day===day)return;
+   this.day=day;
+   const current=EventCalendar.active(now);
+   const id=this.force==="weekly"?EventCalendar.weekly.find(id=>id===current.id)||EventCalendar.weekly[0]:this.force||current.id;
+   this.event=this.force?{id,start:day,end:day+7}:current;
+   this.def=EventContent[this.event.id];
+  }
+  if(!this.event)return;
+  const key=this.event.id+":"+this.event.start;
+  if(this.key===key)return;
+  this.key=key;
+  const data=this.data;
   data.skins??={};
   if(data.key!==key||!data.base||!Array.isArray(data.quests)||!Array.isArray(data.tiers)){
    Object.assign(data,{key,base:Object.fromEntries(this.def.jobs.map(([stat])=>[stat,this.sim.stats[stat]||0])),quests:[],tiers:[]});
@@ -112,7 +144,7 @@ class SeasonalEvents {
  get points(){return this.data.quests.length*10}
  get skin(){return Object.hasOwn(this.data.skins,this.data.selected)&&Object.hasOwn(EventContent,this.data.selected)?this.data.selected:""}
  countdown(){
-  const mins=Math.max(0,Math.ceil((EventCalendar.instant(this.event.end)-Date.now())/60000));
+  const mins=Math.max(0,Math.ceil(((this.flash?this.event.end:EventCalendar.instant(this.event.end))-Date.now())/60000));
   return (mins>=1440?Math.floor(mins/1440)+"n ":"")+String(Math.floor(mins/60)%24).padStart(2,"0")+"g "+String(mins%60).padStart(2,"0")+"p";
  }
  quest(id){
@@ -121,7 +153,7 @@ class SeasonalEvents {
  }
  claimQuest(id){
   this.refresh();
-  if(!Number.isInteger(id)||!this.def.jobs[id])return false;
+  if(!Number.isInteger(id)||!this.def?.jobs[id])return false;
   const q=this.quest(id);
   if(!q.done||q.claimed)return false;
   this.data.quests.push(id);this.sim.audio.play("money");
@@ -130,7 +162,8 @@ class SeasonalEvents {
  }
  claimTier(id){
   this.refresh();
-  const tier=SeasonalEvents.tiers[id],data=this.data;
+  if(!this.event)return false;
+  const tier=this.tiers[id],data=this.data;
   if(!Number.isInteger(id)||!tier||this.points<tier.need||data.tiers.includes(id))return false;
   data.tiers.push(id);
   if(tier.skin){data.skins[this.event.id]=true;data.selected=this.event.id}
@@ -145,7 +178,8 @@ class SeasonalEvents {
 
 class EventMap {
  static colors={tet:["#bd4f49","#ffd476"],"trung-thu":["#a85890","#ffc75c"],"quoc-khanh":["#c2443e","#ffda6b"],"giang-sinh":["#357466","#f7d5a1"],
-  "pho-xanh":["#689470","#e8cf82"],"cho-phien":["#bb8163","#f8dca4"],"xom-vui":["#9e6681","#edc6cf"]};
+  "pho-xanh":["#689470","#e8cf82"],"cho-phien":["#bb8163","#f8dca4"],"xom-vui":["#9e6681","#edc6cf"],
+  "rush-hour":["#82714e","#f0cb83"],"weekend-market":["#906850","#f7d5a4"]};
  static shape(r,id,x,y,z,large){
   const [color,accent]=this.colors[id],line=(pts,c,w)=>r.line(pts.map(([a,b])=>({x:x+a*z,y:y+b*z})),c,w*z);
   const poly=(pts,c)=>r.poly(pts.map(([a,b])=>({x:x+a*z,y:y+b*z})),c);
@@ -192,6 +226,11 @@ class EventMap {
    if((b.x*3+b.y*7)%4)continue;
    const p=r.project(b.x+.87,b.y+.18,1);
    this.shape(r,id,p.x,p.y,z,false);
+  }
+  const flash=r.sim.flash?.event;
+  if(gate&&flash){
+   const p=r.project(gate.x+.82,gate.y+.88,1);
+   this.shape(r,flash.id,p.x,p.y,z,true);
   }
   if(gate&&(events.skin||!EventCalendar.weekly.includes(id))){
    const p=r.project(gate.x+.28,gate.y+.78,1);

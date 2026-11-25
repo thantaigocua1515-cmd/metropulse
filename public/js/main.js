@@ -44,7 +44,9 @@ function enableOffline(sprites){
  sim.social=new SocialManager(sim,data.friends);
  sim.storage=new StorageManager(sim);
  sim.prog=new ProgressionManager(sim);
- sim.events=new SeasonalEvents(sim,new URLSearchParams(location.search).get("event")||"");
+ const params=new URLSearchParams(location.search);
+ sim.events=new SeasonalEvents(sim,params.get("event")||"");
+ sim.flash=new SeasonalEvents(sim,params.get("flash")||"",true);
  sim.legacy=new LegacyGoals(sim);
  cloud.attach(sim);
  const renderer=new IsoRenderer(document.getElementById("map"),sim),sprites=renderer.preloadCity(sim.world),ui=new UIController(sim,renderer);

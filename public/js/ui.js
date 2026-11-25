@@ -22,7 +22,11 @@ class UIController {
   document.addEventListener("touchstart",()=>sim.audio.unlock(),{passive:true});
   document.addEventListener("contextmenu",e=>{if(!e.target.closest('input,textarea,[contenteditable="true"]'))e.preventDefault()});
   for(const type of ["pointerdown","click"])this.nodes["command-rail"].addEventListener(type,()=>this.scheduleCommandClose(),{passive:true});
-  document.addEventListener("submit",e=>{const kind=e.target.dataset?.auth;if(kind){e.preventDefault();this.auth(kind)}});
+  document.addEventListener("submit",e=>{
+   const kind=e.target.dataset?.auth;
+   if(kind){e.preventDefault();this.auth(kind)}
+   if(e.target.id==="chat-form"){e.preventDefault();this.sendChat(e.target)}
+  });
   document.addEventListener("input",e=>{
    if(e.target.id!=="music-volume")return;
    sim.audio.setMusic(sim.audio.musicEnabled,Number(e.target.value)/100);
@@ -228,8 +232,9 @@ class UIController {
    case "policy":{const error=s.activate(id);if(error){this.close();this.toast(error)}else this.policies();break}
    case "missions":if(id)this.tabs.missions=id;this.missions();break;
    case "event-open":this.eventDialog();break;
-   case "event-quest":s.events.claimQuest(Number(id));this.eventDialog();break;
-   case "event-tier":s.events.claimTier(Number(id));this.eventDialog();break;
+   case "event-tab":this.eventTab=id;this.eventDialog();break;
+   case "event-quest":this.currentEvent().claimQuest(Number(id));this.eventDialog();break;
+   case "event-tier":this.currentEvent().claimTier(Number(id));this.eventDialog();break;
    case "event-skin":s.events.selectSkin(id);this.eventDialog();break;
    case "quest-toggle":this.questOpen=!this.questOpen;break;
    case "claim":say(s.prog.claimQuest(id));if(this.dialogType==="missions")this.missions();break;
@@ -253,6 +258,8 @@ class UIController {
    }
    case "import":this.importCode();return;
    case "add-friend":this.addFriend();return;
+   case "chat-open":this.openChat(id);return;
+   case "coop-open":case "coop-assist":case "coop-claim":this.coopDialog(id,act==="coop-open"?"":act.slice(5));return;
    case "unfriend":if(s.social.remove(id)){s.cloud?.removeFriend(id);this.toast("Đã xóa khỏi danh sách bạn bè.")}else this.toast("Không thể xóa khi đang thăm hoặc đội chi viện đang làm việc.");this.socials();break;
    case "visit":
     if(!s.social.current)this.ownCamera={...r.camera};
@@ -298,11 +305,12 @@ class UIController {
   this.eventBanner(own);
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
-  const dots={missions:badges.missions,research:badges.research};
+  this.pollCommunity();
+  const dots={missions:badges.missions,research:badges.research,"chat-open":this.chatUnread()};
   this.commandBadges=Object.values(dots).reduce((total,count)=>total+count,0);this.renderCommandToggle();
   this.html("action-rail",[
-   ["missions","Nhiệm vụ","checklist"],["research","Nghiên cứu","flask"],["policies","Sắc lệnh","policy"],["social","Bạn bè","social"],["teams","Đội NPC","crew"]
-  ].map(([id,name,icon])=>this.gameButton(id,name,icon,{count:dots[id],active:this.dialogType===id})).join(""));
+   ["missions","Nhiệm vụ","checklist"],["research","Nghiên cứu","flask"],["policies","Sắc lệnh","policy"],["social","Bạn bè","social"],["teams","Đội NPC","crew"],["chat-open","Trò chuyện","chat"]
+  ].map(([id,name,icon])=>this.gameButton(id,name,icon,{count:dots[id],active:this.dialogType===(id==="chat-open"?"chat":id)})).join(""));
   this.html("build-tools",[
    this.gameButton("build","Xây dựng","crane",{shop:true,active:this.catalogOpen||this.tool==="build",disabled:!own}),
    this.gameButton("move","Di chuyển","move",{active:this.tool==="move",disabled:!own}),

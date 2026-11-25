@@ -611,6 +611,15 @@ button.blueprint-info{isolation:isolate;padding:6px 10px 0 0}
 .blueprint-facts{columns:2;padding-left:20px}
 .music-volume input{width:min(34vw,190px);margin-left:auto;accent-color:#6d846b}
 .music-volume output{min-width:3em;text-align:right;font-variant-numeric:tabular-nums}
+.chat-log{display:grid;align-content:start;gap:7px;height:min(40dvh,320px);overflow:auto;overscroll-behavior:contain;padding:9px;background:#ebe7dc;border:1px solid #d7cfbe;border-radius:12px}
+.chat-message{justify-self:start;max-width:88%;margin:0;padding:7px 10px;background:#fffaf0;color:#344b46;border-radius:12px;overflow-wrap:anywhere}
+.chat-message.mine{justify-self:end;background:#dae8dc}
+.chat-message small{font-size:10px;color:#556b64}
+.chat-compose{display:flex;gap:8px;align-items:center}
+.chat-compose input{min-width:0;flex:1}
+.chat-compose button{flex:none}
+#chat-contacts{overflow:auto;flex-wrap:nowrap;scrollbar-width:thin}
+#chat-contacts button{flex:none}
 body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 140px);bottom:auto}
 @media(max-width:650px), (max-width:730px) and (min-height:641px){
  #hud{--hud-bottom:25px}
@@ -628,5 +637,6 @@ body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 140px);bottom:auto
 }
 @media(max-height:480px) and (orientation:landscape){
  .side .blueprint img{height:45px}
+ .rail-main{grid-template-columns:repeat(6,auto)}
  body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 77px)}
 }

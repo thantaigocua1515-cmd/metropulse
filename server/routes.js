@@ -2,6 +2,7 @@
 const express=require("express");
 const {sha,newToken,newCode,hashPassword,verifyPassword,limiter}=require("./auth");
 const {CONFIG,inspectSave,publicCity,cleanName}=require("./game");
+const community=require("./community");
 
 const STATS=["score","assets","happiness","helpsGiven"];
 const today=()=>new Date().toISOString().slice(0,10);
@@ -12,6 +13,7 @@ const account=p=>({code:p.code,name:p.name,username:p.username||null,createdAt:p
 
 module.exports=function routes(getDb){
  const router=express.Router();
+ router.use((req,res,next)=>{res.set("Cache-Control","no-store");next()});
  const players=()=>getDb().collection("players"),saves=()=>getDb().collection("saves"),gifts=()=>getDb().collection("gifts");
  const authLimit=limiter(20,10*60000),nameLimit=limiter(10,10*60000),guestLimit=limiter(30,60*60000),saveLimit=limiter(40,60000),socialLimit=limiter(120,60000);
  const ip=req=>req.ip||"local";
@@ -191,6 +193,7 @@ module.exports=function routes(getDb){
   const claimed=result.modifiedCount===list.length?list:list.slice(0,result.modifiedCount);
   res.json({coins:claimed.reduce((sum,g)=>sum+g.coins,0),count:claimed.length});
  }));
+ community(router,{getDb,players,gifts,fail,wrap});
 
  router.use((req,res)=>res.status(404).json({error:"Không tìm thấy đường dẫn API."}));
  // eslint-disable-next-line no-unused-vars

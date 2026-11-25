@@ -26,6 +26,32 @@ function setup(buildings, level=16) {
   return sim;
 }
 
+test("flash windows use Vietnam time and leave the seasonal track independent", () => {
+  const original=now;
+  try{
+    const at=iso=>Date.parse(iso+"+07:00");
+    now=at("2026-09-02T17:59:00");
+    const sim=setup(),season=new SeasonalEvents(sim),flash=new SeasonalEvents(sim,"",true);
+    assert.equal(season.event.id,"quoc-khanh");
+    assert.equal(flash.event,null);
+    now=at("2026-09-02T18:00:00");flash.refresh();
+    assert.equal(flash.event.id,"rush-hour");
+    assert.equal(flash.countdown(),"02g 00p");
+    sim.stats.roadsBuilt+=3;
+    assert.equal(flash.claimQuest(0),true);
+    assert.equal(season.points,0);
+    now=at("2026-09-02T20:00:00");
+    assert.equal(flash.claimQuest(1),false);
+    assert.equal(EventCalendar.flash(at("2026-09-05T07:59:00")),null);
+    assert.equal(EventCalendar.flash(at("2026-09-05T08:00:00")).id,"weekend-market");
+    assert.equal(EventCalendar.flash(at("2026-09-06T23:59:00")).id,"weekend-market");
+    assert.equal(EventCalendar.flash(at("2026-09-07T00:00:00")),null);
+    const count=flash.points,preview=new SeasonalEvents(sim,"weekend-market",true);
+    sim.stats.buildingsBuilt+=2;assert.equal(preview.claimQuest(0),true);
+    assert.equal(flash.points,count);
+  }finally{now=original}
+});
+
 test("district preview and live city use the same completed, bounded neighborhoods", () => {
   const home = makeBuilding("house_small", 8, 8);
   const school = makeBuilding("school", 8, 10);

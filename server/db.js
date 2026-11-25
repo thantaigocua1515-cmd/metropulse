@@ -22,7 +22,7 @@ function connect(uri,name){
 }
 
 async function ensureIndexes(db){
- const players=db.collection("players"),gifts=db.collection("gifts");
+ const players=db.collection("players"),gifts=db.collection("gifts"),chat=db.collection("chatMessages"),coop=db.collection("coopClaims");
  await Promise.all([
   players.createIndex({code:1},{unique:true}),
   players.createIndex({usernameLower:1},{unique:true,partialFilterExpression:{usernameLower:{$type:"string"}}}),
@@ -32,7 +32,12 @@ async function ensureIndexes(db){
   players.createIndex({"summary.happiness":-1}),
   players.createIndex({"summary.helpsGiven":-1}),
   gifts.createIndex({to:1,claimedAt:1}),
-  gifts.createIndex({createdAt:1},{expireAfterSeconds:14*86400})
+  gifts.createIndex({createdAt:1},{expireAfterSeconds:14*86400}),
+  gifts.createIndex({to:1,fromCode:1,createdAt:1}),
+  chat.createIndex({room:1,createdAt:-1,_id:-1}),
+  chat.createIndex({to:1,createdAt:-1,_id:-1}),
+  chat.createIndex({createdAt:1},{expireAfterSeconds:7*86400}),
+  coop.createIndex({createdAt:1},{expireAfterSeconds:30*86400})
  ]);
 }
 
