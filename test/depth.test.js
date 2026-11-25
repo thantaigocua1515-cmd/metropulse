@@ -8,11 +8,11 @@ let now;
 class TestClock extends Date {
   static now() { return now; }
 }
-const { CONFIG, Districts, EventCalendar, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld } = vm.runInNewContext(
+const { CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld } = vm.runInNewContext(
   ["config", "content", "core", "simulation", "storage", "events", "progression"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, Districts, EventCalendar, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld })",
-  { Date: TestClock }
+  "\n({ CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld })",
+  { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
 
 function setup(buildings, level=16) {
@@ -119,6 +119,26 @@ test("event quest and tier claims are one-time; rollover preserves cosmetics; de
   assert.equal(preview.claimTier(2), true);
   assert.equal(s.profile.coins, balance);
   assert.equal(s.progress.events.skins["trung-thu"], undefined);
+});
+
+test("market stalls render only as a selected reward, not as automatic event props", () => {
+  now = Date.parse("2026-11-28T12:00:00+07:00");
+  const s = setup([makeBuilding("road",8,8),makeBuilding("road",9,7)]);
+  s.events = new SeasonalEvents(s);
+  s.flash = new SeasonalEvents(s,"",true);
+  assert.equal(s.events.event.id,"cho-phien");
+  assert.equal(s.flash.event.id,"weekend-market");
+  const mapFrames = [], renderer = {ctx:mapFrames,sim:s,camera:{zoom:1},project:(x,y)=>({x,y})};
+  EventMap.draw(renderer,s.world,s.events);
+  assert.deepEqual(mapFrames,[]);
+  s.events.data.skins["cho-phien"] = true;
+  s.events.selectSkin("cho-phien");
+  EventMap.draw(renderer,s.world,s.events);
+  assert.deepEqual(mapFrames.splice(0),["cho-phien-large"]);
+  s.events.selectSkin("");
+  s.events = new SeasonalEvents(s,"pho-xanh");
+  EventMap.draw(renderer,s.world,s.events);
+  assert.deepEqual(mapFrames.splice(0),["pho-xanh-small","pho-xanh-small"]);
 });
 
 test("legacy masters existing cities, claims once, and rotates a clean repeatable plan", () => {

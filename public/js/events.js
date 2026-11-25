@@ -226,12 +226,12 @@ class EventMap {
   for(const b of w.buildings){
    if(b.id!=="road")continue;
    if(!gate||Math.abs(b.x-8)+Math.abs(b.y-7)<Math.abs(gate.x-8)+Math.abs(gate.y-7))gate=b;
-   if((b.x*3+b.y*7)%4)continue;
+   if(id==="cho-phien"||(b.x*3+b.y*7)%4)continue;
    const p=r.project(b.x+.87,b.y+.18,1);
    this.shape(r,id,p.x,p.y,z,false,(b.x+b.y)%3===0);
   }
   const flash=r.sim.flash?.event;
-  if(gate&&flash){
+  if(gate&&flash&&flash.id!=="weekend-market"){
    const p=r.project(gate.x+.82,gate.y+.88,1);
    this.shape(r,flash.id,p.x,p.y,z,true);
   }
