@@ -12,13 +12,27 @@ test("incidents keep a dispatch control before assignment and only a progress po
   const ui = Object.create(UIController.prototype);
   const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[]};
   const status = {}, properties = new Map(), attributes = {};
-  const child = {querySelector: () => status,style: properties,setAttribute: (key,value) => { attributes[key]=value; }};
+  const child = {style: properties,setAttribute: (key,value) => { attributes[key]=value; }};
   properties.getPropertyValue = properties.get;
   properties.setProperty = properties.set;
   ui.nodes = {incidents:{children:[child]}};
   ui.sim = {social:{world:w,current:null},crisis:{teams:() => [{}]}};
   ui.incidentDock();
   assert.match(ui.nodes.incidents.innerHTML, /class="incident interactive".*data-act="dispatch" data-id="fire1"/);
+  assert.match(ui.nodes.incidents.innerHTML, /data-act="incident-details" data-id="fire1"/);
+  assert.doesNotMatch(ui.nodes.incidents.innerHTML, /Còn \d+ giây/);
+  ui.refresh = () => {};
+  ui.open = (type,tag,title,content) => {
+    assert.equal(type,"incident");
+    assert.equal(title,"Hỏa hoạn cục bộ");
+    assert.match(content,/Mất toàn bộ thu nhập/);
+    assert.match(content,/Còn \d+ giây/);
+    assert.match(content,/data-act="quick" data-id="fire_station"/);
+  };
+  ui.sim.crisis.teams = () => [];
+  ui.action({dataset:{act:"incident-details",id:"fire1"}});
+  ui.nodes["dialog-body"] = {querySelector: () => status};
+  ui.incidentDetails("fire1",true);
   assert.match(status.textContent, /Còn \d+ giây/);
 
   w.npcs.push({target:"fire1",phase:"out",segment:1,part:0.5,path:[{},{},{},{}]});
@@ -34,7 +48,6 @@ test("incidents keep a dispatch control before assignment and only a progress po
   assert.equal(properties.get("--incident-progress"), "70%");
   assert.match(attributes["aria-label"], /Đang sửa · 40%/);
   ui.renderer = {focus: (x,y) => assert.deepEqual([x,y],[5,7])};
-  ui.refresh = () => {};
   ui.action({dataset:{act:"incident-focus",id:"fire1"}});
 });
 

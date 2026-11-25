@@ -217,12 +217,13 @@ class UIController {
    case "help":this.help(id||"start");break;
    case "replay-tutorial":s.progress.tutorial={step:0,done:false};this.close();this.tutorial?.restart();break;
    case "dispatch":this.dispatch(id);break;
+   case "incident-details":this.incidentDetails(id);break;
    case "incident-focus":{
     const c=s.social.world.crises.find(c=>c.uid===id);
     if(c)r.focus(c.x,c.y);
     break;
    }
-   case "quick":this.select(id);break;
+   case "quick":this.close();this.select(id);break;
    case "focus":if(this.inspect)r.focus(this.inspect.x,this.inspect.y);break;
    case "inspect-close":this.inspect=null;break;
    case "upgrade":if(tile()){const error=s.upgrade(tile());this.toast(error||"Đã nâng cấp công trình.");if(!error)this.closeUp(tile())}break;
@@ -361,6 +362,7 @@ class UIController {
    if(this.dialogType==="policies")this.policies();
    if(this.dialogType==="research"&&!this.nodes["dialog-body"].matches(":hover"))this.research();
    if(this.dialogType==="event")this.eventDialog();
+   if(this.dialogType==="incident")this.incidentDetails(this.incidentDetailId,true);
   }
   this.pump();this.tutorial?.update();
  }
@@ -408,6 +410,16 @@ class UIController {
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
   this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumb(b.id))+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
+ incidentDetails(uid,updating=false){
+  const s=this.sim,c=s.social.world.crises.find(c=>c.uid===uid);
+  if(!c){if(updating)this.close();return}
+  const d=CONFIG.crises[c.id],time=c.late?"Đã quá hạn":"Còn "+Math.max(0,Math.ceil(d.danger-c.age))+" giây";
+  if(updating){this.nodes["dialog-body"].querySelector(".incident-time").textContent=time;return}
+  const missing=!s.crisis.teams(d.hq).length,building=htm(CONFIG.buildings[d.hq].name);
+  this.incidentDetailId=uid;
+  this.open("incident","CẢNH BÁO SỰ CỐ",d.name,'<p>'+htm(d.penalty)+'</p><p><b class="incident-time">'+time+'</b>'+(missing?' · Cần '+building:'')+'</p>'+
+   (missing&&!s.social.current?'<div class="actions">'+this.btn("quick","Xây nhanh "+building,{id:d.hq})+'</div>':""));
+ }
  incidentDock(){
   const s=this.sim,w=s.social.world,friend=s.social.current;
   const updates=[];
@@ -420,22 +432,17 @@ class UIController {
     updates.push({progress,label:d.name+" · "+status+" · Xem vị trí"});
     return this.btn("incident-focus",this.avatar(CONFIG.npcs[d.hq].avatar),{id:c.uid,cls:"incident-npc"});
    }
-   const canDispatch=s.crisis.teams(d.hq).length>0;
-   const status=!canDispatch?"Cần "+CONFIG.buildings[d.hq].name:c.late?"Đã quá hạn":"Còn "+Math.max(0,Math.ceil(d.danger-c.age))+" giây";
-   updates.push({status});
-   return '<div class="incident interactive"><span class="incident-symbol" aria-hidden="true">'+htm(d.icon)+'</span><div class="incident-copy"><b>'+htm(d.name)+'</b><small></small></div>'+
-    this.btn("dispatch",friend?"Chi viện NPC":"Điều phối NPC",{id:c.uid,cls:"primary",label:(friend?"Chi viện: ":"Điều phối NPC: ")+d.name})+
-    (!canDispatch&&!friend?this.btn("quick",this.icon("crane"),{id:d.hq,cls:"incident-build",label:"Xây nhanh "+CONFIG.buildings[d.hq].name,title:"Xây nhanh "+CONFIG.buildings[d.hq].name}):"")+'</div>';
+   updates.push(null);
+   const details="Chi tiết: "+d.name;
+   return '<div class="incident interactive">'+this.btn("incident-details",htm(d.icon),{id:c.uid,cls:"incident-symbol",label:details,title:details})+
+    this.btn("dispatch",friend?"Chi viện NPC":"Điều phối NPC",{id:c.uid,cls:"primary",label:(friend?"Chi viện: ":"Điều phối NPC: ")+d.name})+'</div>';
   }).join(""));
   for(const [i,child] of Array.from(this.nodes.incidents.children).entries()){
    const state=updates[i];
-   if(state.label){
+   if(state){
     if(child.title!==state.label){child.title=state.label;child.setAttribute("aria-label",state.label)}
     const value=state.progress+"%";
     if(child.style.getPropertyValue("--incident-progress")!==value)child.style.setProperty("--incident-progress",value);
-   }else{
-    const caption=child.querySelector("small");
-    if(caption.textContent!==state.status)caption.textContent=state.status;
    }
   }
  }

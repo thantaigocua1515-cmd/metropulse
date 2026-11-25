@@ -70,6 +70,8 @@ class TutorialManager {
   this.node.hidden=false;
   const html='<div class="coach-row">'+ui.portrait("mai")+'<div><div class="eyebrow">Hướng dẫn · Bước '+(this.state.step+1)+'/'+list.length+'</div><p>'+step.text+'</p></div></div>'+ui.btn("coach-skip","Bỏ qua hướng dẫn",{cls:"ghost"});
   if(this.shown!==html){this.bubble.innerHTML=html;this.shown=html}
+  const dock=ui.nodes.incidents.getBoundingClientRect();
+  this.bubble.style.bottom=dock.height&&dock.left<this.bubble.getBoundingClientRect().right?(innerHeight-dock.top+8)+"px":"";
   const r=this.renderer(),tile=step.tile?.();let box=null;
   const target=step.target?.();
   ui.pinCommands(!!target?.closest("#command-drawer"));
