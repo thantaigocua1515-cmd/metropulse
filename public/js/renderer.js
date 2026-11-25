@@ -8,6 +8,7 @@ class IsoRenderer {
   this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.prestigeIcon=new Image();this.prestigeIcon.src=asset("img/prestige.svg");
   this.effects=new CityEffects(this);
+  document.fonts?.load(canvasFont(9,800),"012ABC").then(()=>{this.groundReady=false},()=>{});
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
@@ -66,7 +67,7 @@ class IsoRenderer {
   if(hits)hits.push(left,right,top);return top;
  }
  text(text,x,y,size,color,bold=true){
-  const g=this.ctx;g.font=(bold?"700 ":"500 ")+size+"px system-ui,sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillStyle=color;g.fillText(text,x,y);
+  const g=this.ctx;g.font=canvasFont(size,bold?800:400);g.textAlign="center";g.textBaseline="middle";g.fillStyle=color;g.fillText(text,x,y);
  }
  tree(x,y,variant=0,height=1){
   const p=this.project(x,y),z=this.camera.zoom*height;
@@ -519,7 +520,7 @@ class IsoRenderer {
    const anchor=this.project(tile.x+.5,tile.y+.5,(heights.get(coord(tile.x,tile.y))||0)+14);
    tile.labels.forEach(({text,good},i)=>{
     const size=Math.max(10,12*z),ty=anchor.y-i*(size+5);
-    g.font="700 "+size+"px system-ui,sans-serif";const width=g.measureText(text).width+10;
+    g.font=canvasFont(size,800);const width=g.measureText(text).width+10;
     g.fillStyle=good?"#244a3a":"#713931";g.beginPath();g.roundRect(anchor.x-width/2,ty-size*.62,width,size+4,4);g.fill();
     this.text(text,anchor.x,ty,size,good?"#e0fbea":"#ffe9e0");
    });

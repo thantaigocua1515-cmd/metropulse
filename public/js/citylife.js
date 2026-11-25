@@ -219,11 +219,11 @@ class CityLife {
   else if(kind==="sick"){g.moveTo(x-r*.4,y+r*.42);g.quadraticCurveTo(x-r*.2,y+r*.25,x,y+r*.42);g.quadraticCurveTo(x+r*.2,y+r*.6,x+r*.4,y+r*.42);g.stroke()}
   else{g.arc(x,y+r*.72,r*.42,1.2*Math.PI,1.8*Math.PI);g.stroke()}
   if(kind==="hot"||kind==="scared"){g.fillStyle="#58b4f0";g.beginPath();g.moveTo(x+r*.78,y-r*.75);g.quadraticCurveTo(x+r*1.15,y-r*.1,x+r*.78,y-r*.05);g.quadraticCurveTo(x+r*.42,y-r*.1,x+r*.78,y-r*.75);g.fill()}
-  if(kind==="sleepy"){g.font="700 "+r*.9+"px system-ui,sans-serif";g.textAlign="left";g.textBaseline="middle";g.fillStyle="#5b6b8c";g.fillText("z",x+r*.9,y-r*.9)}
+  if(kind==="sleepy"){g.font=canvasFont(r*.9,800);g.textAlign="left";g.textBaseline="middle";g.fillStyle="#5b6b8c";g.fillText("z",x+r*.9,y-r*.9)}
  }
  bubble(x,y,text,name){
   const g=this.r.ctx,size=Math.max(11,Math.min(13,11*this.r.camera.zoom));
-  g.font="600 "+size+"px system-ui,sans-serif";
+  g.font=canvasFont(size,600);
   const label=name?name+": ":"",w=Math.min(230,g.measureText(label+text).width)+16,h=size+11,left=clamp(x-w/2,6,this.r.width-w-6),top=y-h-6,rad=h/2;
   g.beginPath();g.moveTo(left+rad,top);g.arcTo(left+w,top,left+w,top+h,rad);g.arcTo(left+w,top+h,left,top+h,rad);g.arcTo(left,top+h,left,top,rad);g.arcTo(left,top,left+w,top,rad);g.closePath();
   g.moveTo(x-4,top+h-1);g.lineTo(x,y);g.lineTo(x+4,top+h-1);

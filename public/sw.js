@@ -1,12 +1,12 @@
 "use strict";
 
-const VERSION="4.4.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
+const VERSION="4.4.1",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
 const root=new URL(self.registration.scope),shell=new URL("./",root).href;
 const build=url=>new URL(url,root).href;
 let cacheHandle;
 const currentCache=()=>cacheHandle??=caches.has(CACHE).then(exists=>exists?caches.open(CACHE):null);
 const staticPath=url=>url.origin===root.origin&&url.pathname.startsWith(root.pathname)&&
- /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|img\/(?:[\w-]+\.svg|(?:art|bld|npc)\/[\w/-]+\.webp)|audio\/turning-pages\.mp3)$/.test(url.pathname.slice(root.pathname.length))&&
+ /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|fonts\/be-vietnam-pro-(?:400|600|800)-(?:latin|vietnamese)\.woff2|img\/(?:[\w-]+\.svg|(?:art|bld|npc)\/[\w/-]+\.webp)|audio\/turning-pages\.mp3)$/.test(url.pathname.slice(root.pathname.length))&&
  url.search==="?v="+VERSION;
 const isAsset=res=>res.ok&&!res.redirected&&!/^text\/html\b/i.test(res.headers.get("content-type")||"");
 
@@ -40,8 +40,9 @@ self.addEventListener("install",event=>event.waitUntil((async()=>{
  if(!html.includes('<meta name="mp-release" content="'+VERSION+'">'))throw Error("MetroPulse release mismatch");
  const core=[...html.matchAll(/(?:src|href)="((?:css|js)\/[^"]+)"/g)].map(([,url])=>build(url));
  const pictures=["img/hud.svg","img/prestige.svg","img/art/hud.webp"].map(path=>build(path+"?v="+VERSION));
+ const fonts=[400,600,800].flatMap(weight=>["latin","vietnamese"].map(subset=>build("fonts/be-vietnam-pro-"+weight+"-"+subset+".woff2?v="+VERSION)));
  const cache=await (cacheHandle=caches.open(CACHE));
- await Promise.all(core.concat(pictures).map(async href=>{
+ await Promise.all(core.concat(pictures,fonts).map(async href=>{
   if(!staticPath(new URL(href))||!isAsset(await cacheStatic(cache,href)))throw Error("MetroPulse asset unavailable");
  }));
  await cache.put(shell,response);
