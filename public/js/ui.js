@@ -410,6 +410,10 @@ class UIController {
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
   this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumb(b.id))+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
+ incidentPlace(w,c){
+  const site=lookup(w,c.x,c.y),tile=String.fromCharCode(65+c.x)+(c.y+1);
+  return site?CONFIG.buildingName(site)+" · "+tile:"Ô "+tile;
+ }
  incidentDetails(uid,updating=false){
   const s=this.sim,c=s.social.world.crises.find(c=>c.uid===uid);
   if(!c){if(updating)this.close();return}
@@ -417,7 +421,7 @@ class UIController {
   if(updating){this.nodes["dialog-body"].querySelector(".incident-time").textContent=time;return}
   const missing=!s.crisis.teams(d.hq).length,building=htm(CONFIG.buildings[d.hq].name);
   this.incidentDetailId=uid;
-  this.open("incident","CẢNH BÁO SỰ CỐ",d.name,'<p>'+htm(d.penalty)+'</p><p><b class="incident-time">'+time+'</b>'+(missing?' · Cần '+building:'')+'</p>'+
+  this.open("incident","CẢNH BÁO SỰ CỐ",d.name,'<p><b>'+htm(this.incidentPlace(s.social.world,c))+'</b></p><p>'+htm(d.penalty)+'</p><p><b class="incident-time">'+time+'</b>'+(missing?' · Cần '+building:'')+'</p>'+
    (missing&&!s.social.current?'<div class="actions">'+this.btn("quick","Xây nhanh "+building,{id:d.hq})+'</div>':""));
  }
  incidentDock(){
@@ -433,9 +437,11 @@ class UIController {
     return this.btn("incident-focus",this.avatar(CONFIG.npcs[d.hq].avatar),{id:c.uid,cls:"incident-npc"});
    }
    updates.push(null);
-   const details="Chi tiết: "+d.name;
-   return '<div class="incident interactive">'+this.btn("incident-details",htm(d.icon),{id:c.uid,cls:"incident-symbol",label:details,title:details})+
-    this.btn("dispatch",friend?"Chi viện NPC":"Điều phối NPC",{id:c.uid,cls:"primary",label:(friend?"Chi viện: ":"Điều phối NPC: ")+d.name})+'</div>';
+   const place=this.incidentPlace(w,c);
+   const details="Chi tiết: "+d.name+" · "+place;
+   const summary='<span class="incident-symbol" aria-hidden="true">'+htm(d.icon)+'</span><span class="incident-copy"><b>'+htm(d.short)+'</b><small>'+htm(place)+'</small></span>';
+   return '<div class="incident interactive">'+this.btn("incident-details",summary,{id:c.uid,cls:"incident-summary",label:details,title:details})+
+    this.btn("dispatch",friend?"Chi viện":"Điều phối",{id:c.uid,cls:"primary",label:(friend?"Chi viện: ":"Điều phối NPC: ")+d.name+" · "+place})+'</div>';
   }).join(""));
   for(const [i,child] of Array.from(this.nodes.incidents.children).entries()){
    const state=updates[i];

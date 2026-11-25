@@ -10,7 +10,7 @@ const UIController = loadUI({});
 
 test("incidents keep a dispatch control before assignment and only a progress portrait afterward", () => {
   const ui = Object.create(UIController.prototype);
-  const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[]};
+  const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[],index:new Map([[117,{id:"office_tower",level:1}]])};
   const status = {}, properties = new Map(), attributes = {};
   const child = {style: properties,setAttribute: (key,value) => { attributes[key]=value; }};
   properties.getPropertyValue = properties.get;
@@ -20,7 +20,11 @@ test("incidents keep a dispatch control before assignment and only a progress po
   ui.incidentDock();
   assert.match(ui.nodes.incidents.innerHTML, /class="incident interactive".*data-act="dispatch" data-id="fire1"/);
   assert.match(ui.nodes.incidents.innerHTML, /data-act="incident-details" data-id="fire1"/);
+  assert.match(ui.nodes.incidents.innerHTML, /<b>Cháy<\/b><small>Khu Văn phòng · F8<\/small>/);
   assert.doesNotMatch(ui.nodes.incidents.innerHTML, /Còn \d+ giây/);
+  w.index.clear();
+  ui.incidentDock();
+  assert.match(ui.nodes.incidents.innerHTML, /<small>Ô F8<\/small>/);
   ui.refresh = () => {};
   ui.open = (type,tag,title,content) => {
     assert.equal(type,"incident");

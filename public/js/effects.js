@@ -108,7 +108,7 @@ class CityEffects {
    g.globalAlpha=Math.min(1,(.82-t)*14);
    this.glow(x,y,15,13);
    const token={coin:"coin-token",prestige:"gem-token",brain:"know-token"}[e.resource];
-   if(!GameArt.draw(g,"markers-rewards",token,x,y,24)){
+   if(!GameArt.draw(g,"hud",e.resource,x,y,24)&&!GameArt.draw(g,"markers-rewards",token,x,y,24)){
    if(e.resource==="prestige"&&r.prestigeIcon.naturalWidth)g.drawImage(r.prestigeIcon,x-12,y-12,24,24);
    else if(e.resource==="brain"){
     g.fillStyle="#68869b";g.fillRect(x-9,y-8,18,16);g.fillStyle=color;g.fillRect(x-7,y-7,6,12);g.fillRect(x+1,y-7,6,12);

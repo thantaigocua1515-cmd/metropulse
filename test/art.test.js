@@ -45,6 +45,12 @@ test("atlas renderer stays lazy, keeps the fallback while loading, and anchors m
   assert.equal(calls[3][1], img);
   assert.equal(calls[3][7] + calls[3][9], 50);
   assert.deepEqual(calls.at(-1), ["restore"]);
+  const hud = pending.find(image => image.src === "img/art/hud.webp");
+  assert.equal(art.draw(g, "hud", "prestige", 10, 10, 18), false);
+  hud.naturalWidth = 768;
+  assert.equal(art.draw(g, "hud", "prestige", 10, 10, 18), true);
+  assert.equal(calls.at(-1)[1], hud);
+  assert.equal(pending.length, before + 1);
 });
 
 test("ground layer refreshes for camera, tile occupancy and late-loading art", () => {

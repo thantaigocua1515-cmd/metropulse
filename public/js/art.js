@@ -11,7 +11,7 @@ const GameArt=(()=>{
   return image.naturalWidth?image:null;
  }
  function draw(g,group,key,x,y,w,h=w,{ground=false,mirror=false,stretch=false}={}){
-  const ref=data.groups[group]?.[key],img=ref&&image(group);if(!img)return false;
+  const ref=(group==="hud"?data.hud:data.groups[group])?.[key],img=ref&&image(group);if(!img)return false;
   const [,sx,sy,sw,sh]=ref,fit=Math.min(w/sw,h/sh);
   if(!stretch){w=sw*fit;h=sh*fit}
   const top=y-(ground?h:h/2),left=x-w/2;
@@ -32,6 +32,7 @@ const GameArt=(()=>{
    root.style.setProperty("--hud-art",cssURL("hud"));
    root.style.setProperty("--hud-art-size",(100*w/unit)+"% "+(100*h/unit)+"%");
    const loaded=new Image(),url=asset("img/art/hud.webp");
+   pics.set("hud",loaded);
    loaded.onload=()=>{paths.add(url);root.classList.add("art-hud")};loaded.src=url;
   }
   function decorate(group,mode,select,rules){

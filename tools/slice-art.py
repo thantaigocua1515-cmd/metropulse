@@ -1,9 +1,11 @@
 """Build the in-game WebP atlases from the local Fosta sheets (sources aren't shipped)."""
 import argparse
+from io import BytesIO
 import json
 import math
 from pathlib import Path
 import re
+from zipfile import ZipFile
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -178,13 +180,68 @@ def contact_sheet(out, destination, data):
     sheets.save(destination)
 
 
+def replace_hud(pack, out, contact):
+    manifest = ROOT / "public/js/art-data.js"
+    prefix = '"use strict";\n\nconst ART_DATA='
+    data = json.loads(manifest.read_text(encoding="utf8").removeprefix(prefix).rstrip().removesuffix(";"))
+    previous = Image.open(out / "hud.webp").convert("RGBA")
+    cell = data["hudCell"]
+    with ZipFile(pack) as archive:
+        sources = json.loads(archive.read("manifest.json"))["icons"]
+        aliases = {"zoom-in": "plus", "zoom-out": "minus"}
+        replacements = {}
+        for name, entry in sources.items():
+            key = aliases.get(name, name)
+            if key not in data["hud"]:
+                print(f"Unused source icon: {name}")
+                continue
+            icon = Image.open(BytesIO(archive.read(entry["path"]))).convert("RGBA")
+            bounds = icon.getchannel("A").getbbox()
+            if not bounds or bounds == (0, 0, *icon.size):
+                raise ValueError(f"Expected a visible icon with transparent margins: {name}")
+            icon = icon.crop(bounds)
+            icon.thumbnail((cell - 8, cell - 8), Image.Resampling.LANCZOS)
+            replacements[key] = icon
+        if not replacements:
+            raise ValueError("No matching HUD icons in the pack")
+
+    frames = [(key, replacements.get(key, previous.crop((x, y, x+w, y+h))))
+              for key, (_, x, y, w, h) in data["hud"].items()]
+    data["hud"] = {}
+    data["hudSize"] = write_atlas(out, "hud", frames, data["hud"], cols=8, cell=cell, quality=90)
+    manifest.write_text(prefix + json.dumps(data, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf8")
+    kept = sorted(data["hud"].keys() - replacements.keys())
+    if contact:
+        width, height, cols = 112, 76, 8
+        sheet = Image.new("RGB", (width*cols, height*math.ceil(len(frames)/cols)), "#f1ecdf")
+        atlas = Image.open(out / "hud.webp").convert("RGBA")
+        draw = ImageDraw.Draw(sheet)
+        labels = {key: f"{name} -> {key}" for name, key in aliases.items()}
+        for i, (key, (_, x, y, w, h)) in enumerate(data["hud"].items()):
+            image = atlas.crop((x, y, x+w, y+h))
+            image.thumbnail((40, 40), Image.Resampling.LANCZOS)
+            left, top = (i % cols)*width, (i // cols)*height
+            sheet.paste(image, (left + (width-image.width)//2, top + (46-image.height)//2), image)
+            draw.text((left+5, top+49), labels.get(key, key), fill="#283c35")
+            if key in kept:
+                draw.text((left+5, top+62), "Existing", fill="#87563b")
+        sheet.save(contact)
+    print(f"{len(replacements)} HUD icons replaced; existing frames kept: {', '.join(kept)}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("source", type=Path, help="folder containing jobs-all.json and out/")
+    ap.add_argument("source", type=Path, nargs="?", help="folder containing jobs-all.json and out/")
+    ap.add_argument("--hud-pack", type=Path, help="replace only HUD frames from a MetroPulse icon ZIP")
     ap.add_argument("--contact", type=Path, help="optional labeled contact-sheet PNG")
     args = ap.parse_args()
+    if bool(args.source) == bool(args.hud_pack):
+        ap.error("provide either a Fosta source folder or --hud-pack")
     out = ROOT / "public/img/art"
     out.mkdir(exist_ok=True, parents=True)
+    if args.hud_pack:
+        replace_hud(args.hud_pack, out, args.contact)
+        return
     jobs = [{"name": "hud-test"}] + json.loads((args.source / "jobs-all.json").read_text())
     data, hud, opaque, assets = {}, [], [], 0
     for job in jobs:

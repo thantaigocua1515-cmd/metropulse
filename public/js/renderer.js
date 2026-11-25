@@ -462,12 +462,14 @@ class IsoRenderer {
  bubble(b,height){
   const z=this.camera.zoom,t=this.elapsed,p=this.project(b.x+.5,b.y+.5,height+24+Math.sin(t*3+b.x)*3),r=this.markerRadius();
   const look={coin:["#ffd36e","#7a5a1c","V"],know:["#9ae4cb","#1d5a4a","✦"],gem:["#ffe5a5","#75451e","🏅"]}[b.kind];
-  if(!GameArt.draw(this.ctx,"markers-rewards",b.kind,p.x,p.y,2*r+5)){
+  if(GameArt.ready("hud")||!GameArt.draw(this.ctx,"markers-rewards",b.kind,p.x,p.y,2*r+5)){
   this.ellipse(p.x,p.y+r+5*z,r*.6,r*.22,"#14262155");
   this.ellipse(p.x,p.y,r+2,r+2,"#fff8dc");this.ellipse(p.x,p.y,r,r,look[0]);this.ellipse(p.x-r*.3,p.y-r*.35,r*.28,r*.18,"#ffffffaa");
-  if(b.kind==="gem"&&this.prestigeIcon.naturalWidth){
-   this.ctx.drawImage(this.prestigeIcon,p.x-r,p.y-r,2*r,2*r);
-  }else this.text(look[2],p.x,p.y+.5,r*1.1,look[1]);
+  const icon={coin:"coin",know:"brain",gem:"prestige"}[b.kind];
+  if(!GameArt.draw(this.ctx,"hud",icon,p.x,p.y,1.55*r)){
+   if(b.kind==="gem"&&this.prestigeIcon.naturalWidth)this.ctx.drawImage(this.prestigeIcon,p.x-r,p.y-r,2*r,2*r);
+   else this.text(look[2],p.x,p.y+.5,r*1.1,look[1]);
+  }
   }
   this.hits.push({bubble:b,x:p.x,y:p.y,r:Math.max(22,r+6)});
  }
