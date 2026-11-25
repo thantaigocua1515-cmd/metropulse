@@ -89,7 +89,7 @@ const CONFIG = (() => {
  const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
   roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
  const mayorXP = [170,900,2000,5900,6000,9000,14000,18500,23000];
- return {assetVersion:"4.3.0",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
+ return {assetVersion:"4.4.0",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25),
   utilityXP:{level:4,perSecond:2},

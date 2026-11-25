@@ -10,7 +10,7 @@ const UIDialogs = {
   const claimable=event=>event.def.jobs.some((_,i)=>{const q=event.quest(i);return q.done&&!q.claimed})||
    event.tiers.some((t,i)=>event.points>=t.need&&!event.data.tiers.includes(i));
   const ready=claimable(e)||flash&&claimable(flash);
-  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+(flash?" · "+flash.def.name:"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
+  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true" data-event-art="'+e.event.id+'">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+(flash?" · "+flash.def.name:"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
   el.style.setProperty("--event-tone",e.def.tone);
  },
  currentEvent(){return this.eventTab==="flash"&&this.sim.flash?.def?this.sim.flash:this.sim.events},
@@ -246,7 +246,8 @@ const UIDialogs = {
  },
  levelUp(level){
   const fresh=Object.values(CONFIG.buildings).filter(d=>d.unlock===level),grew=CONFIG.radius(level)>CONFIG.radius(level-1),gates={5:"Mở tiến hóa bậc II (công trình lên cấp 4–6)",10:"Mở tiến hóa bậc III (công trình lên cấp 7–10)"}[level];
-  const confetti=this.sim.reduceEffects?"":'<span class="level-confetti" aria-hidden="true">'+Array.from({length:18},(_,i)=>'<i style="--x:'+((i*31)%96)+'%;--drift:'+((i*13)%75-37)+'px;--angle:'+(90+i*33)+'deg;--delay:'+(i%6*.045)+'s"></i>').join("")+'</span>';
+  if(!this.sim.reduceEffects)GameArt.celebration();
+  const confetti=this.sim.reduceEffects?"":'<span class="level-confetti" aria-hidden="true">'+Array.from({length:18},(_,i)=>'<i data-confetti-art="confetti-'+["clay","blue","sage","gold"][i%4]+'" style="--x:'+((i*31)%96)+'%;--drift:'+((i*13)%75-37)+'px;--angle:'+(90+i*33)+'deg;--delay:'+(i%6*.045)+'s"></i>').join("")+'</span>';
   this.open("level","THĂNG CẤP","Thị trưởng cấp "+level+"!",'<div class="levelup level-celebration">'+confetti+'<span class="profile-level big"><b>'+level+'</b><small>CẤP</small></span><p>Thưởng: <b class="gold">+'+fmt(150*level)+' Vàng</b> · <b class="mint">'+this.prestigeAmount("+5")+'</b></p></div>'+
    (level===CONFIG.utilityXP.level?'<p class="mint">Giữ đủ điện và nước để kiếm thêm '+CONFIG.utilityXP.perSecond*60+' XP/phút khi chơi, đến cấp 5.</p>':"")+
    (grew?'<div class="row"><div class="grow"><b>Mở rộng địa giới</b><small>Bản đồ nới thêm một vòng đất: '+CONFIG.radius(level)*2+' × '+CONFIG.radius(level)*2+' ô.</small></div></div>':"")+

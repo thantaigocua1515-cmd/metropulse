@@ -6,7 +6,7 @@ function enableOffline(sprites){
  const warm=worker=>{
   if(!worker||sent.has(worker))return;
   sent.add(worker);worker.postMessage({
-   type:"warm",version:CONFIG.assetVersion,urls:sprites.concat(performance.getEntriesByType("resource").filter(r=>r.initiatorType==="img"&&new URL(r.name).pathname.includes("/img/npc/")).map(r=>r.name))
+   type:"warm",version:CONFIG.assetVersion,urls:sprites.concat(GameArt.urls(),performance.getEntriesByType("resource").filter(r=>/\/img\/(?:npc|art)\//.test(new URL(r.name).pathname)).map(r=>r.name))
   });
  };
  sw.addEventListener("controllerchange",()=>warm(sw.controller));

@@ -51,8 +51,8 @@ class UIController {
   this.wireCanvas();this.refresh(true);
  }
  icon(id){
-  if(id==="prestige")return '<img class="prestige-icon" src="'+asset("img/prestige.svg")+'" alt="">';
-  return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="'+asset("img/hud.svg")+'#'+id+'"/></svg>';
+  if(id==="prestige")return '<span class="prestige-mark" data-hud-art="prestige"><img class="prestige-icon" src="'+asset("img/prestige.svg")+'" alt=""></span>';
+  return '<svg viewBox="0 0 64 64" aria-hidden="true" data-hud-art="'+id+'"><use href="'+asset("img/hud.svg")+'#'+id+'"/></svg>';
  }
  thumb(id){
   if(!this.thumbs.has(id))this.thumbs.set(id,this.renderer.thumbnail(id));
@@ -243,7 +243,7 @@ class UIController {
    case "claim-login":say(s.prog.claimLogin());if(this.dialogType==="login")this.close();else this.missions();break;
    case "claim-ach":say(s.prog.claimAchievement(id));this.missions();break;
    case "claim-legacy":s.legacy.claim(arg,id);this.missions();break;
-   case "replay":{const chapter=CONTENT.chapters.find(c=>c.id===id);if(chapter){this.close();this.playScene({type:"scene",key:"",title:chapter.title,subtitle:chapter.subtitle,lines:chapter.intro})}return}
+   case "replay":{const chapter=CONTENT.chapters.find(c=>c.id===id);if(chapter){this.close();this.playScene({type:"scene",key:"",chapter:chapter.id,title:chapter.title,subtitle:chapter.subtitle,lines:chapter.intro})}return}
    case "research":this.research();break;
    case "study":{const error=s.research(id);if(error)this.toast(error);this.research();break}
    case "decision":this.decision();break;
@@ -454,6 +454,7 @@ class UIController {
   else if(event.type==="offline")this.offline(event.result);
  }
  playScene(event){
+  if(event.chapter)this.nodes.scene.dataset.artBg="story-"+event.chapter;else delete this.nodes.scene.dataset.artBg;
   this.sceneState={event,index:0};this.nodes.scene.hidden=false;this.catalogOpen=false;this.renderScene();
  }
  renderScene(){

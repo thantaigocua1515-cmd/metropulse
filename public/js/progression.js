@@ -11,7 +11,7 @@ class ProgressionManager {
  }
  scene(key,chapter,lines,extra={}){
   if(this.queued.has(key)||this.p.story.seen.includes(key))return;
-  this.queued.add(key);this.sim.pending.push({type:"scene",key,title:chapter.title,subtitle:chapter.subtitle,lines,...extra});
+  this.queued.add(key);this.sim.pending.push({type:"scene",key,chapter:chapter.id,title:chapter.title,subtitle:chapter.subtitle,lines,...extra});
  }
  seen(key){if(!this.p.story.seen.includes(key))this.p.story.seen.push(key);this.sim.storage.save()}
  refresh(){

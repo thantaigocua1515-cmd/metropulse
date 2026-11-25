@@ -180,7 +180,10 @@ class EventMap {
  static colors={tet:["#bd4f49","#ffd476"],"trung-thu":["#a85890","#ffc75c"],"quoc-khanh":["#c2443e","#ffda6b"],"giang-sinh":["#357466","#f7d5a1"],
   "pho-xanh":["#689470","#e8cf82"],"cho-phien":["#bb8163","#f8dca4"],"xom-vui":["#9e6681","#edc6cf"],
   "rush-hour":["#82714e","#f0cb83"],"weekend-market":["#906850","#f7d5a4"]};
- static shape(r,id,x,y,z,large){
+ static shape(r,id,x,y,z,large,alternate=false){
+  const group=id==="tet"||id==="trung-thu"?"events-tet-trung-thu":id==="quoc-khanh"||id==="giang-sinh"?"events-quoc-khanh-giang-sinh":"events-weekly-flash";
+  const variant=alternate&&id==="tet"?"-peach":alternate&&id==="trung-thu"?"-rabbit":large?"-large":"-small";
+  if(GameArt.draw(r.ctx,group,id+variant,x,y,(large?38:20)*z,(large?31:23)*z,{ground:true}))return;
   const [color,accent]=this.colors[id],line=(pts,c,w)=>r.line(pts.map(([a,b])=>({x:x+a*z,y:y+b*z})),c,w*z);
   const poly=(pts,c)=>r.poly(pts.map(([a,b])=>({x:x+a*z,y:y+b*z})),c);
   const dot=(a,b,rx,ry,c)=>r.ellipse(x+a*z,y+b*z,rx*z,ry*z,c);
@@ -225,7 +228,7 @@ class EventMap {
    if(!gate||Math.abs(b.x-8)+Math.abs(b.y-7)<Math.abs(gate.x-8)+Math.abs(gate.y-7))gate=b;
    if((b.x*3+b.y*7)%4)continue;
    const p=r.project(b.x+.87,b.y+.18,1);
-   this.shape(r,id,p.x,p.y,z,false);
+   this.shape(r,id,p.x,p.y,z,false,(b.x+b.y)%3===0);
   }
   const flash=r.sim.flash?.event;
   if(gate&&flash){

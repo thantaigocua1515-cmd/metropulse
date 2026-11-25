@@ -64,11 +64,15 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
     return result;
   };
   const sprite = "img/bld/house_small/01_0.webp?v="+version;
+  const hud = "img/art/hud.webp?v="+version;
+  const eventArt = "img/art/events-tet-trung-thu.webp?v="+version;
   const music = "audio/turning-pages.mp3?v="+version;
+  assert.ok(fetched.includes(origin+hud));
+  assert.ok(!fetched.includes(origin+eventArt));
   assert.ok(!fetched.includes(origin+music));
   const seek = () => request(music,"GET","same-origin",new Headers({range:"bytes=1-3"}));
   assert.equal(await (await seek()).text(), "sse");
-  await wait("message", { data: { type:"warm", version, urls:[sprite, "api/auth/me?v="+version, "https://other.example/img/hud.svg?v="+version] } });
+  await wait("message", { data: { type:"warm", version, urls:[sprite, eventArt, "api/auth/me?v="+version, "https://other.example/img/hud.svg?v="+version] } });
   assert.equal(fetched.filter(url => url === origin+sprite).length, 1);
   assert.ok(!fetched.some(url => url.includes("/api/") || url.includes("other.example")));
   offline = true;
@@ -77,6 +81,8 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
   assert.equal(audio.headers.get("content-range"),"bytes 1-3/5");
   assert.equal(await audio.text(),"sse");
   assert.equal(await (await request(sprite)).text(), "asset");
+  assert.equal(await (await request(hud)).text(), "asset");
+  assert.equal(await (await request(eventArt)).text(), "asset");
   assert.equal(await (await request("js/main.js?v="+version)).text(), "asset");
   assert.equal(await (await request("?event=tet", "GET", "navigate")).text(), html);
   assert.equal(request("api/health"), undefined);

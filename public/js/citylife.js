@@ -41,6 +41,18 @@ const LIFE = {
   storm:"sad",heat:"hot",night:"sleepy",nopower:"sad",nowater:"sad",park:"love",shop:"happy",school:"happy"}
 };
 
+const TRAFFIC_ART={
+ bike:[["traffic-light","bike1"],["traffic-light","bike2"]],
+ car:[["traffic-light","car1"],["traffic-light","car2"],["traffic-cars","car3"],["traffic-cars","car4"]],
+ taxi:[["traffic-cars","taxi1"]],
+ bus:[["traffic-heavy","bus1"],["traffic-heavy","bus2"]],
+ truck:[["traffic-heavy","truck1"],["traffic-heavy","truck2"]]
+};
+const WALK_ART={
+ adult:["pedestrians-adults",4],old:["pedestrians-families",2],kid:["pedestrians-families",2],
+ rain:["pedestrians-rain",4]
+};
+
 class CityLife {
  constructor(renderer){this.r=renderer;this.agents=[];this.world=null;this.clock=0;this.talkAt=2;this.city=null}
  pick(list){return list[Math.floor(Math.random()*list.length)]}
@@ -146,16 +158,21 @@ class CityLife {
  }
  vehicle(a,p,z,night){
   const r=this.r,k=a.kind;
+  const variants=TRAFFIC_ART[k],[group,key]=variants[parseInt(a.color.slice(1),16)%variants.length];
+  const side=a.dx<0||a.dy<0?"rear":"front",mirror=!!a.dy,wide=k==="bike"?10:k==="bus"||k==="truck"?24:17;
+  const opts={ground:true,mirror};
+  const painted=GameArt.draw(r.ctx,group,key+"-"+side,p.x,p.y+3*z,wide*z,13*z,opts)||
+   k==="car"&&group==="traffic-light"&&GameArt.draw(r.ctx,"traffic-cars","car3-"+side,p.x,p.y+3*z,wide*z,13*z,opts);
   const box=(len,wid,off,base,h,color)=>{const cx=a.x+.5+a.dx*off,cy=a.y+.5+a.dy*off,w=a.dy?wid:len,d=a.dy?len:wid;r.block(cx-w/2,cy-d/2,w,d,base,h,color)};
-  if(k==="bike"){
+  if(!painted&&k==="bike"){
    r.ellipse(p.x,p.y+1*z,3.4*z,1.5*z,"#1e352c66");box(.14,.05,0,.6,1.6,a.color);
    r.ellipse(p.x,p.y-4.6*z,1.7*z,2.3*z,"#4a5563");r.ellipse(p.x,p.y-7.4*z,1.5*z,1.5*z,a.color);
-  }else if(k==="car"||k==="taxi"){
+  }else if(!painted&&(k==="car"||k==="taxi")){
    r.ellipse(p.x,p.y+1.5*z,6*z,2.5*z,"#1e352c77");box(.27,.15,0,1,2.8,a.color);box(.14,.13,-.02,3.8,1.9,"#cfe3ea");
    if(k==="taxi")box(.05,.05,-.02,5.7,1,"#2b3440");
-  }else if(k==="bus"){
+  }else if(!painted&&k==="bus"){
    r.ellipse(p.x,p.y+1.6*z,8.5*z,3.2*z,"#1e352c77");box(.42,.17,0,1,2.4,a.color);box(.42,.17,0,3.4,2.1,"#d6e8ee");box(.42,.17,0,5.5,.9,"#f4f6f8");
-  }else{
+  }else if(!painted){
    r.ellipse(p.x,p.y+1.6*z,8*z,3*z,"#1e352c77");
    const cab=()=>{box(.1,.15,.14,1,4.2,a.color);box(.05,.13,.15,3.4,1.5,"#cfe3ea")},cargo=()=>box(.26,.16,-.05,1,5.6,"#eef0ea");
    if(a.dx+a.dy>0){cargo();cab()}else{cab();cargo()}
@@ -169,6 +186,10 @@ class CityLife {
  }
  person(a,p,z){
   const r=this.r,s=z*(a.kid?.72:1),still=a.chat>0,t=r.elapsed*(a.kid?12:9)+a.seed,swing=still?0:Math.sin(t)*1.5*s,bob=still?0:Math.abs(Math.sin(t))*.5*s;
+  const rain=this.city?.weather==="storm",kind=rain?"rain":a.kid?"kid":a.old?"old":"adult",[group,count]=WALK_ART[kind];
+  const variant=kind==="rain"?a.kid?4:a.old?3:1+Math.floor(a.seed)%2:1+Math.floor(a.seed)%count;
+  const side=a.dx<0||a.dy<0?"rear":"front";
+  if(GameArt.draw(r.ctx,group,kind+variant+"-"+side,p.x,p.y+.8*s-bob,(rain?12:9)*s,(rain?17:14)*s,{ground:true,mirror:!!a.dy}))return;
   r.ellipse(p.x,p.y+.8*s,2.8*s,1.2*s,"#1e352c66");
   r.line([{x:p.x-.9*s,y:p.y-2.6*s},{x:p.x-.9*s+swing,y:p.y+.4*s}],"#39475a",1.25*s);r.line([{x:p.x+.9*s,y:p.y-2.6*s},{x:p.x+.9*s-swing,y:p.y+.4*s}],"#39475a",1.25*s);
   r.ellipse(p.x,p.y-4.7*s-bob,2.1*s,2.9*s,a.shirt);
@@ -182,6 +203,7 @@ class CityLife {
  }
  // Biểu cảm vẽ tay để mọi thiết bị đều hiển thị giống nhau.
  face(x,y,r,kind){
+  if(GameArt.draw(this.r.ctx,"pedestrian-emotions",kind,x,y,2.3*r))return;
   const g=this.r.ctx,fill={joy:"#ffd84d",happy:"#ffd84d",ok:"#ffe08a",sad:"#bcd3ee",angry:"#ff7a5c",scared:"#c9b8f5",sick:"#b9db7c",hot:"#ffb347",sleepy:"#c8d2e6",love:"#ffc2d4"}[kind]||"#ffd84d";
   g.fillStyle="#fff";g.beginPath();g.arc(x,y,r+1.6,0,Math.PI*2);g.fill();g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
   g.strokeStyle=g.fillStyle="#3b2f24";g.lineWidth=Math.max(1,r*.16);g.lineCap="round";
