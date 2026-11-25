@@ -47,9 +47,9 @@ test("road variants orient to their neighboring road tiles, while isolated roads
 test("building previews use level and automatic facing unless manually rotated", () => {
   const b = makeBuilding("fire_station", 8, 8, 10);
   const w = makeWorld([b, makeBuilding("road", 8, 9)]);
-  assert.equal(renderer.spritePreview(b, w), "img/bld/fire_station/10_3.webp");
+  assert.equal(renderer.spritePreview(b, w), "img/bld/fire_station/10_3.webp?v="+CONFIG.assetVersion);
   b.rot = 1;
-  assert.equal(renderer.spritePreview(b, w), "img/bld/fire_station/10_1.webp");
+  assert.equal(renderer.spritePreview(b, w), "img/bld/fire_station/10_1.webp?v="+CONFIG.assetVersion);
   b.left = 10;
   assert.equal(renderer.spritePreview(b, w), null);
 });

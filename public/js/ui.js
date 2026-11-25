@@ -16,7 +16,7 @@ class UIController {
    this.resource("people","Dân số")
   ].join(""));
   this.resources=Object.fromEntries([...this.nodes.stats.children].map(el=>[el.dataset.resource,{el,value:el.querySelector("b"),rate:el.querySelector("em")}]));
-  this.thumbs=Object.fromEntries(Object.keys(CONFIG.buildings).map(id=>[id,renderer.thumbnail(id)]));
+  this.thumbs=new Map();
   this.sim.say("Chào mừng đến Bình Minh! Hãy xây thêm nhà và nối đường để thị trấn sống lại.");
   document.addEventListener("pointerdown",()=>sim.audio.unlock(),{passive:true});
   document.addEventListener("touchstart",()=>sim.audio.unlock(),{passive:true});
@@ -41,8 +41,12 @@ class UIController {
   this.wireCanvas();this.refresh(true);
  }
  icon(id){
-  if(id==="prestige")return '<img class="prestige-icon" src="img/prestige.svg" alt="">';
-  return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="img/hud.svg#'+id+'"/></svg>';
+  if(id==="prestige")return '<img class="prestige-icon" src="'+asset("img/prestige.svg")+'" alt="">';
+  return '<svg viewBox="0 0 64 64" aria-hidden="true"><use href="'+asset("img/hud.svg")+'#'+id+'"/></svg>';
+ }
+ thumb(id){
+  if(!this.thumbs.has(id))this.thumbs.set(id,this.renderer.thumbnail(id));
+  return this.thumbs.get(id);
  }
  scheduleCommandClose(){
   clearTimeout(this.commandTimer);
@@ -77,7 +81,7 @@ class UIController {
  // Chân dung lấy từ bộ ảnh trong img/npc (01–36).
  avatar(n,cls=""){
   const id=Number.isInteger(n)&&n>=1&&n<=CONFIG.avatars.count?n:CONFIG.avatars.fallback;
-  return '<img class="portrait'+(cls?" "+cls:"")+'" src="img/npc/'+String(id).padStart(2,"0")+'.webp" alt="" width="104" height="104" decoding="async" draggable="false">';
+  return '<img class="portrait'+(cls?" "+cls:"")+'" src="'+asset("img/npc/"+String(id).padStart(2,"0")+".webp")+'" alt="" width="104" height="104" decoding="async" draggable="false">';
  }
  portrait(id){return this.avatar(CONTENT.cast[id].avatar)}
  // Chân dung kèm huy hiệu nhỏ (cấp, biểu tượng đội…).
@@ -298,7 +302,7 @@ class UIController {
    this.html("catalog",rows.map(d=>{
     const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,hint=Districts.hint(d),title=d.name+" · "+d.desc+(hint?" · "+hint:"");
     const facts=[d.income&&"+"+d.income+" V/s",d.pop&&"+"+d.pop+" dân",d.power>0&&"+"+d.power+" điện",d.water>0&&"+"+d.water+" nước",d.happy>0&&"+"+d.happy+" HP",d.know&&"Tri thức"].filter(Boolean).slice(0,2).join(" · ");
-    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt="" loading="lazy"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small>'+(hint?'<small class="district-hint">'+hint+'</small>':"")+'</span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
+    return this.btn("select",'<img src="'+this.thumb(d.id)+'" alt="" loading="lazy" decoding="async" width="36" height="36"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small>'+(hint?'<small class="district-hint">'+hint+'</small>':"")+'</span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
    }).join(""));
   }
   this.inspectCard();this.sidebar();this.questTracker(badges);this.fab(badges);
@@ -371,7 +375,7 @@ class UIController {
    actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
-  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumbs[b.id])+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
+  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumb(b.id))+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
  sidebar(){
   const s=this.sim,w=s.social.world,friend=s.social.current;

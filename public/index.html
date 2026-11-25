@@ -7,7 +7,35 @@
 <meta name="description" content="MetroPulse — Nhịp Đập Đô Thị: game xây dựng thành phố isometric, xử lý sự cố theo thời gian thực.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23122120'/%3E%3Cpath d='M8 37h11l7-19 11 30 7-11h12' fill='none' stroke='%23d1fb8b' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>MetroPulse · Nhịp Đập Đô Thị</title>
-<link rel="stylesheet" href="css/style.css">
+<meta name="mp-release" content="4.0.0">
+<link rel="stylesheet" href="css/style.css?v=4.0.0">
+<script>
+const bootHealth=location.protocol!=="file:"&&navigator.onLine?(()=>{
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+ return fetch("api/health",{cache:"no-store",signal:controller.signal}).then(res=>res.ok,()=>false).finally(()=>clearTimeout(timer));
+})():null;
+</script>
+<script defer src="js/config.js?v=4.0.0"></script>
+<script defer src="js/sprites.js?v=4.0.0"></script>
+<script defer src="js/content.js?v=4.0.0"></script>
+<script defer src="js/audio.js?v=4.0.0"></script>
+<script defer src="js/core.js?v=4.0.0"></script>
+<script defer src="js/simulation.js?v=4.0.0"></script>
+<script defer src="js/crisis.js?v=4.0.0"></script>
+<script defer src="js/progression.js?v=4.0.0"></script>
+<script defer src="js/social.js?v=4.0.0"></script>
+<script defer src="js/citylife.js?v=4.0.0"></script>
+<script defer src="js/effects.js?v=4.0.0"></script>
+<script defer src="js/events.js?v=4.0.0"></script>
+<script defer src="js/renderer.js?v=4.0.0"></script>
+<script defer src="js/storage.js?v=4.0.0"></script>
+<script defer src="js/cloud.js?v=4.0.0"></script>
+<script defer src="js/auth.js?v=4.0.0"></script>
+<script defer src="js/ui-input.js?v=4.0.0"></script>
+<script defer src="js/ui.js?v=4.0.0"></script>
+<script defer src="js/ui-dialogs.js?v=4.0.0"></script>
+<script defer src="js/tutorial.js?v=4.0.0"></script>
+<script defer src="js/main.js?v=4.0.0"></script>
 </head>
 <body>
 <canvas id="map" aria-label="Bản đồ đẳng phối thành phố"></canvas>
@@ -33,7 +61,7 @@
  </nav>
  <div id="visit" class="visit interactive" hidden></div>
  <section id="side" class="side game-frame interactive" aria-label="Danh mục xây dựng" hidden>
-  <div class="side-header frame-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#close"/></svg></button></div>
+ <div class="side-header frame-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg?v=4.0.0#close"/></svg></button></div>
   <div id="filters" class="filter"></div><div id="catalog" class="catalog"></div>
   <div class="side-foot">Chọn bản vẽ rồi chạm ô đất sáng để đặt.</div>
  </section>
@@ -42,7 +70,7 @@
  <div id="fab" class="fab"></div>
  <nav id="build-tools" class="build-tools" aria-label="Công cụ xây dựng"></nav>
  <nav class="camera" aria-label="Điều khiển bản đồ">
-  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#minus"/></svg></button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#plus"/></svg></button></div>
+  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg?v=4.0.0#minus"/></svg></button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg?v=4.0.0#plus"/></svg></button></div>
   <div class="camera-main"><button class="game-btn round" data-act="look" id="look" aria-label="Chế độ quan sát" title="Chế độ quan sát"></button><button class="game-btn round" data-act="center" id="center" aria-label="Về giữa bản đồ" title="Về giữa bản đồ"></button></div>
  </nav>
  <div id="hint" class="hint"></div>
@@ -51,12 +79,12 @@
  <footer class="bottom"><div class="news"><b>BẢN TIN</b><div class="news-window"><span id="news"></span></div></div></footer>
 </div>
 <div id="scene" class="scene" hidden><div id="scene-body" class="scene-body"></div></div>
-<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#close"/></svg></button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg?v=4.0.0#close"/></svg></button></div><div id="dialog-body" class="dialog-body"></div></dialog>
 <div id="auth" class="auth" hidden>
  <form id="auth-form" class="auth-card game-frame" novalidate>
-  <div class="auth-brand frame-header"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#pulse"/></svg><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
+  <div class="auth-brand frame-header"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg?v=4.0.0#pulse"/></svg><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
   <div class="auth-fields">
-  <img class="portrait auth-face" src="img/npc/02.webp" alt="" width="76" height="76">
+  <img class="portrait auth-face" alt="" width="76" height="76">
   <p class="auth-lead">Đăng nhập để chơi tiếp thành phố của bạn trên mọi thiết bị.</p>
   <div class="tabs" role="tablist"><button type="button" data-mode-tab="login" role="tab">Đăng nhập</button><button type="button" data-mode-tab="register" role="tab">Đăng ký</button></div>
   <label>Tên đăng nhập<input id="gate-user" name="username" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="3–20 ký tự: chữ, số, dấu chấm, gạch dưới"></label>
@@ -72,27 +100,11 @@
   </div>
  </form>
 </div>
-<div id="boot" class="boot"><div><b>MetroPulse</b><small>Đang mở cổng thành phố…</small></div></div>
-<script src="js/config.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/content.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/core.js"></script>
-<script src="js/simulation.js"></script>
-<script src="js/crisis.js"></script>
-<script src="js/progression.js"></script>
-<script src="js/social.js"></script>
-<script src="js/citylife.js"></script>
-<script src="js/effects.js"></script>
-<script src="js/events.js"></script>
-<script src="js/renderer.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/cloud.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/ui-input.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/ui-dialogs.js"></script>
-<script src="js/tutorial.js"></script>
-<script src="js/main.js"></script>
+<div id="boot" class="boot">
+ <div><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 37h11l7-19 11 30 7-11h12"/></svg>
+ <b>MetroPulse</b><small>Nhịp Đập Đô Thị</small>
+ <progress id="boot-progress" max="4" value="1" aria-label="Tiến độ mở thành phố"></progress>
+ <p id="boot-status" role="status">Đang tải trò chơi…</p></div>
+</div>
 </body>
 </html>

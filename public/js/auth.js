@@ -9,6 +9,7 @@ const AuthGate = {
  // Trả về "login" | "register" | "guest" khi đã có phiên, hoặc "offline" nếu người chơi tiếp tục không cần máy chủ.
  open(cloud,hasLocal){
   const root=document.getElementById("auth"),form=document.getElementById("auth-form"),$=id=>document.getElementById(id);
+  root.querySelector(".auth-face").src=asset("img/npc/02.webp");
   const user=$("gate-user"),pass=$("gate-pass"),again=$("gate-again"),message=$("gate-message"),submit=$("gate-submit"),guest=$("gate-guest"),note=$("gate-note");
   let mode="login",busy=false;
   const say=(text,ok=false)=>{message.textContent=text;message.className=ok?"mint":"warn"};

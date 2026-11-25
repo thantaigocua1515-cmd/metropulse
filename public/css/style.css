@@ -272,9 +272,12 @@ dialog.wide{width:min(760px,calc(100vw - 20px))}
 .auth-card small:empty{display:none}
 .auth-or{display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
 .auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
-.boot{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:#eef2f7;text-align:center}
-.boot b{display:block;font-size:30px;letter-spacing:-.03em;color:var(--mint)}
+.boot{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 35%,#f9f4e9,#e1eceb);text-align:center;color:#345a54}
+.boot svg{width:66px;height:66px;padding:5px;background:linear-gradient(145deg,#729e89,#3d6a5a);border-radius:20px;box-shadow:0 3px 0 #31584d,0 8px 24px #435f5740;fill:none;stroke:#fff0be;stroke-width:5;stroke-linejoin:round}
+.boot b{display:block;margin-top:14px;font-size:34px;letter-spacing:-.035em}
 .boot small{letter-spacing:.14em;text-transform:uppercase}
+.boot progress{display:block;width:min(244px,70vw);height:12px;margin:25px auto 0;accent-color:#56816d}
+.boot p{margin:10px 0;font-size:13px;color:#435b56}
 
 @media(max-width:780px){
  .tree{grid-template-columns:1fr}

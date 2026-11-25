@@ -1,10 +1,28 @@
 "use strict";
 
+function enableOffline(sprites){
+ if(!("serviceWorker" in navigator))return;
+ const sw=navigator.serviceWorker,sent=new Set();
+ const warm=worker=>{
+  if(!worker||sent.has(worker))return;
+  sent.add(worker);worker.postMessage({
+   type:"warm",version:CONFIG.assetVersion,urls:sprites.concat(performance.getEntriesByType("resource").filter(r=>r.initiatorType==="img"&&new URL(r.name).pathname.includes("/img/npc/")).map(r=>r.name))
+  });
+ };
+ sw.addEventListener("controllerchange",()=>warm(sw.controller));
+ sw.register("sw.js",{updateViaCache:"none"}).then(()=>sw.ready).then(reg=>warm(reg.active)).catch(()=>{});
+}
+
 // Khởi động: nạp bản lưu trong trình duyệt, so với bản trên máy chủ (nếu có), rồi dựng trò chơi.
 (async()=>{
  const boot=document.getElementById("boot"),audio=new AudioEngine(),cloud=new CloudClient();
+ const stage=(value,text)=>{
+  document.getElementById("boot-progress").value=value;
+  document.getElementById("boot-status").textContent=text;
+ };
  let data=StorageManager.load();
- let remote=await cloud.init(),force=false;
+ stage(2,"Đang đọc bản lưu và kiểm tra kết nối…");
+ let remote=await cloud.init(bootHealth),force=false;
  if(cloud.online&&!cloud.account){
   boot.hidden=true;
   const mode=await AuthGate.open(cloud,!!data.restored);
@@ -17,6 +35,7 @@
   const cloudData=StorageManager.normalize(remote.data);
   if(cloudData&&(force||!data.restored||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0)))data=cloudData;
  }
+ stage(3,"Đang dựng thành phố…");
  audio.enabled=data.sound!==false;
  if(typeof data.reduceEffects!=="boolean")data.reduceEffects=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const sim=new SimulationEngine(data,audio);
@@ -27,7 +46,7 @@
  sim.events=new SeasonalEvents(sim,new URLSearchParams(location.search).get("event")||"");
  sim.legacy=new LegacyGoals(sim);
  cloud.attach(sim);
- const renderer=new IsoRenderer(document.getElementById("map"),sim),ui=new UIController(sim,renderer);
+ const renderer=new IsoRenderer(document.getElementById("map"),sim),sprites=renderer.preloadCity(sim.world),ui=new UIController(sim,renderer);
  new TutorialManager(sim,ui);
  sim.prog.refresh();
  const offline=sim.storage.offline(data.lastSavedAt);
@@ -41,6 +60,10 @@
  addEventListener("pagehide",persist);
  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")persist()});
  window.MetroPulse={sim,renderer,ui,cloud};
- boot?.remove();
+ stage(4,"Thành phố đã sẵn sàng.");
  sim.start(renderer,ui);
+ requestAnimationFrame(()=>{
+  boot.remove();
+  setTimeout(()=>enableOffline(sprites),0);
+ });
 })();

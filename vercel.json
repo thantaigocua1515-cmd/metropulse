@@ -6,5 +6,23 @@
   "functions": {
     "api/index.js": { "includeFiles": "public/js/config.js", "maxDuration": 15 }
   },
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api" }]
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api" }],
+  "headers": [
+    {
+      "source": "/img/:kind(bld|npc)/:path*",
+      "has": [{ "type": "query", "key": "v" }],
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/img/:file.svg",
+      "has": [{ "type": "query", "key": "v" }],
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/:dir(js|css)/:path*",
+      "has": [{ "type": "query", "key": "v" }],
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ]
 }

@@ -11,7 +11,7 @@ class CloudClient {
   const control=new AbortController(),timer=setTimeout(()=>control.abort(),timeout);
   try{
    const headers={};if(body)headers["Content-Type"]="application/json";if(this.token)headers.Authorization="Bearer "+this.token;
-   const res=await fetch("api"+path,{method,headers,keepalive,signal:control.signal,body:body?JSON.stringify(body):undefined});
+   const res=await fetch("api"+path,{method,headers,keepalive,cache:"no-store",signal:control.signal,body:body?JSON.stringify(body):undefined});
    const data=await res.json().catch(()=>({}));
    if(!res.ok){const error=Error(data.error||"Máy chủ từ chối yêu cầu.");error.status=res.status;error.data=data;throw error}
    return data;
@@ -26,10 +26,12 @@ class CloudClient {
  async signup(username,password){this.adopt(await this.api("/auth/signup",{method:"POST",body:{username,password}}))}
  async signin(username,password){this.adopt(await this.api("/auth/login",{method:"POST",body:{username,password}}))}
  // Kiểm tra máy chủ và phiên đã lưu. Chưa có phiên hợp lệ thì account vẫn là null để màn hình chào hỏi người chơi.
- async init(){
-  if(!this.enabled)return null;
+ async init(health){
+  if(!this.enabled||!navigator.onLine)return null;
   try{
-   await this.api("/health",{timeout:8000});this.online=true;
+   if(health){if(!await health)return null}
+   else await this.api("/health",{timeout:8000});
+   this.online=true;
    if(this.token)try{this.account=(await this.api("/me")).account}catch(error){if(error.status!==401)throw error;this.setToken(null)}
    return this.account?await this.pull():null;
   }catch(_){this.online=false;this.status="offline";return null}

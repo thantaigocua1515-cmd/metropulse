@@ -2,12 +2,13 @@
 class IsoRenderer {
  constructor(canvas,sim){
   this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
-  this.prestigeIcon=new Image();this.prestigeIcon.src="img/prestige.svg";
+  this.prestigeIcon=new Image();this.prestigeIcon.src=asset("img/prestige.svg");
   this.effects=new CityEffects(this);
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
   const rect=this.canvas.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),oldW=this.width,oldH=this.height;
+  this.origin={x:rect.left,y:rect.top};
   this.width=rect.width;this.height=rect.height;this.dpr=dpr;this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
   if(oldW){this.camera.x+=(this.width-oldW)/2;this.camera.y+=(this.height-oldH)/2}else this.center();
  }
@@ -35,7 +36,7 @@ class IsoRenderer {
   const c=this.camera,zoom=this.back,k=zoom/c.zoom,cx=this.width*.5,cy=this.height*.51;this.back=null;
   this.target={x:cx-(cx-c.x)*k,y:cy-(cy-c.y)*k,zoom};
  }
- local(event){const r=this.canvas.getBoundingClientRect();return {x:event.clientX-r.left,y:event.clientY-r.top}}
+ local(event){return {x:event.clientX-this.origin.x,y:event.clientY-this.origin.y}}
  project(x,y,z=0){const p=IsoMath.gridToScreen(x,y,this.camera);p.y-=z*this.camera.zoom;return p}
  poly(points,fill,stroke,width=1){
   const g=this.ctx;if(!points.length)return;
@@ -307,17 +308,35 @@ class IsoRenderer {
   this.ctx.drawImage(art,box.x,box.y,box.w,box.h);
   return box;
  }
- spritePath(id,frame){return "img/bld/"+id+"/"+frame+".webp"}
+ spritePath(id,frame){return asset("img/bld/"+id+"/"+frame+".webp")}
  buildingFrame(b,rot){return String(b.level).padStart(2,"0")+"_"+rot}
- spritePreview(b,w){
+ cityFrame(b,w){
   if(!SPRITES[b.id]||b.left>0)return null;
-  const frame=b.id==="road"?this.roadFrame(b,w):this.buildingFrame(b,this.facing(b,w));
+  return b.id==="road"?this.roadFrame(b,w):this.buildingFrame(b,this.facing(b,w));
+ }
+ spritePreview(b,w){
+  const frame=this.cityFrame(b,w);
   return frame?this.spritePath(b.id,frame):null;
+ }
+ preloadCity(w){
+  const urls=new Set();
+  for(const b of w.buildings){
+   const frame=this.cityFrame(b,w);
+   if(!frame)continue;
+   const url=this.spritePath(b.id,frame);
+   if(urls.has(url))continue;
+   urls.add(url);this.requestSprite(b.id,frame);
+  }
+  return [...urls];
+ }
+ requestSprite(id,frame){
+  const key=id+"/"+frame;let s=this.sprites.get(key);
+  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src=this.spritePath(id,frame);this.sprites.set(key,s)}
+  return s;
  }
  // Trả về ảnh khi sẵn sàng, null khi đang tải, false khi lỗi.
  sprite(id,frame,dark=false){
-  const key=id+"/"+frame;let s=this.sprites.get(key);
-  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src=this.spritePath(id,frame);this.sprites.set(key,s)}
+  const s=this.requestSprite(id,frame);
   if(s.state<1)return s.state?false:null;
   if(!dark)return s.img;
   if(!s.dark){

@@ -57,20 +57,20 @@ test("cloud status has distinct connected and disconnected icons and accessible 
   ]) {
     ui.sim.cloud.status = state;
     ui.refreshCloud();
-    assert.ok(button.innerHTML.includes('href="img/hud.svg#' + icon + '"'));
+    assert.match(button.innerHTML,new RegExp('href="img/hud\\.svg\\?v=[^#"]+#'+icon+'"'));
     assert.equal(button.dataset.state, state);
     assert.ok(button["aria-label"].includes(label));
     assert.equal(button.title, button["aria-label"]);
   }
   ui.sim.cloud = { enabled: false, online: false, account: null };
   ui.refreshCloud();
-  assert.ok(button.innerHTML.includes('href="img/hud.svg#cloud-off"'));
+  assert.match(button.innerHTML,/href="img\/hud\.svg\?v=[^#"]+#cloud-off"/);
   assert.equal(button.title, "Tài khoản · Lưu trên máy");
 });
 
 test("prestige balances and reward amounts use the medal without replacing their text", () => {
   const ui = Object.create(UIController.prototype);
-  const medal = /<img class="prestige-icon" src="img\/prestige\.svg" alt="">/;
+  const medal = /<img class="prestige-icon" src="img\/prestige\.svg\?v=[^"]+" alt="">/;
   assert.match(ui.resource("prestige", "Uy tín"), medal);
   const reward = ui.reward({ coins: 100, prestige: 3, know: 2 });
   assert.match(reward, medal);

@@ -11,6 +11,7 @@ const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
 const today=()=>new Date().toLocaleDateString("sv-SE");
 const fmt=(v,d=0)=>Number(v).toLocaleString("vi-VN",{maximumFractionDigits:d,minimumFractionDigits:d});
 const timer=v=>Math.ceil(Math.max(0,v)/60)+ " phút";
+const asset=path=>path+"?v="+CONFIG.assetVersion;
 const htm=value=>String(value).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const makeBuilding=(id,x,y,level=1,left=0)=>({id,x,y,level,left,total:left,age:0,crew:1,teamLevel:1,spec:null,missions:0});
 const makeWorld=(buildings=[],level=1,rest={})=>{
