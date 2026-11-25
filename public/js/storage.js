@@ -54,8 +54,8 @@ class StorageManager {
  }
  constructor(sim){this.sim=sim;this.available=true;this.erasing=false}
  serialize(){
-  const {profile,world,progress,social,audio}=this.sim;
-  return JSON.parse(JSON.stringify({version:2,profile,world,progress,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled},
+  const {profile,world,progress,social,audio,reduceEffects}=this.sim;
+  return JSON.parse(JSON.stringify({version:2,profile,world,progress,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled,reduceEffects},
    (key,value)=>key==="index"||key==="_metros"||key==="_airport"?undefined:value));
  }
  save(){

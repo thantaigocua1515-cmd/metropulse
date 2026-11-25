@@ -90,7 +90,7 @@ class UIController {
  bar(value,style=""){return '<div class="bar '+style+'"><i style="width:'+Math.round(clamp(value,0,1)*100)+'%"></i></div>'}
  resource(icon,label,rate=false,more=null){
   return '<div class="resource resource-'+icon+'" data-resource="'+icon+'" aria-label="'+label+'"><span class="resource-icon">'+this.icon(icon)+'</span><div class="resource-data"><small>'+label+'</small><b></b></div>'+
-   (rate?'<em></em>':"")+(more?this.btn(more.act,"+",{cls:"resource-plus",title:more.label,label:more.label}):"")+'</div>';
+   (rate?'<em></em>':"")+(more?this.btn(more.act,this.icon("plus"),{cls:"resource-plus",title:more.label,label:more.label}):"")+'</div>';
  }
  updateResource(icon,value,rate=""){
   const {el,value:amount,rate:per}=this.resources[icon];
@@ -177,6 +177,7 @@ class UIController {
    case "zoom-out":r.zoom(1/1.15);break;
    case "center":r.center();break;
    case "sound":s.audio.enabled=!s.audio.enabled;if(s.audio.enabled)s.audio.play("click");s.storage.save();if(this.dialogType==="profile")this.profileDialog();break;
+   case "reduce-effects":s.reduceEffects=!s.reduceEffects;s.fx.length=0;s.storage.save();this.profileDialog();break;
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
    case "avatar":{const n=Number(id);if(CONFIG.avatars.pick.includes(n)){s.profile.avatar=n;s.storage.save();s.cloud?.flush(true);this.profileDialog()}break}
@@ -357,10 +358,10 @@ class UIController {
     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
     actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary",disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
    }
-   actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate","⟳ Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
+   actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
-  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close","×",{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumbs[b.id])+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
+  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumbs[b.id])+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
  sidebar(){
   const s=this.sim,w=s.social.world,friend=s.social.current;

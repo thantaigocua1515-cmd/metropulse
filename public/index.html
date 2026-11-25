@@ -32,7 +32,7 @@
  </nav>
  <div id="visit" class="visit interactive" hidden></div>
  <section id="side" class="side game-frame interactive" aria-label="Danh mục xây dựng" hidden>
-  <div class="side-header frame-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ">×</button></div>
+  <div class="side-header frame-header"><div><div class="eyebrow">Quy hoạch đô thị</div><h2>Kho bản vẽ</h2></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#close"/></svg></button></div>
   <div id="filters" class="filter"></div><div id="catalog" class="catalog"></div>
   <div class="side-foot">Chọn bản vẽ rồi chạm ô đất sáng để đặt.</div>
  </section>
@@ -41,7 +41,7 @@
  <div id="fab" class="fab"></div>
  <nav id="build-tools" class="build-tools" aria-label="Công cụ xây dựng"></nav>
  <nav class="camera" aria-label="Điều khiển bản đồ">
-  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ">−</button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to">+</button></div>
+  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#minus"/></svg></button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#plus"/></svg></button></div>
   <div class="camera-main"><button class="game-btn round" data-act="look" id="look" aria-label="Chế độ quan sát" title="Chế độ quan sát"></button><button class="game-btn round" data-act="center" id="center" aria-label="Về giữa bản đồ" title="Về giữa bản đồ"></button></div>
  </nav>
  <div id="hint" class="hint"></div>
@@ -50,7 +50,7 @@
  <footer class="bottom"><div class="news"><b>BẢN TIN</b><div class="news-window"><span id="news"></span></div></div></footer>
 </div>
 <div id="scene" class="scene" hidden><div id="scene-body" class="scene-body"></div></div>
-<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại">×</button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#close"/></svg></button></div><div id="dialog-body" class="dialog-body"></div></dialog>
 <div id="auth" class="auth" hidden>
  <form id="auth-form" class="auth-card game-frame" novalidate>
   <div class="auth-brand frame-header"><svg aria-hidden="true" viewBox="0 0 64 64"><use href="img/hud.svg#pulse"/></svg><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
@@ -82,6 +82,7 @@
 <script src="js/progression.js"></script>
 <script src="js/social.js"></script>
 <script src="js/citylife.js"></script>
+<script src="js/effects.js"></script>
 <script src="js/renderer.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/cloud.js"></script>

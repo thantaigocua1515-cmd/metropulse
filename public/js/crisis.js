@@ -114,6 +114,9 @@ class CrisisAndNPCManager {
   }
   xp=s.gainXP(xp);s.earn(coins);p.prestige+=rep;s.audio.play("repair");
   if(!friend||s.social.current===friend){
+   s.effect("repair",{x:c.x,y:c.y,world:w},.82);
+   s.rewardEffect("coin",coins,c.x,c.y,w);
+   s.rewardEffect("prestige",rep,c.x,c.y,w);
    const first=s.particles.length;s.float(c.x,c.y,"+"+xp+" XP");if(coins)s.float(c.x+.18,c.y+.7,"+"+fmt(coins)+" Vàng","#ffe08f");
    for(let i=first;i<s.particles.length;i++)s.particles[i].world=w;
   }

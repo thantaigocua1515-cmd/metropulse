@@ -155,6 +155,7 @@ const UIDialogs = {
    }
   }else{
    body+='<div class="row"><div class="grow"><b>Âm thanh</b><small>Hiệu ứng tổng hợp bằng Web Audio.</small></div>'+this.btn("sound",s.audio.enabled?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
+    '<div class="row"><div class="grow"><b>Giảm hiệu ứng</b><small>Tắt rung nảy, pháo giấy, hiệu ứng thu thưởng và chớp sáng.</small></div>'+this.btn("reduce-effects",s.reduceEffects?"Đang bật · Tắt":"Đang tắt · Bật")+'</div>'+
     '<div class="row"><div class="grow"><b>Hướng dẫn tân thủ</b><small>Xem lại các bước làm quen cùng thư ký Mai.</small></div>'+this.btn("replay-tutorial","Xem lại")+'</div>'+
     '<div class="row"><div class="grow"><b>Cẩm nang Thị trưởng</b><small>Giải thích mọi hệ thống trong trò chơi.</small></div>'+this.btn("help","Mở cẩm nang")+'</div>'+
     '<div class="row"><div class="grow"><b>Chơi lại từ đầu</b><small>Xóa toàn bộ tiến độ.</small></div>'+this.btn("reset","Xóa bản lưu",{cls:"danger"})+'</div>';
@@ -198,7 +199,9 @@ const UIDialogs = {
  },
  levelUp(level){
   const fresh=Object.values(CONFIG.buildings).filter(d=>d.unlock===level),grew=CONFIG.radius(level)>CONFIG.radius(level-1),gates={5:"Mở tiến hóa bậc II (công trình lên cấp 4–6)",10:"Mở tiến hóa bậc III (công trình lên cấp 7–10)"}[level];
-  this.open("level","THĂNG CẤP","Thị trưởng cấp "+level+"!",'<div class="levelup"><span class="profile-level big"><b>'+level+'</b><small>CẤP</small></span><p>Thưởng: <b class="gold">+'+fmt(150*level)+' Vàng</b> · <b class="mint">'+this.prestigeAmount("+5")+'</b></p></div>'+
+  const confetti=this.sim.reduceEffects?"":'<span class="level-confetti" aria-hidden="true">'+Array.from({length:18},(_,i)=>'<i style="--x:'+((i*31)%96)+'%;--drift:'+((i*13)%75-37)+'px;--angle:'+(90+i*33)+'deg;--delay:'+(i%6*.045)+'s"></i>').join("")+'</span>';
+  this.open("level","THĂNG CẤP","Thị trưởng cấp "+level+"!",'<div class="levelup level-celebration">'+confetti+'<span class="profile-level big"><b>'+level+'</b><small>CẤP</small></span><p>Thưởng: <b class="gold">+'+fmt(150*level)+' Vàng</b> · <b class="mint">'+this.prestigeAmount("+5")+'</b></p></div>'+
+   (level===CONFIG.utilityXP.level?'<p class="mint">Giữ đủ điện và nước để kiếm thêm '+CONFIG.utilityXP.perSecond*60+' XP/phút khi chơi, đến cấp 5.</p>':"")+
    (grew?'<div class="row"><div class="grow"><b>Mở rộng địa giới</b><small>Bản đồ nới thêm một vòng đất: '+CONFIG.radius(level)*2+' × '+CONFIG.radius(level)*2+' ô.</small></div></div>':"")+
    (gates?'<div class="row"><div class="grow"><b>Bậc tiến hóa mới</b><small>'+gates+'.</small></div></div>':"")+
    (fresh.length?'<h4>Bản vẽ mới</h4><div class="unlocks">'+fresh.map(d=>'<div><img src="'+this.thumbs[d.id]+'" alt=""><b>'+d.name+'</b><small>'+d.desc+'</small></div>').join("")+'</div>':"")+

@@ -18,6 +18,7 @@
   if(cloudData&&(force||!data.restored||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0)))data=cloudData;
  }
  audio.enabled=data.sound!==false;
+ if(typeof data.reduceEffects!=="boolean")data.reduceEffects=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const sim=new SimulationEngine(data,audio);
  sim.crisis=new CrisisAndNPCManager(sim);
  sim.social=new SocialManager(sim,data.friends);

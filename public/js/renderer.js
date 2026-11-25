@@ -3,6 +3,7 @@ class IsoRenderer {
  constructor(canvas,sim){
   this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.prestigeIcon=new Image();this.prestigeIcon.src="img/prestige.svg";
+  this.effects=new CityEffects(this);
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
@@ -176,7 +177,10 @@ class IsoRenderer {
   }
   if(art!==false){
    height=meta.tops[b.level-1][rot];
-   if(art)sprite=this.drawSprite(art,meta,x,y);
+   if(art){
+    sprite=this.drawSprite(art,meta,x,y,this.sim.social.world===this.sim.world?this.effects.bounce(b):1);
+    if(!dark)this.effects.lightBuilding(sprite,meta,height,b.id,night);
+   }
   }else if(b.left>0){
    const progress=clamp(1-b.left/b.total,0,1);height=11+18*progress;
    this.block(x+.22,y+.22,.56,.56,0,height,"#9e9e85",polys);
@@ -297,8 +301,8 @@ class IsoRenderer {
   }
   this.hits.push({building:b,polys:sprite?polys:[deck,...polys],sprite});return height;
  }
- drawSprite(art,meta,x,y){
-  const c=this.project(x+.5,y+.5),z=this.camera.zoom;
+ drawSprite(art,meta,x,y,scale=1){
+  const c=this.project(x+.5,y+.5),z=this.camera.zoom*scale;
   const box={art,x:c.x-meta.ax*z,y:c.y-meta.ay*z,w:meta.w*z,h:meta.h*z};
   this.ctx.drawImage(art,box.x,box.y,box.w,box.h);
   return box;
@@ -420,7 +424,10 @@ class IsoRenderer {
   const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom;
   const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
   g.setTransform(this.dpr,0,0,this.dpr,0,0);this.ambient(night,own.weather,w);this.ground(w);this.hits=[];
-  for(const b of w.buildings)if(b.id==="road")this.road(b,w);
+  for(const b of w.buildings)if(b.id==="road"){
+   this.road(b,w);
+   if(night>.18)this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
+  }
   const jobs=[],heights=new Map();
   for(let x=0;x<16;x++)for(let y=0;y<16;y++){
    const b=lookup(w,x,y);if(b&&b.id!=="road")jobs.push({x,y,draw:()=>heights.set(coord(x,y),this.building(b,w,night))});
@@ -458,8 +465,9 @@ class IsoRenderer {
    g.fillStyle="#293f571b";g.fillRect(0,0,this.width,this.height);g.beginPath();
    for(let i=0;i<165;i++){const h=this.height+40,a=(i*164.53+this.elapsed*101)%(this.width+30)-15,b=(i*89.167+this.elapsed*(380+(i%4)*33))%h-20;g.moveTo(a,b);g.lineTo(a+6,b+13+(i%3)*3)}
    g.strokeStyle="#b7def05e";g.lineWidth=.82;g.stroke();
-   const f=this.elapsed%12;if(f<.13||(f>.23&&f<.31)){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
+   const f=this.elapsed%12;if(!this.sim.reduceEffects&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
   }
+  if(!this.sim.reduceEffects)this.effects.render(w,heights);
  }
  thumbnail(id){
   if(SPRITES[id])return this.spritePath(id,"thumb");

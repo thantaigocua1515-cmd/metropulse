@@ -87,10 +87,11 @@ const CONFIG = (() => {
  // Bộ 36 chân dung trong public/img/npc. `pick` là các chân dung người chơi được chọn (không trùng nhân vật cốt truyện và đội trưởng).
  const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
   roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
- const mayorXP = [170,900,2000,4000,6000,9000,14000,18500,23000];
+ const mayorXP = [170,900,2000,5900,6000,9000,14000,18500,23000];
  return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25),
+  utilityXP:{level:4,perSecond:2},
   upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**b.level),
   // Bậc tiến hóa: cấp 1–3 bậc I, 4–6 bậc II, 7–10 bậc III; bậc II cần Thị trưởng cấp 5, bậc III cần cấp 10.
   tier:level=>level>=7?2:level>=4?1:0,tierGate:level=>level>=6?10:level>=3?5:1,

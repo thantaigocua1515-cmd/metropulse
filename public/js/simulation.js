@@ -3,7 +3,8 @@
 class SimulationEngine {
  constructor(data,audio){
   this.audio=audio;this.profile=data.profile;this.world=makeWorld(data.world.buildings,this.profile.level,data.world);
-  this.progress=data.progress;this.stats=this.progress.stats;this.particles=[];this.news=[];this.pending=[];this.elapsed=0;this.storage=null;
+  this.progress=data.progress;this.stats=this.progress.stats;this.particles=[];this.fx=[];this.reduceEffects=data.reduceEffects===true;this.news=[];this.pending=[];this.elapsed=0;this.storage=null;
+  this.utilityXP=0;
   this.metrics=this.measure(this.world);
  }
  active(w=this.world){return w.buildings.filter(b=>b.left<=0)}
@@ -94,9 +95,17 @@ class SimulationEngine {
  }
  say(message){this.news.unshift(message);this.news.length=Math.min(12,this.news.length)}
  float(x,y,text,color="#d1fb8b"){this.particles.push({x,y,text,color,life:0})}
+ effect(kind,details={},duration=.9){
+  if(this.reduceEffects)return;
+  if(this.fx.length>=24)this.fx.shift();
+  this.fx.push({kind,...details,age:0,duration});
+ }
+ rewardEffect(resource,amount,x,y,world=this.world,lift=0){
+  if(amount>0)this.effect("reward",{resource,amount,x,y,world,lift},1.05);
+ }
  earn(coins){this.profile.coins+=coins;if(coins>0)this.stats.coinsEarned+=coins}
- gainXP(amount){
-  const p=this.profile;amount=Math.round(amount*(1+.1*this.tech("education")));p.xp+=amount;
+ gainXP(amount,withResearch=true){
+  const p=this.profile;amount=withResearch?Math.round(amount*(1+.1*this.tech("education"))):amount;p.xp+=amount;
   while(p.xp>=CONFIG.xpNext(p.level)){
    p.xp-=CONFIG.xpNext(p.level);p.level++;p.coins+=150*p.level;p.prestige+=5;this.world.unlockedRadius=CONFIG.radius(p.level);
    this.audio.play("level");this.say("Bản tin đặc biệt: "+p.mayorName+" đã đưa thành phố lên cấp "+p.level+"!");
@@ -106,9 +115,9 @@ class SimulationEngine {
  }
  grant(reward,x=null,y=null){
   const p=this.profile,parts=[];
-  if(reward.coins){this.earn(reward.coins);parts.push("+"+fmt(reward.coins)+" Vàng")}
-  if(reward.prestige){p.prestige+=reward.prestige;parts.push("+"+reward.prestige+" Uy tín")}
-  if(reward.know){p.knowledge+=reward.know;parts.push("+"+reward.know+" Tri thức")}
+  if(reward.coins){this.earn(reward.coins);parts.push("+"+fmt(reward.coins)+" Vàng");this.rewardEffect("coin",reward.coins,x,y)}
+  if(reward.prestige){p.prestige+=reward.prestige;parts.push("+"+reward.prestige+" Uy tín");this.rewardEffect("prestige",reward.prestige,x,y)}
+  if(reward.know){p.knowledge+=reward.know;parts.push("+"+reward.know+" Tri thức");this.rewardEffect("brain",reward.know,x,y)}
   if(reward.xp)parts.push("+"+this.gainXP(reward.xp)+" XP");
   if(x!==null)this.float(x,y,parts[0]||"","#ffe08f");
   return parts.join(" · ");
@@ -127,6 +136,7 @@ class SimulationEngine {
   const error=this.placement(id,x,y);if(error)return error;
   const d=CONFIG.buildings[id],b=makeBuilding(id,x,y,1,d.duration);this.profile.coins-=d.price;
   this.world.buildings.push(b);this.world.index.set(coord(x,y),b);this.audio.play("build");
+  if(b.left>0)this.effect("dust",{x,y},.56);
   if(b.left===0)this.finish(b);
   this.storage.save();return "";
  }
@@ -134,7 +144,7 @@ class SimulationEngine {
   b.left=0;if(b.id==="road")this.stats.roadsBuilt++;else this.stats.buildingsBuilt++;
   const d=CONFIG.buildings[b.id],xp=d.group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")?0:d.xp;
   if(xp)this.float(b.x,b.y,"+"+this.gainXP(xp)+" XP");
-  if(b.id!=="road"){this.say(d.name+" đã chính thức đi vào hoạt động.");this.audio.play("done")}
+  if(b.id!=="road"){this.say(d.name+" đã chính thức đi vào hoạt động.");this.effect("built",{x:b.x,y:b.y},.65);this.audio.play("done")}
  }
  upgradeCost(b){return Math.ceil(CONFIG.upgradeBase(b)*(1-.06*this.tech("invest")))}
  upgradeBlock(b){
@@ -151,8 +161,10 @@ class SimulationEngine {
   const before=CONFIG.tier(b.level);
   this.profile.coins-=price;b.level++;this.stats.upgrades++;this.stats.maxBuildingLevel=Math.max(this.stats.maxBuildingLevel,b.level);
   if(!(CONFIG.buildings[b.id].group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")))this.gainXP(20*b.level);
-  if(CONFIG.tier(b.level)!==before){this.say("Tiến hóa! "+CONFIG.buildings[b.id].name+" nay đã trở thành "+CONFIG.buildingName(b)+".");this.audio.play("level");this.float(b.x,b.y,"★ "+CONFIG.buildingName(b),"#ffe08f")}
-  else{this.audio.play("build");this.float(b.x,b.y,"Cấp "+b.level)}
+  if(CONFIG.tier(b.level)!==before){this.say("Tiến hóa! "+CONFIG.buildings[b.id].name+" nay đã trở thành "+CONFIG.buildingName(b)+".");this.float(b.x,b.y,"★ "+CONFIG.buildingName(b),"#ffe08f")}
+  else this.float(b.x,b.y,"Cấp "+b.level);
+  this.effect("upgrade",{x:b.x,y:b.y,level:b.level},.85);
+  this.audio.play("upgrade");
   this.storage.save();return "";
  }
  specialize(b,choice){
@@ -206,10 +218,11 @@ class SimulationEngine {
  }
  collect(id){
   const w=this.world,z=w.bubbles.find(b=>b.uid===id);if(!z)return "";
-  w.bubbles.splice(w.bubbles.indexOf(z),1);this.stats.bubbles++;this.audio.play("money");
-  if(z.kind==="gem"){this.profile.prestige++;this.float(z.x,z.y,"+1 Uy tín","#d1fb8b");return "Cư dân gửi thư khen: +1 Uy tín."}
-  if(z.kind==="know"){const n=3+Math.round(this.profile.level/2);this.profile.knowledge+=n;this.float(z.x,z.y,"+"+n+" Tri thức","#9ae4cb");return ""}
-  const coins=Math.round(Math.max(40,this.metrics.income*12));this.earn(coins);this.float(z.x,z.y,"+"+fmt(coins)+" Vàng","#ffe08f");return "";
+  w.bubbles.splice(w.bubbles.indexOf(z),1);this.stats.bubbles++;this.audio.play("pickup");
+  const {x,y}=z;
+  if(z.kind==="gem"){this.profile.prestige++;this.rewardEffect("prestige",1,x,y,w,24);if(this.reduceEffects)this.float(x,y,"+1 Uy tín","#d1fb8b");return "Cư dân gửi thư khen: +1 Uy tín."}
+  if(z.kind==="know"){const n=3+Math.round(this.profile.level/2);this.profile.knowledge+=n;this.rewardEffect("brain",n,x,y,w,24);if(this.reduceEffects)this.float(x,y,"+"+n+" Tri thức","#9ae4cb");return ""}
+  const coins=Math.round(Math.max(40,this.metrics.income*12));this.earn(coins);this.rewardEffect("coin",coins,x,y,w,24);if(this.reduceEffects)this.float(x,y,"+"+fmt(coins)+" Vàng","#ffe08f");return "";
  }
  decisionCost(option){return option.coins?option.coins*100*this.profile.level:0}
  decide(index){
@@ -246,6 +259,11 @@ class SimulationEngine {
   this.stats.peakIncome=Math.max(this.stats.peakIncome,m.income);this.stats.peakPop=Math.max(this.stats.peakPop,m.pop);
   if(!this.stats.news500&&m.income>=500){this.stats.news500=true;this.say(p.mayorName+" vừa vượt mốc 500 Vàng/giây!")}
   const guided=this.progress.tutorial.done;
+  if(guided&&p.level===CONFIG.utilityXP.level&&m.ps>=m.pd&&m.ws>=m.wd){
+   this.utilityXP+=dt*CONFIG.utilityXP.perSecond;
+   const earned=Math.floor(this.utilityXP);
+   if(earned){this.utilityXP-=earned;this.gainXP(earned,false)}
+  }
   if(guided&&(w.bubbleClock+=dt)>=CONFIG.bubbleInterval){w.bubbleClock=0;this.spawnBubble()}
   if(guided&&!this.progress.decision&&p.level>=2&&(w.decisionClock+=dt)>=CONFIG.decisionInterval){
    w.decisionClock=0;const pool=CONTENT.decisions.filter(d=>d.id!==this.progress.lastDecision),event=pool[Math.floor(Math.random()*pool.length)];
@@ -253,6 +271,7 @@ class SimulationEngine {
   }
   this.crisis.tickOwn(dt);this.social.tick(dt);
   this.particles=this.particles.filter(q=>(q.life+=dt)<1.45);
+  if(this.fx.length)this.fx=this.reduceEffects?[]:this.fx.filter(q=>(q.age+=dt)<q.duration);
  }
  start(renderer,ui){
   let last=performance.now(),hud=1,save=0,mission=1;

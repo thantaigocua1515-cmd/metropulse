@@ -160,8 +160,12 @@ class CityLife {
    const cab=()=>{box(.1,.15,.14,1,4.2,a.color);box(.05,.13,.15,3.4,1.5,"#cfe3ea")},cargo=()=>box(.26,.16,-.05,1,5.6,"#eef0ea");
    if(a.dx+a.dy>0){cargo();cab()}else{cab();cargo()}
   }
-  if(night>.22&&k!=="bike")r.ellipse(p.x+(a.dx-a.dy)*6*z,p.y+(a.dx+a.dy)*3*z,2.4*z,1.4*z,"#fff3b0cc");
-  if(night>.22&&k==="bike")r.ellipse(p.x+(a.dx-a.dy)*3.5*z,p.y+(a.dx+a.dy)*1.8*z-2*z,1.3*z,.9*z,"#fff3b0cc");
+  if(night>.22&&!r.sim.social.world.crises.some(c=>c.id==="blackout"&&Math.abs(c.x-a.x)+Math.abs(c.y-a.y)<=1)){
+   const far=k==="bike"?.14:k==="car"||k==="taxi"?.21:.28;
+   const q=r.project(a.x+.5+a.dx*far,a.y+.5+a.dy*far,2.6);
+   r.effects.glow(q.x,q.y,7*z,4*z);
+   for(const side of k==="bike"?[0]:[-1,1])r.ellipse(q.x+side*(a.dx+a.dy)*2.2*z,q.y+side*(a.dy-a.dx)*1.1*z,1.2*z,.85*z,"#fff5c4");
+  }
  }
  person(a,p,z){
   const r=this.r,s=z*(a.kid?.72:1),still=a.chat>0,t=r.elapsed*(a.kid?12:9)+a.seed,swing=still?0:Math.sin(t)*1.5*s,bob=still?0:Math.abs(Math.sin(t))*.5*s;
