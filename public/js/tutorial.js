@@ -29,7 +29,7 @@ class TutorialManager {
    {text:"Tốt lắm! Tiếp theo chọn <b>Đường nhựa</b> rồi <b>kéo</b> trên bản đồ để vẽ thêm ít nhất 2 ô đường.",target:()=>ui.selection==="road"?null:q('.blueprint[data-id="road"]')||build(),done:()=>s.stats.roadsBuilt>=m.roads+2},
    {text:"Ôi, có sự cố rồi! Bấm <b>Điều phối NPC</b> trên thẻ cảnh báo để cử đội đi sửa.",enter:()=>this.stage(),target:()=>q('.incident [data-act="dispatch"]'),done:()=>w.npcs.length>0||s.stats.crisesSolved>m.solved||!w.crises.length},
    {text:"Đội đang chạy theo đường tới hiện trường. Đường càng thông suốt, đội đến càng nhanh — xử lý kịp thời sẽ được thưởng thêm.",done:()=>s.stats.crisesSolved>m.solved||(!w.crises.length&&!w.npcs.length)},
-   {text:"Cư dân nộp thuế kìa! Chọn <b>Quan sát</b> rồi chạm vào <b>túi vàng</b> đang nổi trên công trình để thu.",enter:()=>this.coin(),tile:()=>w.bubbles[0],lift:44,done:()=>s.stats.bubbles>m.bubbles||!w.bubbles.length},
+   {text:"Cư dân nộp thuế kìa! Chọn <b>Quan sát</b> rồi chạm vào <b>túi vàng</b> đang nổi trên công trình để thu.",enter:()=>this.coin(),marker:()=>w.bubbles[0],done:()=>s.stats.bubbles>m.bubbles||!w.bubbles.length},
    {text:"Cuối cùng, mở <b>Nhiệm vụ</b> để xem cốt truyện và nhận thưởng nhé!",target:()=>q('#action-rail [data-act="missions"]'),done:()=>ui.dialogType==="missions"}
   ];
  }
@@ -73,8 +73,10 @@ class TutorialManager {
   const r=this.renderer(),tile=step.tile?.();let box=null;
   const target=step.target?.();
   ui.pinCommands(!!target?.closest("#command-drawer"));
-  r.guide=tile&&!step.lift?{x:tile.x,y:tile.y}:null;
-  if(tile){const p=r.project(tile.x+.5,tile.y+.5,step.lift||0),z=r.camera.zoom;box={left:p.x-34*z,top:p.y-(step.lift?20:18)*z,width:68*z,height:(step.lift?40:36)*z,round:true}}
+  r.guide=tile?{x:tile.x,y:tile.y}:null;
+  const marker=step.marker?.(),hit=marker&&r.hits.find(h=>h.bubble===marker);
+  if(hit)box={left:hit.x-hit.r,top:hit.y-hit.r,width:hit.r*2,height:hit.r*2,round:true};
+  else if(tile){const p=r.project(tile.x+.5,tile.y+.5),z=r.camera.zoom;box={left:p.x-34*z,top:p.y-18*z,width:68*z,height:36*z,round:true}}
   else if(target){const rect=target.getBoundingClientRect();if(rect.width)box={left:rect.left-5,top:rect.top-5,width:rect.width+10,height:rect.height+10}}
   this.ring.hidden=!box;
   if(box){Object.assign(this.ring.style,{left:box.left+"px",top:box.top+"px",width:box.width+"px",height:box.height+"px"});this.ring.classList.toggle("tile",!!box.round)}

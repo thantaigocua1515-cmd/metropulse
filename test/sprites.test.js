@@ -11,6 +11,19 @@ const { CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding } = vm.runInNewCon
 );
 const renderer = Object.create(IsoRenderer.prototype);
 
+test("mobile framing and marker picking favor readable, reachable city actions", () => {
+  const r = Object.assign(Object.create(IsoRenderer.prototype), { width: 390, height: 800 });
+  r.center();
+  assert.equal(r.camera.zoom, 1.1);
+  const crisis = { crisis: {}, x: 100, y: 100, r: 22 };
+  const bubble = { bubble: {}, x: 124, y: 100, r: 22 };
+  const building = { building: {}, polys: [] };
+  r.hits = [building, bubble, crisis];
+  assert.equal(r.hit({ x: 120, y: 100 }), bubble);
+  assert.equal(r.hit({ x: 120, y: 100 }, false), crisis);
+  assert.equal(r.hit({ x: 120, y: 100 }, false, false), null);
+});
+
 test("every catalog building has four sprite frames at each level and a thumbnail", () => {
   assert.deepEqual(Object.keys(SPRITES).sort(), Object.keys(CONFIG.buildings).sort());
   for (const [id, meta] of Object.entries(SPRITES)) {

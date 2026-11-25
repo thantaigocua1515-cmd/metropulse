@@ -590,3 +590,41 @@ button.event-button:hover:not(:disabled){background:#fff5e5;border-color:var(--e
 @media(max-height:480px) and (orientation:landscape){
  .event-banner{left:50%;top:calc(var(--edge-top) + 63px);bottom:auto;transform:translateX(-50%)}
 }
+
+.side{inset:auto var(--edge-right) calc(var(--edge-bottom) + 69px) var(--edge-left);width:auto;height:auto;max-height:none;max-width:900px;margin-inline:auto;padding:5px 8px 2px}
+.side-header{padding:0 0 4px;justify-content:flex-start;gap:8px}
+.side-header h2{font-size:14px;white-space:nowrap}
+.side-header .frame-close{margin-left:auto;flex:none}
+.side .filter,.catalog{display:flex;flex-wrap:nowrap;overflow:auto;overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:thin;min-width:0;padding:0 0 4px}
+.side .filter button{flex:none;min-height:32px}
+.catalog{gap:7px;scroll-snap-type:x proximity}
+.blueprint-card{position:relative;flex:0 0 96px;scroll-snap-align:start}
+.blueprint-card .blueprint{display:grid;justify-items:center;gap:2px;text-align:center;margin:0;padding:3px;background:#fff9ee}
+.blueprint-card .blueprint img{width:100%;height:60px;object-fit:contain;background:linear-gradient(145deg,#e9efec,#d7e2e2)}
+.blueprint-card .blueprint .price{font-size:11px}
+.blueprint-card .blueprint.active{background:var(--soft)}
+button.blueprint-info{position:absolute;top:0;right:0;width:44px;height:44px;border:0;padding:0;background:none!important;display:grid;place-items:start end;color:#445953;font:italic 800 12px Georgia,serif}
+.blueprint-info::before{content:"";position:absolute;top:4px;right:4px;width:19px;height:19px;border:1px solid #a6b0a4;border-radius:50%;background:#fffaf2;z-index:-1}
+button.blueprint-info{isolation:isolate;padding:6px 10px 0 0}
+.blueprint-detail{display:flex;align-items:center;gap:14px}
+.blueprint-detail img{width:92px;height:76px;object-fit:contain;border-radius:12px;background:#e3ece8}
+.blueprint-facts{columns:2;padding-left:20px}
+body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 140px);bottom:auto}
+@media(max-width:650px), (max-width:730px) and (min-height:641px){
+ #hud{--hud-bottom:25px}
+ .topbar{gap:10px}
+ button.profile{width:52px;height:52px}
+ .stats{gap:5px 14px}
+ .resource{min-height:26px}
+ .city-sign,.utilities{top:calc(var(--edge-top) + 65px)}
+ .utilities{width:96px;gap:3px}
+ .utility-icon{width:21px;height:21px}
+ .utility-track span{padding-block:0}
+ .command-rail{top:calc(var(--edge-top) + 132px)}
+ .alerts{top:calc(var(--edge-top) + 112px)}
+ .side-header h2{font-size:12px}
+}
+@media(max-height:480px) and (orientation:landscape){
+ .side .blueprint img{height:45px}
+ body.build-tray-open .coach-bubble{top:calc(var(--edge-top) + 77px)}
+}

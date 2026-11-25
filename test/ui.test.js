@@ -8,6 +8,21 @@ const script = name => fs.readFileSync(path.join(__dirname, "../public/js", name
 const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui", "ui-dialogs"].map(script).concat("UIController").join("\n"), globals);
 const UIController = loadUI({});
 
+test("blueprint details show unlock requirements and district hints without selecting the building", () => {
+  const ui = Object.create(loadUI({ Districts: { hint: () => "Thưởng khi cạnh nhà ở" } }).prototype);
+  ui.sim = { profile: { level: 1 } };
+  ui.thumb = () => "thumb.webp";
+  ui.open = (type, tag, title, content) => {
+    assert.equal(type, "blueprint");
+    assert.equal(title, "Tiệm Tạp hóa");
+    assert.match(content, /Mở khóa ở cấp 2/);
+    assert.match(content, /Thưởng khi cạnh nhà ở/);
+    assert.match(content, /Vàng\/giây/);
+  };
+  ui.select = () => assert.fail("Info must not select a blueprint");
+  ui.action({ dataset: { act: "blueprint-info", id: "mini_mart" } });
+});
+
 test("quest tracker expands, prioritizes claimable quests, and hides during visits", () => {
   const ui = Object.create(UIController.prototype);
   const tracker = { innerHTML: "", hidden: false };

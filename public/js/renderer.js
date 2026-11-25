@@ -13,7 +13,7 @@ class IsoRenderer {
   if(oldW){this.camera.x+=(this.width-oldW)/2;this.camera.y+=(this.height-oldH)/2}else this.center();
  }
  center(){
-  const zoom=clamp(Math.min((this.width-22)/940,(this.height-98)/595),.5,1.2);
+  const zoom=this.width<=780?1.1:clamp(Math.min((this.width-22)/940,(this.height-98)/595),.5,1.2);
   this.camera={x:this.width*.5,y:this.height*.54-240*zoom,zoom};this.target=null;this.back=null;
  }
  zoom(factor,x=this.width/2,y=this.height*.54){
@@ -373,23 +373,24 @@ class IsoRenderer {
   }else{
    for(let i=0;i<5;i++)this.text((i+Math.floor(t*9))%2?"1":"0",p.x+((i*7)%19-9)*z,p.y-(i*4+3)*z,8*z,"#a3ffc2");
   }
-  const r=Math.max(10,11*z),ay=s.y;
+  const r=this.markerRadius(),ay=s.y;
   this.poly([{x:s.x-4*z,y:ay+r-2},{x:s.x,y:ay+r+5},{x:s.x+4*z,y:ay+r-2}],"#263631");
   this.ellipse(s.x,ay,r+1,r+1,d.color);this.ellipse(s.x,ay,r-.6,r-.6,"#263631");
-  this.text(d.icon,s.x,ay,Math.max(11,13*z),d.color);
+  this.text(d.icon,s.x,ay,r*1.2,d.color);
   if(c.progress>0)this.progress(s.x,ay-r-6,c.progress,"#b9efa3");
-  this.hits.push({crisis:c,x:s.x,y:ay,r:r+4});
+  this.hits.push({crisis:c,x:s.x,y:ay,r:Math.max(22,r+4)});
  }
  bubble(b,height){
-  const z=this.camera.zoom,t=this.elapsed,p=this.project(b.x+.5,b.y+.5,height+24+Math.sin(t*3+b.x)*3),r=Math.max(10,11*z);
+  const z=this.camera.zoom,t=this.elapsed,p=this.project(b.x+.5,b.y+.5,height+24+Math.sin(t*3+b.x)*3),r=this.markerRadius();
   const look={coin:["#ffd36e","#7a5a1c","V"],know:["#9ae4cb","#1d5a4a","✦"],gem:["#ffe5a5","#75451e","🏅"]}[b.kind];
   this.ellipse(p.x,p.y+r+5*z,r*.6,r*.22,"#14262155");
   this.ellipse(p.x,p.y,r+2,r+2,"#fff8dc");this.ellipse(p.x,p.y,r,r,look[0]);this.ellipse(p.x-r*.3,p.y-r*.35,r*.28,r*.18,"#ffffffaa");
   if(b.kind==="gem"&&this.prestigeIcon.naturalWidth){
    this.ctx.drawImage(this.prestigeIcon,p.x-r,p.y-r,2*r,2*r);
-  }else this.text(look[2],p.x,p.y+.5,Math.max(11,12*z),look[1]);
-  this.hits.push({bubble:b,x:p.x,y:p.y,r:r+6});
+  }else this.text(look[2],p.x,p.y+.5,r*1.1,look[1]);
+  this.hits.push({bubble:b,x:p.x,y:p.y,r:Math.max(22,r+6)});
  }
+ markerRadius(){return Math.max(this.width<=780?16:13,13*this.camera.zoom)}
  // Cư dân và xe cộ đi lại trên đường (chỉ để trang trí).
  npc(n){
   const t=this.elapsed,z=this.camera.zoom,p=this.project(n.x+.51,n.y+.51),d=CONFIG.npcs[n.type],color=d.color;
@@ -428,8 +429,16 @@ class IsoRenderer {
   g.clearRect(0,0,1,1);g.drawImage(im,Math.floor(u*im.width),Math.floor(v*im.height),1,1,0,0,1,1);
   return g.getImageData(0,0,1,1).data[3]>48;
  }
- hit(point){
-  for(const kind of ["crisis","bubble","citizen"])for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit[kind]&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
+ hit(point,observe=true,markers=true){
+  let closest=null,best=Infinity;
+  if(markers)for(let i=this.hits.length-1;i>=0;i--){
+   const hit=this.hits[i];
+   if(!hit.crisis&&!(observe&&hit.bubble))continue;
+   const distance=Math.hypot(hit.x-point.x,hit.y-point.y);
+   if(distance<=hit.r&&(distance<best||distance===best&&hit.crisis)){closest=hit;best=distance}
+  }
+  if(closest)return closest;
+  if(observe)for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.citizen&&Math.hypot(hit.x-point.x,hit.y-point.y)<=hit.r)return hit}
   for(let i=this.hits.length-1;i>=0;i--){const hit=this.hits[i];if(hit.building&&(hit.sprite?this.containsSprite(point,hit.sprite):hit.polys.some(poly=>this.contains(point,poly))))return hit}
   return null;
  }

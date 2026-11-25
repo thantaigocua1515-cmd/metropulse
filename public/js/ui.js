@@ -127,7 +127,7 @@ class UIController {
   this.canvas.classList.toggle("build",["build","move","demo"].includes(name));
  }
  pick(point){
-  const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera),hit=this.renderer.hit(point);
+  const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera),hit=this.renderer.hit(point,this.tool==="look",this.tool!=="build");
   if(hit?.crisis){this.dispatch(hit.crisis.uid);return}
   if(hit?.bubble&&this.tool==="look"){this.toast(s.collect(hit.bubble.uid));this.refresh();return}
   if(hit?.citizen&&this.tool==="look"){this.renderer.life.poke(hit.citizen);s.audio.play("click");return}
@@ -154,7 +154,14 @@ class UIController {
  select(id){
   const d=CONFIG.buildings[id];if(!d||this.sim.social.current)return;
   if(this.sim.profile.level<d.unlock){this.toast("Mở khóa "+d.name+" khi đạt cấp "+d.unlock+".");return}
-  this.setTool("build",id);this.catalogOpen=innerWidth>780;
+  this.setTool("build",id);this.catalogOpen=false;
+ }
+ blueprintDetails(id){
+  const d=CONFIG.buildings[id];if(!d)return;
+  const hint=Districts.hint(d),locked=this.sim.profile.level<d.unlock;
+  const facts=[[d.income,"Vàng/giây"],[d.pop,"Dân số"],[d.power,"Điện"],[d.water,"Nước"],[d.happy,"Hạnh phúc"],[d.waste,"Rác"],[d.know,"Tri thức/giây"]]
+   .filter(([n])=>n).map(([n,label])=>'<li>'+label+': <b>'+(n>0?"+":"")+fmt(n,2)+'</b></li>').join("");
+  this.open("blueprint","BẢN VẼ · "+CONFIG.groups[d.group],d.name,'<div class="blueprint-detail"><img src="'+this.thumb(id)+'" alt=""><div><b class="gold">'+fmt(d.price)+' Vàng</b><p>'+d.desc+'</p><p>'+(locked?'Mở khóa ở cấp '+d.unlock+' · ':'')+(d.duration?'Xây trong '+d.duration+' giây':'Xây tức thì')+'</p></div></div>'+(facts?'<ul class="blueprint-facts">'+facts+'</ul>':"")+(hint?'<p class="mint">'+hint+'</p>':""));
  }
  dispatch(uid){
   const s=this.sim,w=s.social.world,c=w.crises.find(z=>z.uid===uid);if(!c)return;
@@ -174,8 +181,9 @@ class UIController {
    case "look":this.setTool("look");this.catalogOpen=false;break;
    case "build":if(s.social.current)return;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
    case "close-build":this.catalogOpen=false;this.setTool("look");break;
-   case "filter":this.category=id;this.nodes.catalog.scrollTop=0;break;
+   case "filter":this.category=id;this.nodes.catalog.scrollLeft=0;break;
    case "select":this.select(id);break;
+   case "blueprint-info":this.blueprintDetails(id);return;
    case "move":case "demo":if(!s.social.current){this.catalogOpen=false;this.setTool(this.tool===act?"look":act)}break;
    case "zoom-in":r.zoom(1.15);break;
    case "zoom-out":r.zoom(1/1.15);break;
@@ -296,13 +304,15 @@ class UIController {
   this.nodes.look.classList.toggle("active",look);
   this.nodes.look.setAttribute("aria-pressed",String(look));
   this.nodes.side.hidden=!this.catalogOpen||!own;
+  document.body.classList.toggle("build-tray-open",!this.nodes.side.hidden);
   if(this.catalogOpen&&own){
    this.html("filters",Object.entries(CONFIG.groups).map(([id,name])=>this.btn("filter",name,{id,cls:this.category===id?"active":""})).join(""));
    const rows=Object.values(CONFIG.buildings).filter(d=>this.category==="all"||d.group===this.category);
    this.html("catalog",rows.map(d=>{
-    const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,hint=Districts.hint(d),title=d.name+" · "+d.desc+(hint?" · "+hint:"");
-    const facts=[d.income&&"+"+d.income+" V/s",d.pop&&"+"+d.pop+" dân",d.power>0&&"+"+d.power+" điện",d.water>0&&"+"+d.water+" nước",d.happy>0&&"+"+d.happy+" HP",d.know&&"Tri thức"].filter(Boolean).slice(0,2).join(" · ");
-    return this.btn("select",'<img src="'+this.thumb(d.id)+'" alt="" loading="lazy" decoding="async" width="36" height="36"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small>'+(hint?'<small class="district-hint">'+hint+'</small>':"")+'</span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
+    const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,price=fmt(d.price)+" Vàng",
+     label=d.name+" · "+price+(locked?" · Mở ở cấp "+d.unlock:"");
+    return '<div class="blueprint-card">'+this.btn("select",'<img src="'+this.thumb(d.id)+'" alt="" loading="lazy" decoding="async"><span class="price '+(poor?"warn":"gold")+'">'+price+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),label,title:label})+
+     this.btn("blueprint-info","i",{id:d.id,cls:"blueprint-info",label:"Chi tiết "+d.name,title:"Chi tiết "+d.name})+'</div>';
    }).join(""));
   }
   this.inspectCard();this.sidebar();this.questTracker(badges);this.fab(badges);
