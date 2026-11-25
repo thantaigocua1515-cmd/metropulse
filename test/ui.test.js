@@ -8,6 +8,36 @@ const script = name => fs.readFileSync(path.join(__dirname, "../public/js", name
 const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui", "ui-dialogs"].map(script).concat("UIController").join("\n"), globals);
 const UIController = loadUI({});
 
+test("incidents keep a dispatch control before assignment and only a progress portrait afterward", () => {
+  const ui = Object.create(UIController.prototype);
+  const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[]};
+  const status = {}, properties = new Map(), attributes = {};
+  const child = {querySelector: () => status,style: properties,setAttribute: (key,value) => { attributes[key]=value; }};
+  properties.getPropertyValue = properties.get;
+  properties.setProperty = properties.set;
+  ui.nodes = {incidents:{children:[child]}};
+  ui.sim = {social:{world:w,current:null},crisis:{teams:() => [{}]}};
+  ui.incidentDock();
+  assert.match(ui.nodes.incidents.innerHTML, /class="incident interactive".*data-act="dispatch" data-id="fire1"/);
+  assert.match(status.textContent, /Còn \d+ giây/);
+
+  w.npcs.push({target:"fire1",phase:"out",segment:1,part:0.5,path:[{},{},{},{}]});
+  ui.incidentDock();
+  assert.match(ui.nodes.incidents.innerHTML, /^<button .*data-act="incident-focus".*class="incident-npc"><img/);
+  assert.doesNotMatch(ui.nodes.incidents.innerHTML, /data-act="dispatch"/);
+  assert.equal(properties.get("--incident-progress"), "25%");
+  assert.match(attributes["aria-label"], /Đang đến · 50%/);
+  const portrait = ui.nodes.incidents.innerHTML;
+  w.npcs[0].phase="repair";w.crises[0].progress=.4;
+  ui.incidentDock();
+  assert.equal(ui.nodes.incidents.innerHTML, portrait);
+  assert.equal(properties.get("--incident-progress"), "70%");
+  assert.match(attributes["aria-label"], /Đang sửa · 40%/);
+  ui.renderer = {focus: (x,y) => assert.deepEqual([x,y],[5,7])};
+  ui.refresh = () => {};
+  ui.action({dataset:{act:"incident-focus",id:"fire1"}});
+});
+
 test("blueprint details show unlock requirements and district hints without selecting the building", () => {
   const ui = Object.create(loadUI({ Districts: { hint: () => "Thưởng khi cạnh nhà ở" } }).prototype);
   ui.sim = { profile: { level: 1 } };

@@ -66,3 +66,21 @@ test("building previews use level and automatic facing unless manually rotated",
   b.left = 10;
   assert.equal(renderer.spritePreview(b, w), null);
 });
+
+test("road rendering extends sprite joins without moving the road center", () => {
+  const road = makeBuilding("road", 8, 8);
+  const world = makeWorld([road, makeBuilding("road", 9, 8)]);
+  const draws = [], art = {};
+  const r = Object.assign(Object.create(IsoRenderer.prototype), {
+    camera: {x: 112, y: -90, zoom: 1.1},
+    ctx: {drawImage: (...args) => draws.push(args)},
+    sprite(id, frame) { assert.equal(id+"/"+frame, "road/end_3"); return art; }
+  });
+  r.road(road,world);
+  const [[source,x,y,width,height]] = draws;
+  const {w,h,ax,ay} = SPRITES.road, center = r.project(8.5,8.5);
+  assert.equal(source, art);
+  assert.ok(Math.min(width/w, height/h)*.465 > .5*r.camera.zoom);
+  assert.ok(Math.abs(x+ax*width/w-center.x) < 1e-8);
+  assert.ok(Math.abs(y+ay*height/h-center.y) < 1e-8);
+});

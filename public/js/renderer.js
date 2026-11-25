@@ -2,6 +2,7 @@
 const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",police_station:"police",
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
+const ROAD_SPRITE_SCALE=1.08;
 
 class IsoRenderer {
  constructor(canvas,sim){
@@ -164,13 +165,18 @@ class IsoRenderer {
  road(b,w){
   const {x,y}=b,z=this.camera.zoom;
   const frame=this.roadFrame(b,w),meta=SPRITES.road,art=frame&&meta&&this.sprite("road",frame);
-  if(art){this.drawSprite(art,meta,x,y);return}
+  if(art){this.drawSprite(art,meta,x,y,ROAD_SPRITE_SCALE);return}
   const fill=(x1,y1,x2,y2,color)=>this.poly(this.plate(x+x1,y+y1,x+x2,y+y2),color);
-  fill(0,0,1,1,"#abb9a0");fill(.11,.11,.89,.89,"#586765");fill(.2,.2,.8,.8,"#516162");
-  const bits=[[1,0,.8,.16,1,.84],[0,1,.16,.8,.84,1],[-1,0,0,.16,.2,.84],[0,-1,.16,0,.84,.2]];
+  const bits=[[1,0,.5,.23,1,.77],[0,1,.23,.5,.77,1],[-1,0,0,.23,.5,.77],[0,-1,.23,0,.77,.5]];
   const linked=bits.filter(([dx,dy])=>lookup(w,x+dx,y+dy)?.id==="road");
+  if(!linked.length){
+   const p=this.project(x+.5,y+.5);
+   this.ellipse(p.x,p.y,13*z,6.5*z,"#929691");this.ellipse(p.x,p.y,11*z,5.5*z,"#767d80");
+   return;
+  }
+  fill(.23,.23,.77,.77,"#767d80");
   for(const [dx,dy,a,c,e,f] of linked){
-   fill(a,c,e,f,"#596866");fill(dx<0?a:dx>0?a:a+.04,dy<0?c:dy>0?c:c+.04,dx?e:e-.04,dy?f:f-.04,"#516162");
+   fill(a,c,e,f,"#767d80");
    if(linked.length<=2){
     this.line([this.project(x+.5+dx*.08,y+.5+dy*.08),this.project(x+.5+dx*.39,y+.5+dy*.39)],"#ebd59f",1*z);
    }else{
@@ -180,7 +186,6 @@ class IsoRenderer {
     }
    }
   }
-  if(!linked.length)this.ellipse(this.project(x+.5,y+.5).x,this.project(x+.5,y+.5).y,2*z,1*z,"#edce8a");
  }
  roadFrame(b,w){
   const link=(dx,dy)=>lookup(w,b.x+dx,b.y+dy)?.id==="road";
