@@ -42,8 +42,10 @@ const CONFIG = (() => {
   tech_tower:["Tòa tháp Công nghệ","Thung lũng Số","Trung tâm AI"],metro_wonder:["Kỳ quan Đô thị","Biểu tượng Thế kỷ","Di sản Thế giới"]
  };
  const knowRate = {school:.04,cyber_hub:.06,tech_tower:.1,university:.15,museum:.08};
+ const priceByUnlock = [0,1,4,6,8,12,16,30,50,60,90,105,120,160,180,200,225];
+ const incomeByUnlock = [1,1,1,1,1,1,1,1,.85,.85,.75,.7,.65,.65,.65,.65,.6];
  const buildings = Object.fromEntries(rows.map(([id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc])=>
-  [id,{id,name,group,unlock,price,duration,income,power,water,pop,happy,waste,xp,color,desc,know:knowRate[id]||0,tiers:tierNames[id]||[name,name+" II",name+" III"]}]));
+  [id,{id,name,group,unlock,price:price*priceByUnlock[unlock],duration,income:Math.round(income*incomeByUnlock[unlock]),power,water,pop,happy,waste,xp,color,desc,know:knowRate[id]||0,tiers:tierNames[id]||[name,name+" II",name+" III"]}]));
  const incidents = [
   ["blackout","Mất điện diện rộng","power_plant","Thợ Điện lực","ϟ","#ffce68","−50% doanh thu quanh điểm mất điện; không thể xây cạnh đó.",45,120,0,45,"Cư dân đang ăn cơm dưới ánh nến vì mất điện!","Đội trưởng Sơn",28],
   ["water_leak","Vỡ ống / Cúp nước","water_tower","Kỹ sư Cấp nước","≈","#7cdaff","−2% Hạnh phúc mỗi 5 giây.",45,0,0,45,"Vỉa hè bất ngờ biến thành đài phun nước.","Kỹ sư Thủy",5],
@@ -85,9 +87,10 @@ const CONFIG = (() => {
  // Bộ 36 chân dung trong public/img/npc. `pick` là các chân dung người chơi được chọn (không trùng nhân vật cốt truyện và đội trưởng).
  const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
   roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
- return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:5,baseKnowledge:.03,maxLevel:10,specLevel:5,
-  crisisInterval:12,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
-  xpNext:level=>Math.floor(100*level**1.55),
+ const mayorXP = [170,900,2000,4000,6000,9000,14000,18500,23000];
+ return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
+  crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
+  xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25),
   upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**b.level),
   // Bậc tiến hóa: cấp 1–3 bậc I, 4–6 bậc II, 7–10 bậc III; bậc II cần Thị trưởng cấp 5, bậc III cần cấp 10.
   tier:level=>level>=7?2:level>=4?1:0,tierGate:level=>level>=6?10:level>=3?5:1,
