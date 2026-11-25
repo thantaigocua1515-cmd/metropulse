@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Convert the city-buildings-v2 archive using its shared ground projection."""
+"""Convert building sprites from city-buildings-v2 or a Cloud City sheet ZIP."""
 import argparse
+import io
 import json
 from pathlib import Path
+from zipfile import ZipFile
 
 from PIL import Image, ImageDraw
 
@@ -18,6 +20,8 @@ ROADS = ("straight", "corner", "tee", "cross", "end")
 LEVELS = 10
 TILE = (64, 32)
 RESOLUTION = 3
+CLOUD_FACING = ("SW", "NW", "NE", "SE")
+CLOUD_ROADS = ("SE", "SW", "NW", "NE")
 
 
 def thumbnail(frame):
@@ -114,27 +118,110 @@ def convert(source, gid, contact_dir):
     return meta, written
 
 
+def write_metadata(metadata):
+    (PUBLIC / "js" / "sprites.js").write_text(
+        '"use strict";\n// Sinh bởi tools/build-sprites.py — kích thước và điểm neo (đơn vị: điểm ảnh game ở zoom 1).\n'
+        "const SPRITES = " + json.dumps(metadata, separators=(",", ":")) + ";\n", encoding="utf-8"
+    )
+
+
+def cloud_frames(archive, asset, directions):
+    info = json.loads(archive.read(asset["frames"]))
+    with Image.open(io.BytesIO(archive.read(asset["sheet"]))) as sheet:
+        if sheet.mode != "RGBA" or sheet.size != (768, 1920):
+            raise ValueError(f"{asset['id']}: expected a 768 × 1920 RGBA sheet")
+        frames = {}
+        for level in range(1, LEVELS + 1):
+            for rotation, direction in enumerate(directions):
+                key = f"L{level:02d}_{direction}"
+                entry = info["frames"][key]
+                x, y, w, h = (entry["frame"][name] for name in ("x", "y", "w", "h"))
+                pivot = entry["pivot"]
+                if ((x, y, w, h) != (("SE", "SW", "NW", "NE").index(direction) * 192, (level - 1) * 192, 192, 192)
+                    or entry["rotated"] or entry["trimmed"] or (pivot["x"] * w, pivot["y"] * h) != (96, 137)):
+                    raise ValueError(f"{asset['id']} {key}: unexpected cell geometry")
+                frame = sheet.crop((x, y, x + w, y + h))
+                alpha = frame.getchannel("A")
+                box = alpha.getbbox()
+                if not box or alpha.getextrema()[0] != 0 or not (0 < box[0] < box[2] < w and 0 < box[1] < box[3] < h):
+                    raise ValueError(f"{asset['id']} {key}: missing transparency or artwork touches a cell edge")
+                frames[level, rotation] = frame, box
+    return frames
+
+
+def convert_cloud(source, contact_dir):
+    with ZipFile(source) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        assets = {entry["id"]: entry for entry in manifest["assets"]}
+        if set(assets) != {*IDS, "road"} or len(assets) != len(manifest["assets"]):
+            raise ValueError("Missing, extra or duplicate building IDs in the Cloud City manifest")
+        # Cloud City labels the viewpoint, whereas MetroPulse indexes the direction of the entrance.
+        frames = {gid: cloud_frames(archive, assets[gid], CLOUD_ROADS if gid == "road" else CLOUD_FACING)
+                  for gid in (*IDS, "road")}
+    metadata = {}
+    for gid in IDS:
+        asset, cells = assets[gid], frames[gid]
+        footprint, tile = asset["footprintTiles"], asset["projectedTilePx"]
+        # Fit the longest side into MetroPulse's single lot, with room for the plinth thickness.
+        span = max(footprint["x"], footprint["y"])
+        fx, fy = TILE[0] * .91 / (span * tile["w"]), TILE[1] * .91 / (span * tile["h"])
+        boxes = [box for _, box in cells.values()]
+        x0, y0, x1, y1 = (f(box[i] for box in boxes) + padding
+                          for i, (f, padding) in enumerate(((min, -2), (min, -2), (max, 2), (max, 2))))
+        w, h = round((x1 - x0) * fx * RESOLUTION), round((y1 - y0) * fy * RESOLUTION)
+        mx, my = w / (x1 - x0) / RESOLUTION, h / (y1 - y0) / RESOLUTION
+        meta = metadata[gid] = {"w": round(w / RESOLUTION, 3), "h": round(h / RESOLUTION, 3),
+                                "ax": round((96 - x0) * mx, 3), "ay": round((137 - y0) * my, 3)}
+        meta["tops"] = [[round((137 - cells[level, rot][1][1]) * my) for rot in range(4)]
+                        for level in range(1, LEVELS + 1)]
+        out = PUBLIC / "img" / "bld" / gid
+        out.mkdir(parents=True, exist_ok=True)
+        contact = []
+        for (level, rot), (frame, _) in cells.items():
+            image = frame.crop((x0, y0, x1, y1)).resize((w, h), Image.Resampling.LANCZOS)
+            image.save(out / f"{level:02d}_{rot}.webp", quality=84, method=4)
+            if (level, rot) == (1, 0):
+                thumbnail(image).save(out / "thumb.webp", quality=86, method=4)
+            if contact_dir:
+                contact.append((f"Lv {level:02d} / {CLOUD_FACING[rot]}", image))
+        if contact_dir:
+            contact_sheet(contact_dir / f"{gid}.png", contact, LEVELS, 4, meta, gid)
+        print(f"{gid}: {len(cells)} frames")
+    road_dir = PUBLIC / "img" / "bld" / "road"
+    # The map renders roads procedurally. Only the straight previews have a matching new sprite.
+    for rot in range(4):
+        frame, box = frames["road"][1, rot]
+        image = frame.crop(box)
+        image.save(road_dir / f"straight_{rot}.webp", quality=84, method=4)
+        if rot == 0:
+            thumbnail(image).save(road_dir / "thumb.webp", quality=86, method=4)
+    existing = (PUBLIC / "js" / "sprites.js").read_text(encoding="utf-8")
+    metadata["road"] = json.loads(existing.split("const SPRITES = ", 1)[1].rstrip(";\n"))["road"]
+    write_metadata(metadata)
+    print("road: 4 straight previews and thumbnail; other variants retained")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("--contact-dir", type=Path)
     args = parser.parse_args()
+    if args.contact_dir:
+        args.contact_dir.mkdir(parents=True, exist_ok=True)
+    if args.source.is_file():
+        convert_cloud(args.source, args.contact_dir)
+        return
     dirs = {folder.name for folder in args.source.iterdir() if folder.is_dir()}
     expected = {*IDS, "road"}
     if dirs != expected:
         parser.error(f"missing folders: {sorted(expected - dirs)}; extra folders: {sorted(dirs - expected)}")
-    if args.contact_dir:
-        args.contact_dir.mkdir(parents=True, exist_ok=True)
     metadata, written = {}, set()
     for gid in [*IDS, "road"]:
         metadata[gid], files = convert(args.source, gid, args.contact_dir)
         written.update(files)
     for stale in set((PUBLIC / "img" / "bld").glob("*/*.webp")) - written:
         stale.unlink()
-    (PUBLIC / "js" / "sprites.js").write_text(
-        '"use strict";\n// Sinh bởi tools/build-sprites.py — kích thước và điểm neo (đơn vị: điểm ảnh game ở zoom 1).\n'
-        "const SPRITES = " + json.dumps(metadata, separators=(",", ":")) + ";\n", encoding="utf-8"
-    )
+    write_metadata(metadata)
     print(f"{len(written)} WebP files, {sum(path.stat().st_size for path in written):,} bytes")
 
 

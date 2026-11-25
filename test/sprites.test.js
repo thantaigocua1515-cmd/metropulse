@@ -67,6 +67,26 @@ test("building previews use level and automatic facing unless manually rotated",
   assert.equal(renderer.spritePreview(b, w), null);
 });
 
+test("building art is anchored to a single tile at any zoom", () => {
+  const calls = [], art = {};
+  const r = Object.assign(Object.create(IsoRenderer.prototype), {
+    project: (x,y) => ({x:x*10,y:y*10}),
+    camera: {zoom:1.8},
+    ctx: {drawImage: (...args) => calls.push(args)}
+  });
+  for (const [id, meta] of Object.entries(SPRITES)) {
+    if (id === "road") continue;
+    assert.ok(meta.ax > 0 && meta.ay > 0 && meta.w > meta.ax && meta.h > meta.ay, id);
+    assert.ok(meta.ax <= CONFIG.tileW/2 && meta.w-meta.ax <= CONFIG.tileW/2, id);
+    assert.ok(meta.h-meta.ay <= CONFIG.tileH/2+1, id);
+    assert.ok(meta.tops.flat().every(top => top <= meta.ay), id);
+    const box = r.drawSprite(art,meta,8,9);
+    assert.deepEqual(calls.pop(),[art,box.x,box.y,box.w,box.h],id);
+    assert.equal(box.x+meta.ax*r.camera.zoom,85,id);
+    assert.equal(box.y+meta.ay*r.camera.zoom,95,id);
+  }
+});
+
 test("road joins share curb and asphalt profiles and get one centered stripe", () => {
   const world = makeWorld([[8,8],[9,8],[8,9],[8,10],[6,6]].map(([x,y]) => makeBuilding("road",x,y)));
   const layers = [];
