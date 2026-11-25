@@ -5,9 +5,9 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 
 const root = path.join(__dirname, "../public");
-const { CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding } = vm.runInNewContext(
-  ["config", "sprites", "core", "renderer"].map(file => fs.readFileSync(path.join(root, "js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding })"
+const { CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose } = vm.runInNewContext(
+  ["config", "sprites", "core", "citylife", "renderer"].map(file => fs.readFileSync(path.join(root, "js", file + ".js"), "utf8")).join("\n") +
+  "\n({ CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose })"
 );
 const renderer = Object.create(IsoRenderer.prototype);
 
@@ -80,10 +80,10 @@ test("road joins share curb and asphalt profiles and get one centered stripe", (
   };
   const r = Object.assign(Object.create(IsoRenderer.prototype), {ctx,project:(x,y)=>({x,y})});
   r.roads(world);
-  const [curbs,asphalt,stripes] = layers;
+  const [sidewalks,curbs,asphalt,stripes] = layers;
   assert.equal(curbs.length,5);
   assert.equal(asphalt.length,5);
-  for (const [shapes,half] of [[curbs,.30],[asphalt,.255]]) {
+  for (const [shapes,half] of [[sidewalks,STREET.sidewalk],[curbs,.30],[asphalt,.255]]) {
     for(const [tile,x] of [[0,9.02],[1,8.98]]) {
       assert.deepEqual(shapes[tile].filter(([u])=>u===x).map(([,y])=>y).sort(),[8.5-half,8.5+half]);
     }
@@ -95,4 +95,67 @@ test("road joins share curb and asphalt profiles and get one centered stripe", (
     const [x,y]=points[0], [u,v]=points[2];
     return [(x+u)/2,(y+v)/2];
   }), [[9,8.5],[8.5,9],[8.5,10]]);
+});
+
+test("right-hand vehicle turns and dead-end reversals join the next lane without a jump", () => {
+  const tile={x:8,y:8},east={x:9,y:8};
+  const pose=(incoming,outgoing,t)=>streetPose(tile,incoming,outgoing,t);
+  assert.equal(pose(0,0,.5).y,8+STREET.lane);
+  assert.equal(pose(1,1,.5).y,8-STREET.lane);
+  assert.ok(pose(0,2,.5).dx>0&&pose(0,2,.5).dy>0);
+  const end=pose(2,0,1),start=streetPose(east,0,0,0);
+  assert.deepEqual([end.x,end.y],[start.x,start.y]);
+  const turn=pose(0,1,.5);
+  assert.ok(turn.x>7.5&&turn.x<8.3&&Math.abs(turn.y-8)<.001);
+  assert.ok(pose(0,1,.25).dx>0&&pose(0,1,.75).dx<0);
+  assert.equal(pose(0,1,1).y,8-STREET.lane);
+});
+
+test("sprite heading distinguishes rear art facing left and right on all four isometric headings", () => {
+  const directions=[[1,0],[-1,0],[0,1],[0,-1]];
+  for (const [rearRight, expected] of [[false,["front:false","rear:false","front:true","rear:true"]],
+   [true,["front:false","rear:true","front:true","rear:false"]]]) {
+    assert.deepEqual(directions.map(([dx,dy])=>{
+      const {side,mirror}=streetHeading(dx,dy,rearRight);
+      return side+":"+mirror;
+    }),expected);
+  }
+});
+
+test("walk routes connect homes to destinations and only cross a road arm at a junction", () => {
+  const buildings=[
+    ...[[6,8],[7,8],[8,8],[9,8],[8,7],[12,12]].map(([x,y])=>makeBuilding("road",x,y)),
+    makeBuilding("house_small",7,7),makeBuilding("mini_mart",9,9),makeBuilding("mini_mart",12,13)
+  ];
+  const net=streetNetwork(makeWorld(buildings,16));
+  const paths=net.homes.flatMap(home=>net.places.map(place=>walkRoute(home,place)).filter(Boolean));
+  assert.ok(paths.length>0);
+  assert.ok(paths.every(path=>Math.round(path.at(-1).x)===9));
+  for(const path of paths)for(let i=1;i<path.length;i++){
+    const [a,b]=[path[i-1],path[i]];
+    assert.ok(a.x===b.x||a.y===b.y);
+    if(Math.round(a.x)===Math.round(b.x)&&Math.round(a.y)===Math.round(b.y)&&a.x===b.x&&a.x>6.5&&a.x<8.5) {
+      assert.equal(Math.round(a.x),8);
+    }
+  }
+});
+
+test("traffic waits behind occupied junctions and dispatch crews follow their original path", () => {
+  const w=makeWorld([[7,8],[8,8],[9,8],[9,7],[10,8],[6,8]].map(([x,y])=>makeBuilding("road",x,y)),16);
+  const life=new CityLife({});
+  life.network=streetNetwork(w);
+  const a={car:true,tile:w.buildings[1],incoming:0,exit:0,part:.81,velocity:1,speed:1,...streetPose(w.buildings[1],0,0,.81)};
+  const blocker={car:true,tile:w.buildings[2],incoming:0,exit:3,part:.4,...streetPose(w.buildings[2],0,3,.4)};
+  life.agents=[a,blocker];
+  assert.equal(life.drive(a,w,.1,false,[]),true);
+  assert.equal(a.part,.82);
+  life.agents=[a];
+  for(let i=0;i<8;i++)life.drive(a,w,.1,false,[]);
+  assert.equal(a.tile.x,9);
+  assert.notEqual(a.exit,1);
+  const path=[w.buildings[1],w.buildings[2],w.buildings[3]];
+  const crew={path,segment:0,part:.5,level:4,phase:"out"};
+  const p=streetCrewPose(crew,w);
+  assert.deepEqual([p.x,p.y],[8.5,8+STREET.lane]);
+  assert.deepEqual(crew.path,path);
 });

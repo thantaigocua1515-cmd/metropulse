@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION="4.4.3",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
+const VERSION="4.4.4",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
 const root=new URL(self.registration.scope),shell=new URL("./",root).href;
 const build=url=>new URL(url,root).href;
 let cacheHandle;

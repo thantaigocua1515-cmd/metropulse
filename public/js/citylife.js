@@ -52,6 +52,83 @@ const WALK_ART={
  adult:["pedestrians-adults",4],old:["pedestrians-families",2],kid:["pedestrians-families",2],
  rain:["pedestrians-rain",4]
 };
+const STREET={curb:.30,sidewalk:.37,walk:.34,lane:.12};
+const TRAFFIC_REAR_RIGHT=new Set(["bike1","bike2","car1","car2","truck1","truck2"]);
+const streetDirection=(a,b)=>steps.findIndex(([dx,dy])=>dx===b.x-a.x&&dy===b.y-a.y);
+const streetHeading=(dx,dy,rearRight=false)=>{
+ const horizontal=Math.abs(dx)>=Math.abs(dy),rear=(horizontal?dx:dy)<0,right=horizontal?!rear:rear;
+ return {side:rear?"rear":"front",mirror:right!==(rear?rearRight:true)};
+};
+function streetPose(tile,incoming,outgoing,t,entryLane=STREET.lane,exitLane=entryLane){
+ const [ix,iy]=steps[incoming],[ox,oy]=steps[outgoing],s=1-t;
+ const ax=-ix*.5-iy*entryLane,ay=-iy*.5+ix*entryLane,bx=ox*.5-oy*exitLane,by=oy*.5+ox*exitLane;
+ let x,y,dx,dy;
+ if(incoming===outgoing){
+  x=ax+(bx-ax)*t;y=ay+(by-ay)*t;dx=ix;dy=iy;
+ }else if((incoming^1)===outgoing){
+  const cx=ax+ix*.82,cy=ay+iy*.82,ex=bx-ox*.82,ey=by-oy*.82;
+  x=s*s*s*ax+3*s*s*t*cx+3*s*t*t*ex+t*t*t*bx;y=s*s*s*ay+3*s*s*t*cy+3*s*t*t*ey+t*t*t*by;
+  dx=s*s*(cx-ax)+2*s*t*(ex-cx)+t*t*(bx-ex);dy=s*s*(cy-ay)+2*s*t*(ey-cy)+t*t*(by-ey);
+ }else{
+  const cx=ix?bx:ax,cy=iy?by:ay;
+  x=s*s*ax+2*s*t*cx+t*t*bx;y=s*s*ay+2*s*t*cy+t*t*by;
+  dx=s*(cx-ax)+t*(bx-cx);dy=s*(cy-ay)+t*(by-cy);
+ }
+ return {x:tile.x+x,y:tile.y+y,dx,dy};
+}
+function streetCrewPose(n,w){
+ const path=n.path,index=Math.min(n.segment,path.length-1),here=path[index],next=path[index+1],prev=path[index-1];
+ const direction=here&&next?streetDirection(here,next):prev?streetDirection(prev,here):0;
+ if(n.phase==="repair"||!next||direction<0){const [dx,dy]=steps[Math.max(0,direction)];return {x:n.x,y:n.y,dx,dy}}
+ const part=n.part??0,i=index+(part>=.5?1:0),tile=path[i],from=path[i-1],to=path[i+1];
+ const onRoad=p=>p&&lookup(w,p.x,p.y)?.id==="road",lane=n.level===1?.24:STREET.lane;
+ return streetPose(tile,from?streetDirection(from,tile):direction,to?streetDirection(tile,to):direction,
+  part+.5-(i-index),from&&(onRoad(tile)||onRoad(from))?lane:0,to&&(onRoad(tile)||onRoad(to))?lane:0);
+}
+
+function streetNetwork(w){
+ const roads=w.buildings.filter(b=>b.id==="road"),links=new Map(),nodes=new Map(),homes=[],places=[];
+ for(const r of roads){
+  const key=coord(r.x,r.y);
+  links.set(key,steps.map(([dx,dy])=>lookup(w,r.x+dx,r.y+dy)).map(b=>b?.id==="road"?b:null));
+  for(let i=0;i<4;i++)nodes.set(key*4+i,{x:r.x+(i&1?1:-1)*STREET.walk,y:r.y+(i&2?1:-1)*STREET.walk,edges:[]});
+ }
+ for(const r of roads){
+  const key=coord(r.x,r.y),sides=links.get(key),junction=sides.filter(Boolean).length>=3;
+  for(let i=0;i<4;i++){
+   const node=nodes.get(key*4+i);
+   for(const [bit,side,edge] of [[1,i&1?0:1,2],[2,i&2?2:3,1]]){
+    const next=sides[side];
+    if(next)node.edges.push(nodes.get(coord(next.x,next.y)*4+(i^bit)));
+    if(!next||junction)node.edges.push(nodes.get(key*4+(i^edge)));
+   }
+  }
+ }
+ for(const b of w.buildings){
+  if(b.left>0||b.id==="road")continue;
+  const access=steps.flatMap(([dx,dy])=>{
+   const r=lookup(w,b.x+dx,b.y+dy);
+   if(r?.id!=="road")return [];
+   const key=coord(r.x,r.y)*4,ids=dx>0?[0,2]:dx<0?[1,3]:dy>0?[0,1]:[2,3];
+   return ids.map(i=>nodes.get(key+i));
+  });
+  if(access.length)(CONFIG.buildings[b.id]?.group==="res"?homes:places).push(...access);
+ }
+ return {roads,links,homes,places};
+}
+
+function walkRoute(start,goal){
+ const seen=new Map([[start,null]]),queue=[start];
+ for(let i=0;i<queue.length;i++){
+  const node=queue[i];
+  if(node===goal){
+   const path=[];for(let at=node;at;at=seen.get(at))path.push(at);
+   return path.reverse();
+  }
+  for(const next of node.edges)if(!seen.has(next)){seen.set(next,node);queue.push(next)}
+ }
+ return null;
+}
 
 class CityLife {
  constructor(renderer){this.r=renderer;this.agents=[];this.world=null;this.clock=0;this.talkAt=2;this.city=null}
@@ -65,10 +142,32 @@ class CityLife {
   const s=this.r.sim,m=w===s.world?s.metrics:s.measure(w),own=s.world;
   this.city={happiness:m.happiness,pop:m.pop,nopower:m.ps<m.pd,nowater:m.ws<m.wd,weather:own.weather,night:Math.cos(own.timeOfDay*Math.PI*2)>.35};
  }
- spawn(a,roads,w){
-  let pool=roads;
-  if(!a.car){const homes=roads.filter(r=>steps.some(([dx,dy])=>CONFIG.buildings[lookup(w,r.x+dx,r.y+dy)?.id]?.group==="res"));if(homes.length)pool=homes}
-  const r=this.pick(pool);Object.assign(a,{fx:r.x,fy:r.y,tx:r.x,ty:r.y,px:-1,py:-1,dx:0,dy:0,ox:0,oy:0,part:1,x:r.x,y:r.y,age:0});
+ exits(tile){
+  return this.network.links.get(coord(tile.x,tile.y))?.flatMap((r,i)=>r?[i]:[])||[];
+ }
+ nextExit(tile,incoming){
+  const choices=this.exits(tile),forward=choices.filter(i=>i!==(incoming^1));
+  return this.pick(forward.length?forward:choices);
+ }
+ spawn(a,crews){
+  const {roads,homes,places}=this.network;
+  if(a.car){
+   const tile=this.pick(roads);
+   if(!tile||this.agents.some(o=>o.car&&distance(o,tile)<.9)||crews.some(o=>distance(o,tile)<.7))return false;
+   const approach=this.pick(this.exits(tile));
+   if(approach===undefined)return false;
+   const incoming=approach^1,exit=this.nextExit(tile,incoming);
+   Object.assign(a,{tile,incoming,exit,part:.18,velocity:0},streetPose(tile,incoming,exit,.18));
+  }else{
+   if(!homes.length||!places.length)return false;
+   const home=this.pick(homes),place=this.pick(places);
+   const [start,end]=Math.random()<.7?[home,place]:[place,home];
+   if(this.agents.some(o=>!o.car&&distance(o,start)<.28))return false;
+   const path=walkRoute(start,end);
+   if(!path||path.length<3)return false;
+   Object.assign(a,{path,segment:0,x:start.x,y:start.y,dx:path[1].x-start.x,dy:path[1].y-start.y});
+  }
+  return true;
  }
  create(car){
   const a={car,age:0,wait:0,face:0,say:null,chat:0};
@@ -76,11 +175,11 @@ class CityLife {
    const roll=Math.random();
    a.kind=roll<.3?"bike":roll<.72?"car":roll<.82?"taxi":roll<.92?"truck":"bus";
    a.color=a.kind==="taxi"?"#f5c542":a.kind==="bus"?this.pick(["#4f9bd9","#e8705f","#4fb38a"]):a.kind==="truck"?this.pick(["#5b8fe0","#e2884e","#7c8794"]):this.pick(LIFE.cars);
-   a.speed=(a.kind==="bike"?1.7:a.kind==="bus"||a.kind==="truck"?1.05:1.4)+Math.random()*.4;a.lane=a.kind==="bike"?.2+Math.random()*.06:.13;
+   a.speed=(a.kind==="bike"?1.42:a.kind==="bus"||a.kind==="truck"?.9:1.18)+Math.random()*.22;
   }else{
    a.name=this.pick(LIFE.names);a.kid=a.name.startsWith("Bé");a.old=/^(Bà|Ông|Bác)/.test(a.name);
    a.shirt=this.pick(LIFE.shirts);a.hair=a.old?this.pick(LIFE.hair.slice(3)):this.pick(LIFE.hair.slice(0,3));a.hat=!a.kid&&Math.random()<.22;
-   a.speed=(a.kid?.6:a.old?.32:.45)+Math.random()*.15;a.lane=(Math.random()<.5?-1:1)*(.41+Math.random()*.05);a.seed=Math.random()*9;a.next=1+Math.random()*8;
+   a.speed=(a.kid?.58:a.old?.32:.45)+Math.random()*.12;a.seed=Math.random()*9;a.next=1+Math.random()*8;
   }
   return a;
  }
@@ -98,37 +197,67 @@ class CityLife {
   return h>=118?"joy":h>=92?"happy":h>=70?"ok":h>=48?"sad":"angry";
  }
  speak(a,text,seconds=3.4,named=false){a.say={text:this.fill(text),until:this.clock+seconds,name:named?a.name:""};a.face=Math.max(a.face,seconds)}
+ drive(a,w,dt,jam,crews){
+  const {tile,incoming,exit,part}=a,[dx,dy]=steps[exit];
+  const next=lookup(w,tile.x+dx,tile.y+dy);
+  if(lookup(w,tile.x,tile.y)?.id!=="road"||next?.id!=="road")return false;
+  const crowded=this.exits(next).length!==2;
+  const ahead=this.agents.some(o=>o!==a&&o.car&&o.tile.x===next.x&&o.tile.y===next.y&&
+   (crowded||o.incoming!==o.exit||o.incoming===exit&&o.part<.44));
+  const crewAhead=crews.some(o=>distance(o,next)<.72&&distance(o,next)<distance(o,tile));
+  let velocity=Math.min(a.velocity+dt*2.8,a.speed*(jam?.24:incoming===exit?1:.8));
+  if((ahead||crewAhead)&&part>=.82)velocity=0;
+  let t=part+dt*velocity;
+  if(ahead||crewAhead)t=Math.min(t,Math.max(part,.82));
+  const into=t>=1,out=into?this.nextExit(next,exit):exit;
+  if(out===undefined)return false;
+  const pose=streetPose(into?next:tile,into?exit:incoming,out,into?t-1:t);
+  const close=(o,minimum)=>{
+   const before=Math.hypot(o.x-a.x,o.y-a.y),after=Math.hypot(o.x-pose.x,o.y-pose.y);
+   return after<minimum&&after<before;
+  };
+  if(crews.some(o=>close(o,.30))||this.agents.some(o=>o!==a&&close(o,o.car?(o.kind==="bus"||o.kind==="truck"?.245:.22):.15))){a.velocity=0;return true}
+  Object.assign(a,pose,{velocity,part:into?t-1:t,tile:into?next:tile,incoming:into?exit:incoming,exit:out});
+  return true;
+ }
+ walk(a,dt){
+  const to=a.path[a.segment+1];
+  if(!to)return false;
+  const dx=to.x-a.x,dy=to.y-a.y,length=Math.abs(dx)+Math.abs(dy),step=Math.min(length,dt*a.speed);
+  if(length<=1e-6){a.segment++;return true}
+  const x=a.x+dx/length*step,y=a.y+dy/length*step;
+  if(this.agents.some(o=>o!==a&&!o.car&&distance(o,{x,y})<.12&&dx*o.dx+dy*o.dy>0&&distance(o,{x,y})<distance(o,a)))return true;
+  Object.assign(a,{x,y,dx,dy});if(step===length)a.segment++;
+  return true;
+ }
  update(w,dt){
-  if(this.world!==w){this.world=w;this.agents=[];this.city=null;this.surveyAt=0}
+  if(this.world!==w){this.world=w;this.agents=[];this.city=null;this.network=null;this.surveyAt=0}
   this.clock+=dt;
-  if(!this.city||this.clock>=this.surveyAt){this.survey(w);this.surveyAt=this.clock+2}
-  const roads=w.buildings.filter(b=>b.id==="road"),list=this.agents,c=this.city;
+  if(!this.city||!this.network||this.clock>=this.surveyAt){
+   this.survey(w);this.surveyAt=this.clock+1;
+   const key=w.buildings.map(b=>coord(b.x,b.y)+":"+b.id+":"+(b.left>0?1:0)).join("|");
+   if(!this.network||key!==this.networkKey){
+    if(this.network)this.agents=this.agents.filter(a=>a.car);
+    this.network=streetNetwork(w);this.networkKey=key;
+   }
+  }
+  const {roads}=this.network,list=this.agents,c=this.city;
   if(roads.length<2){list.length=0;return}
+  const crews=w.npcs.filter(n=>n.phase!=="repair").map(n=>streetCrewPose(n,w));
   const quiet=(c.night?.55:1)*(c.weather==="storm"?.7:1);
-  const cars=Math.min(20,Math.round((roads.length/4+c.pop/160)*(c.night?.6:1))),people=Math.min(24,roads.length,Math.round((2+c.pop/22)*quiet));
+  const cars=Math.min(14,Math.ceil(roads.length/3),Math.round((roads.length/4+c.pop/180)*(c.night?.6:1))),people=Math.min(14,roads.length,Math.round((2+c.pop/30)*quiet));
   let nc=0,np=0;for(const a of list)a.car?nc++:np++;
-  if(nc<cars&&Math.random()<dt*2){const a=this.create(true);this.spawn(a,roads,w);list.push(a)}
-  if(np<people&&Math.random()<dt*2.5){const a=this.create(false);this.spawn(a,roads,w);list.push(a)}
+  if(nc<cars&&Math.random()<dt*2){const a=this.create(true);if(this.spawn(a,crews)){list.push(a);nc++}}
+  if(np<people&&Math.random()<dt*2.5){const a=this.create(false);if(this.spawn(a,crews)){list.push(a);np++}}
   for(let i=list.length-1;i>=0;i--){
    const a=list[i];a.age+=dt;a.face=Math.max(0,a.face-dt);
    if(a.say&&this.clock>a.say.until)a.say=null;
    if(a.chat>0){a.chat-=dt;continue}
-   const jam=w.crises.some(z=>z.id==="traffic_jam"&&Math.abs(z.x-a.x)+Math.abs(z.y-a.y)<1.6);
-   let speed=a.speed*(a.car&&jam?.18:1);
-   if(a.car&&list.some(o=>o!==a&&o.car&&o.fx===a.fx&&o.fy===a.fy&&o.tx===a.tx&&o.ty===a.ty&&o.part>a.part&&o.part-a.part<(o.kind==="bus"||o.kind==="truck"?.5:.36)))speed=0;
-   a.part+=dt*speed;
-   if(a.part>=1){
-    a.fx=a.tx;a.fy=a.ty;
-    const over=a.car?nc>cars:np>people;
-    if(lookup(w,a.fx,a.fy)?.id!=="road"||(over&&a.age>4)){list.splice(i,1);a.car?nc--:np--;continue}
-    const options=steps.map(([dx,dy])=>({x:a.fx+dx,y:a.fy+dy})).filter(q=>lookup(w,q.x,q.y)?.id==="road"),forward=options.filter(q=>q.x!==a.px||q.y!==a.py);
-    const next=this.pick(forward.length?forward:options);
-    a.px=a.fx;a.py=a.fy;a.ox=a.dx;a.oy=a.dy;
-    if(next){a.tx=next.x;a.ty=next.y;a.dx=next.x-a.fx;a.dy=next.y-a.fy;a.part=0}else a.part=1;
+   const jam=a.car&&w.crises.some(z=>z.id==="traffic_jam"&&distance(z,a)<1.6);
+   const over=a.car?nc>cars:np>people;
+   if(over&&a.age>6||(a.car?!this.drive(a,w,dt,jam,crews):!this.walk(a,dt))){
+    list.splice(i,1);a.car?nc--:np--;continue;
    }
-   // Đổi làn mượt ở góc cua: trượt dần từ hướng cũ sang hướng mới.
-   const t=clamp(a.part/.35,0,1),bx=(a.ox||a.dx)*(1-t)+a.dx*t,by=(a.oy||a.dy)*(1-t)+a.dy*t;
-   a.x=a.fx+a.dx*a.part-by*a.lane;a.y=a.fy+a.dy*a.part+bx*a.lane;
    if(a.car){if(jam&&!a.say&&Math.random()<dt*.12)this.speak(a,this.pick(LIFE.lines.horn),1.3);continue}
    a.next-=dt;
    if(a.next<=0){a.state=this.mood(a,w);a.face=2.6;a.next=5+Math.random()*9}
@@ -138,7 +267,7 @@ class CityLife {
    this.talkAt=2.6+Math.random()*3;
    const folk=list.filter(a=>!a.car&&!a.say&&a.chat<=0&&a.age>1.5&&this.visible(a));
    if(list.filter(a=>a.say).length<3&&folk.length){
-    const a=this.pick(folk),b=folk.find(o=>o!==a&&Math.abs(o.x-a.x)+Math.abs(o.y-a.y)<.75);
+    const a=this.pick(folk),b=folk.find(o=>o!==a&&distance(o,a)<.23);
     a.state=this.mood(a,w);
     if(b&&LIFE.chats[c.happiness>=70?"good":"bad"]&&!w.crises.some(z=>distance(z,{x:Math.round(a.x),y:Math.round(a.y)})<=2)){
      const [first,second]=this.pick(LIFE.chats[c.happiness>=70?"good":"bad"]);
@@ -159,11 +288,14 @@ class CityLife {
  vehicle(a,p,z,night){
   const r=this.r,k=a.kind;
   const variants=TRAFFIC_ART[k],[group,key]=variants[parseInt(a.color.slice(1),16)%variants.length];
-  const side=a.dx<0||a.dy<0?"rear":"front",mirror=!!a.dy,wide=k==="bike"?10:k==="bus"||k==="truck"?24:17;
-  const opts={ground:true,mirror};
-  const painted=GameArt.draw(r.ctx,group,key+"-"+side,p.x,p.y+3*z,wide*z,13*z,opts)||
-   k==="car"&&group==="traffic-light"&&GameArt.draw(r.ctx,"traffic-cars","car3-"+side,p.x,p.y+3*z,wide*z,13*z,opts);
-  const box=(len,wid,off,base,h,color)=>{const cx=a.x+.5+a.dx*off,cy=a.y+.5+a.dy*off,w=a.dy?wid:len,d=a.dy?len:wid;r.block(cx-w/2,cy-d/2,w,d,base,h,color)};
+  const wide=k==="bike"?9:k==="bus"||k==="truck"?20:15;
+  const paint=(atlas,frame)=>{
+   const {side,mirror}=streetHeading(a.dx,a.dy,TRAFFIC_REAR_RIGHT.has(frame));
+   return GameArt.draw(r.ctx,atlas,frame+"-"+side,p.x,p.y+2*z,wide*z,11*z,{ground:true,mirror});
+  };
+  const painted=paint(group,key)||k==="car"&&group==="traffic-light"&&paint("traffic-cars","car3");
+  const horizontal=Math.abs(a.dx)>=Math.abs(a.dy),dx=horizontal?Math.sign(a.dx):0,dy=horizontal?0:Math.sign(a.dy);
+  const box=(len,wid,off,base,h,color)=>{const cx=a.x+.5+dx*off,cy=a.y+.5+dy*off,w=dy?wid:len,d=dy?len:wid;r.block(cx-w/2,cy-d/2,w,d,base,h,color)};
   if(!painted&&k==="bike"){
    r.ellipse(p.x,p.y+1*z,3.4*z,1.5*z,"#1e352c66");box(.14,.05,0,.6,1.6,a.color);
    r.ellipse(p.x,p.y-4.6*z,1.7*z,2.3*z,"#4a5563");r.ellipse(p.x,p.y-7.4*z,1.5*z,1.5*z,a.color);
@@ -175,21 +307,21 @@ class CityLife {
   }else if(!painted){
    r.ellipse(p.x,p.y+1.6*z,8*z,3*z,"#1e352c77");
    const cab=()=>{box(.1,.15,.14,1,4.2,a.color);box(.05,.13,.15,3.4,1.5,"#cfe3ea")},cargo=()=>box(.26,.16,-.05,1,5.6,"#eef0ea");
-   if(a.dx+a.dy>0){cargo();cab()}else{cab();cargo()}
+   if(dx+dy>0){cargo();cab()}else{cab();cargo()}
   }
   if(night>.22&&!r.sim.social.world.crises.some(c=>c.id==="blackout"&&Math.abs(c.x-a.x)+Math.abs(c.y-a.y)<=1)){
    const far=k==="bike"?.14:k==="car"||k==="taxi"?.21:.28;
-   const q=r.project(a.x+.5+a.dx*far,a.y+.5+a.dy*far,2.6);
+   const q=r.project(a.x+.5+dx*far,a.y+.5+dy*far,2.6);
    r.effects.glow(q.x,q.y,7*z,4*z);
-   for(const side of k==="bike"?[0]:[-1,1])r.ellipse(q.x+side*(a.dx+a.dy)*2.2*z,q.y+side*(a.dy-a.dx)*1.1*z,1.2*z,.85*z,"#fff5c4");
+   for(const side of k==="bike"?[0]:[-1,1])r.ellipse(q.x+side*(dx+dy)*2.2*z,q.y+side*(dy-dx)*1.1*z,1.2*z,.85*z,"#fff5c4");
   }
  }
  person(a,p,z){
-  const r=this.r,s=z*(a.kid?.72:1),still=a.chat>0,t=r.elapsed*(a.kid?12:9)+a.seed,swing=still?0:Math.sin(t)*1.5*s,bob=still?0:Math.abs(Math.sin(t))*.5*s;
+  const r=this.r,s=z*(a.kid?.72:1),still=a.chat>0||r.sim.reduceEffects,t=r.elapsed*(a.kid?12:9)+a.seed,swing=still?0:Math.sin(t)*1.5*s,bob=still?0:Math.abs(Math.sin(t))*.5*s;
   const rain=this.city?.weather==="storm",kind=rain?"rain":a.kid?"kid":a.old?"old":"adult",[group,count]=WALK_ART[kind];
   const variant=kind==="rain"?a.kid?4:a.old?3:1+Math.floor(a.seed)%2:1+Math.floor(a.seed)%count;
-  const side=a.dx<0||a.dy<0?"rear":"front";
-  if(GameArt.draw(r.ctx,group,kind+variant+"-"+side,p.x,p.y+.8*s-bob,(rain?12:9)*s,(rain?17:14)*s,{ground:true,mirror:!!a.dy}))return;
+  const {side,mirror}=streetHeading(a.dx,a.dy);
+  if(GameArt.draw(r.ctx,group,kind+variant+"-"+side,p.x,p.y+.8*s-bob,(rain?12:9)*s,(rain?17:14)*s,{ground:true,mirror}))return;
   r.ellipse(p.x,p.y+.8*s,2.8*s,1.2*s,"#1e352c66");
   r.line([{x:p.x-.9*s,y:p.y-2.6*s},{x:p.x-.9*s+swing,y:p.y+.4*s}],"#39475a",1.25*s);r.line([{x:p.x+.9*s,y:p.y-2.6*s},{x:p.x+.9*s-swing,y:p.y+.4*s}],"#39475a",1.25*s);
   r.ellipse(p.x,p.y-4.7*s-bob,2.1*s,2.9*s,a.shirt);

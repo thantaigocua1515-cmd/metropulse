@@ -3,7 +3,7 @@ const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",p
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
 const ROAD_DIRECTIONS=[[1,0],[0,-1],[-1,0],[0,1]];
-const ROAD_PROFILES=[[.30,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
+const ROAD_PROFILES=[[STREET.sidewalk,.10,"#c9c5ae"],[STREET.curb,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
  color,round,outlines:Array.from({length:16},(_,mask)=>ROAD_DIRECTIONS.flatMap(([dx,dy],i)=>{
   const point=(along,across,corner=false)=>[dx*along+dy*across,dy*along-dx*across,corner];
   const corner=point(half,half,true);
@@ -473,22 +473,22 @@ class IsoRenderer {
  }
  markerRadius(){return Math.max(this.width<=780?16:13,13*this.camera.zoom)}
  // Cư dân và xe cộ đi lại trên đường (chỉ để trang trí).
- npc(n){
-  const t=this.elapsed,z=this.camera.zoom,p=this.project(n.x+.51,n.y+.51),d=CONFIG.npcs[n.type],color=d.color;
-  const a=n.path[Math.min(n.segment,n.path.length-2)],b=n.path[Math.min(n.segment+1,n.path.length-1)];
-  const dx=(b?.x??0)-(a?.x??0),dy=(b?.y??0)-(a?.y??0),side=dx<0||dy<0?"rear":"front";
-  const mode=n.phase==="repair"?"repair":CREW_TRANSPORT[n.level-1],wide=mode==="repair"?16:9+3*n.level;
-  const painted=GameArt.draw(this.ctx,"crew-"+CREW_ART[n.type],mode+"-"+side,p.x,p.y+3*z,wide*z,16*z,{ground:true,mirror:!!dy});
+ npc(n,pose=streetCrewPose(n,this.sim.social.world)){
+  const {x,y,dx,dy}=pose,t=this.elapsed,z=this.camera.zoom,p=this.project(x+.5,y+.5),d=CONFIG.npcs[n.type],color=d.color;
+  const {side,mirror}=streetHeading(dx,dy);
+  const mode=n.phase==="repair"?"repair":CREW_TRANSPORT[n.level-1],wide=mode==="repair"?16:8+2.2*n.level;
+  const painted=GameArt.draw(this.ctx,"crew-"+CREW_ART[n.type],mode+"-"+side,p.x,p.y+2*z,wide*z,16*z,{ground:true,mirror});
   if(!painted){
   this.ellipse(p.x,p.y+1.7*z,(n.level+2)*z,2.6*z,"#1e352c99");
   if(n.level===1){
-   const bob=n.phase==="repair"?0:Math.sin(t*15)*1.35*z;
+   const bob=n.phase==="repair"||this.sim.reduceEffects?0:Math.sin(t*15)*1.35*z;
    this.line([{x:p.x-1*z,y:p.y-4*z},{x:p.x-2*z,y:p.y+bob}],"#283e38",1.3*z);this.line([{x:p.x+1*z,y:p.y-4*z},{x:p.x+2*z,y:p.y-bob}],"#283e38",1.3*z);
    this.ellipse(p.x,p.y-5*z,3.2*z,4*z,color);this.ellipse(p.x,p.y-9*z,2.8*z,2.7*z,"#f5e6bf");
   }else{
    const h=n.level<=3?5:8+1.5*(n.level-4),width=n.level<=3?5:7+(n.level-4)*2;
    for(const side of [-1,1])this.ellipse(p.x+side*width*.74*z,p.y+1.4*z,2.3*z,2.2*z,"#253332");
-   this.block(n.x+.36,n.y+.39,n.level<=3?.29:.39,.24,1,h,color);
+   const length=n.level<=3?.29:.39,horizontal=Math.abs(dx)>=Math.abs(dy),w=horizontal?length:.18,d=horizontal?.18:length;
+   this.block(x+.5-w/2,y+.5-d/2,w,d,1,h,color);
    if(n.level===2)this.ellipse(p.x,p.y-6*z,2.4*z,2.5*z,"#e8e1b6");
    if(n.level===3)this.ellipse(p.x+2*z,p.y-6*z,2.5*z,2.5*z,"#c5e0d3");
    if(n.level>=4){this.ellipse(p.x-1*z,p.y-(h+1)*z,2.7*z,1.5*z,"#d9ecd6");if(n.phase!=="return")this.ellipse(p.x+2*z,p.y-(h+2)*z,2*z,1.4*z,Math.floor(t*9)%2?"#ff907e":"#a6c6ff")}
@@ -571,7 +571,10 @@ class IsoRenderer {
   }
   this.life.update(w,dt);
   for(const a of this.life.agents)jobs.push({x:a.x+.05,y:a.y+.05,draw:()=>this.life.draw(a,night)});
-  for(const n of w.npcs)jobs.push({x:n.x+.1,y:n.y+.1,draw:()=>this.npc(n)});
+  for(const n of w.npcs){
+   const pose=streetCrewPose(n,w);
+   jobs.push({x:pose.x+.1,y:pose.y+.1,draw:()=>this.npc(n,pose)});
+  }
   jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);for(const job of jobs)job.draw();
   if(night>.01){g.fillStyle="rgba(27,50,110,"+night*.37+")";g.fillRect(0,0,this.width,this.height)}
   if(own.weather==="heat"){g.fillStyle="#eb9e4820";g.fillRect(0,0,this.width,this.height)}

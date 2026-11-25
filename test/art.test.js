@@ -50,7 +50,7 @@ test("atlas renderer stays lazy, keeps the fallback while loading, and anchors m
 test("ground layer refreshes for camera, tile occupancy and late-loading art", () => {
   let terrainReady = false;
   const groundContext = {setTransform() {}};
-  const Renderer = vm.runInNewContext(read("js/renderer.js") + "\nIsoRenderer", {
+  const Renderer = vm.runInNewContext(read("js/citylife.js") + "\n" + read("js/renderer.js") + "\nIsoRenderer", {
     GameArt: {ready: name => terrainReady && name === "terrain-grass"},
     document: {createElement: () => ({getContext: () => groundContext})}
   });
