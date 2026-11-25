@@ -105,6 +105,76 @@ test("quest tracker expands, prioritizes claimable quests, and hides during visi
   assert.equal(tracker.hidden, false);
 });
 
+test("an incomplete construction objective opens and highlights its blueprint without selecting, buying, or claiming it", () => {
+  const Ui = loadUI({});
+  const ui = Object.create(Ui.prototype);
+  const scrolls = [], toasts = [];
+  const quest = { id:"shop", name:"Mở tiệm", desc:"Xây một Tiệm Tạp hóa.", guide:{build:"mini_mart"} };
+  const state = { cur:0, goal:1, done:false, claimed:false };
+  const profile = {level:1,coins:80};
+  ui.sim = {profile, social:{current:null}, prog:{chapter:() => ({quests:[quest]}),questState:() => state}};
+  ui.canvas = {classList:{toggle(){}}};
+  ui.nodes = {toast:{hidden:false},catalog:{querySelector(selector){
+    assert.equal(selector,'.blueprint[data-id="mini_mart"]');
+    assert.equal(ui.buildGuide,"mini_mart");
+    return {scrollIntoView(options){scrolls.push(options.inline);},focus(){}};
+  }}};
+  ui.close = () => {};
+  ui.toast = text => {if(text)toasts.push(text);};
+  ui.refresh = () => {};
+  assert.match(ui.objectiveText(quest,state),/data-act="mission-guide" data-id="shop".*Xây một Tiệm Tạp hóa/);
+  ui.action({dataset:{act:"mission-guide",id:"shop"}});
+  assert.equal(ui.category,"com");
+  assert.equal(ui.catalogOpen,true);
+  assert.equal(ui.tool,"look");
+  assert.equal(ui.selection,null);
+  assert.equal(ui.nodes.toast.hidden,true);
+  assert.deepEqual(scrolls,["center"]);
+  assert.match(toasts.at(-1),/Mở khóa ở cấp 2/);
+
+  profile.level = 2;
+  ui.action({dataset:{act:"select", id:"mini_mart"}});
+  assert.match(toasts.at(-1),/Thiếu 800 Vàng/);
+  assert.equal(ui.catalogOpen,true);
+  assert.equal(ui.selection,null);
+  profile.coins = 880;
+  ui.action({dataset:{act:"select", id:"mini_mart"}});
+  assert.equal(ui.catalogOpen,false);
+  assert.equal(ui.buildGuide,null);
+  assert.equal(ui.selection,"mini_mart");
+  assert.equal(profile.coins,880);
+
+  state.done = true;
+  assert.doesNotMatch(ui.objectiveText(quest,state),/data-act="mission-guide"/);
+  ui.action({dataset:{act:"mission-guide",id:"shop"}});
+  assert.equal(ui.catalogOpen,false);
+});
+
+test("upgrade guidance focuses the best available building and falls back to the blueprint when none exists", () => {
+  const ui = Object.create(UIController.prototype);
+  const buildings = [{id:"road",level:1}, {id:"house_small",level:2}, {id:"mini_mart",level:3}, {id:"apartment",level:4,left:10}];
+  ui.sim = {
+    world:{buildings}, profile:{coins:50},
+    upgradeBlock:b => b.left?"Hãy chờ xây xong.":b.level===3?"Cần Thị trưởng cấp 5.":"",
+    upgradeCost:() => 120
+  };
+  ui.canvas = {classList:{toggle(){}}};
+  ui.close = ui.refresh = () => {};
+  ui.closeUp = b => assert.equal(b,buildings[1]);
+  ui.toast = text => assert.equal(text,"Thiếu 70 Vàng để nâng cấp.");
+  ui.guideUpgrade();
+  assert.equal(ui.inspect,buildings[1]);
+  assert.equal(ui.upgradeGuide,buildings[1]);
+  assert.equal(ui.catalogOpen,false);
+  ui.setTool("look");
+  assert.equal(ui.upgradeGuide,null);
+  buildings.splice(1);
+  let fallback;
+  ui.guideBlueprint = id => {fallback=id;};
+  ui.guideUpgrade();
+  assert.equal(fallback,"house_small");
+});
+
 test("cloud status has distinct connected and disconnected icons and accessible labels", () => {
   const ui = Object.create(UIController.prototype);
   const button = { dataset: {}, setAttribute(name, value) { this[name] = value; } };

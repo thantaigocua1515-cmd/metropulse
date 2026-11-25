@@ -66,7 +66,7 @@ const UIDialogs = {
     const done=current.quests.filter(q=>s.progress.story.claimed.includes(q.id)).length;
     body+='<div class="chapter"><div><div class="eyebrow">'+current.subtitle+'</div><h3>'+current.title+'</h3><small>Thưởng hoàn thành chương: '+this.reward(current.reward)+'</small></div>'+this.btn("replay","Xem lại lời dẫn",{id:current.id,cls:"ghost"})+'</div>'+this.bar(done/current.quests.length)+
      this.orderedProgress(current.quests,q=>prog.questState(q)).map(({item:q,st})=>{
-      return '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+q.name+'</b><small>'+q.desc+'</small>'+this.bar(st.cur/st.goal,st.done?"":"blue")+'<small>'+fmt(st.cur)+' / '+fmt(st.goal)+' · '+this.reward(q)+'</small></div>'+
+      return '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow">'+this.objectiveText(q,st)+this.bar(st.cur/st.goal,st.done?"":"blue")+'<small>'+fmt(st.cur)+' / '+fmt(st.goal)+' · '+this.reward(q)+'</small></div>'+
        this.btn("claim",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Đang làm",{id:q.id,cls:st.done&&!st.claimed?"primary":"",disabled:!st.done||st.claimed})+'</div>';
      }).join("");
    }else body+='<div class="chapter"><div><div class="eyebrow">Hậu truyện</div><h3>Bình Minh — đô thị kiểu mẫu</h3><small>Bạn đã hoàn thành cả 6 chương. Thành tựu, nhiệm vụ ngày và bảng xếp hạng vẫn đang chờ.</small></div></div>'+

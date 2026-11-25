@@ -10,7 +10,7 @@ const CONTENT = (() => {
   quan:{name:"Ông Quân",role:"Chủ tịch Tập đoàn Kim Long",avatar:31},
   lam:{name:"Tiến sĩ Lam",role:"Viện trưởng Viện Quy hoạch",avatar:13}
  };
- const q=(id,name,desc,[coins,xp,prestige,know],prog)=>({id,name,desc,coins,xp,prestige,know,prog});
+ const q=(id,name,desc,[coins,xp,prestige,know],prog,guide)=>({id,name,desc,coins,xp,prestige,know,prog,guide});
  const has=(s,id,n=1)=>[Math.min(n,s.count(id)),n];
  const sum=(...pairs)=>[pairs.reduce((a,p)=>a+p[0],0),pairs.reduce((a,p)=>a+p[1],0)];
  const chapters = [
@@ -20,9 +20,9 @@ const CONTENT = (() => {
     ["quan","Xin lỗi vì chen ngang. Tôi là Quân, Tập đoàn Kim Long. Nếu sau sáu kỳ đánh giá thị trấn này vẫn èo uột, tỉnh sẽ giao đất cho chúng tôi."],
     ["mai","…Ông ta nói thật đấy ạ. Mình bắt đầu thôi: thêm nhà cho dân về ở, rồi nối đường cho thông suốt!"]],
    quests:[
-    q("c1_home","Mái ấm đầu tiên","Có 3 Nhà cấp 4 đang hoạt động.",[150,60,1,0],s=>has(s,"house_small",3)),
-    q("c1_road","Mạng lưới đầu tiên","Nối liền ít nhất 14 ô Đường nhựa.",[180,70,1,0],s=>[Math.min(14,s.roadChain()),14]),
-    q("c1_shop","Tiệm tạp hóa đầu ngõ","Lên cấp 2 và xây một Tiệm Tạp hóa.",[220,80,1,5],s=>has(s,"mini_mart")),
+    q("c1_home","Mái ấm đầu tiên","Có 3 Nhà cấp 4 đang hoạt động.",[150,60,1,0],s=>has(s,"house_small",3),{build:"house_small"}),
+    q("c1_road","Mạng lưới đầu tiên","Nối liền ít nhất 14 ô Đường nhựa.",[180,70,1,0],s=>[Math.min(14,s.roadChain()),14],{build:"road"}),
+    q("c1_shop","Tiệm tạp hóa đầu ngõ","Lên cấp 2 và xây một Tiệm Tạp hóa.",[220,80,1,5],s=>has(s,"mini_mart"),{build:"mini_mart"}),
     q("c1_fix","Phản ứng đầu tiên","Điều phối đội xử lý thành công 1 sự cố.",[250,90,2,5],s=>[Math.min(1,s.stats.crisesSolved),1]),
     q("c1_tax","Túi thuế đầu tay","Thu 3 túi thuế nổi trên các công trình.",[200,60,1,5],s=>[Math.min(3,s.stats.bubbles),3])],
    outro:[["hanh","Thị trưởng ơi, bà con trong tổ nhờ tôi cảm ơn. Lâu lắm rồi đèn đường mới sáng lại."],
@@ -33,9 +33,9 @@ const CONTENT = (() => {
     ["bach","Tôi là Bách, kỹ sư trưởng. Dân đông thì cháy nổ, vỡ ống là chuyện sớm muộn. Xây trạm cứu hỏa trước khi quá muộn."],
     ["mai","Và đừng quên nâng cấp công trình: mỗi cấp tăng 35% hiệu suất đó ạ!"]],
    quests:[
-    q("c2_apart","An cư lạc nghiệp","Xây một Chung cư mini.",[400,110,1,5],s=>has(s,"apartment")),
-    q("c2_fire","Lá chắn lửa","Xây Trạm Cứu hỏa.",[450,120,2,5],s=>has(s,"fire_station")),
-    q("c2_up","Sửa sang nhà cửa","Nâng cấp công trình 5 lần.",[500,130,2,10],s=>[Math.min(5,s.stats.upgrades),5]),
+    q("c2_apart","An cư lạc nghiệp","Xây một Chung cư mini.",[400,110,1,5],s=>has(s,"apartment"),{build:"apartment"}),
+    q("c2_fire","Lá chắn lửa","Xây Trạm Cứu hỏa.",[450,120,2,5],s=>has(s,"fire_station"),{build:"fire_station"}),
+    q("c2_up","Sửa sang nhà cửa","Nâng cấp công trình 5 lần.",[500,130,2,10],s=>[Math.min(5,s.stats.upgrades),5],{upgrade:true}),
     q("c2_income","Thành phố làm ăn","Đạt 60 Vàng/giây.",[600,150,2,10],s=>[Math.min(60,Math.floor(s.stats.peakIncome)),60]),
     q("c2_solve","Đội phản ứng tin cậy","Xử lý tổng cộng 5 sự cố.",[550,150,2,10],s=>[Math.min(5,s.stats.crisesSolved),5])],
    outro:[["vy","Vy đây, Bản tin Đô thị! Bài «Thị trấn ngủ quên đã thức giấc» đang đứng đầu lượt đọc tuần này."],
@@ -46,12 +46,12 @@ const CONTENT = (() => {
     ["mai","Mình mở Chợ Đêm đi ạ! Nhưng đông vui thì kẹt xe, nên cần Đồn Công an và cả trường học cho bọn trẻ."],
     ["lam","Tôi là Lam ở Viện Quy hoạch. Có trường học, thành phố sẽ sinh Tri thức. Mang Tri thức đến viện, tôi đổi cho anh/chị công nghệ."]],
    quests:[
-    q("c3_market","Phố lên đèn","Xây Chợ Đêm.",[700,160,2,10],s=>has(s,"night_market")),
-    q("c3_school","Ươm mầm tri thức","Xây Trường Tiểu học.",[650,160,2,15],s=>has(s,"school")),
-    q("c3_research","Phát minh đầu tiên","Nghiên cứu 1 công nghệ tại Viện Quy hoạch.",[700,170,2,10],s=>[Math.min(1,s.stats.research),1]),
-    q("c3_policy","Một quyết định lớn","Ban hành một Sắc lệnh Thị trưởng.",[800,180,3,10],s=>[Math.min(1,s.stats.policies),1]),
-    q("c3_park","Khoảng trời xanh","Xây Công viên Xanh và đạt 112% Hạnh phúc.",[900,200,3,15],s=>sum(has(s,"park"),[s.metrics.happiness>=112?1:0,1])),
-    q("c3_crew","Đội ngũ chuyên nghiệp","Nâng phương tiện một đội NPC lên cấp 2.",[700,170,2,10],s=>[Math.min(2,s.stats.npcLevel),2])],
+    q("c3_market","Phố lên đèn","Xây Chợ Đêm.",[700,160,2,10],s=>has(s,"night_market"),{build:"night_market"}),
+    q("c3_school","Ươm mầm tri thức","Xây Trường Tiểu học.",[650,160,2,15],s=>has(s,"school"),{build:"school"}),
+    q("c3_research","Phát minh đầu tiên","Nghiên cứu 1 công nghệ tại Viện Quy hoạch.",[700,170,2,10],s=>[Math.min(1,s.stats.research),1],{panel:"research"}),
+    q("c3_policy","Một quyết định lớn","Ban hành một Sắc lệnh Thị trưởng.",[800,180,3,10],s=>[Math.min(1,s.stats.policies),1],{panel:"policies"}),
+    q("c3_park","Khoảng trời xanh","Xây Công viên Xanh và đạt 112% Hạnh phúc.",[900,200,3,15],s=>sum(has(s,"park"),[s.metrics.happiness>=112?1:0,1]),{build:"park",ifMissing:true}),
+    q("c3_crew","Đội ngũ chuyên nghiệp","Nâng phương tiện một đội NPC lên cấp 2.",[700,170,2,10],s=>[Math.min(2,s.stats.npcLevel),2],{panel:"teams"})],
    outro:[["hanh","Tối qua cả tổ tôi ra chợ đêm. Vui thì vui thật, mà rác nhiều quá Thị trưởng ơi…"],
     ["bach","Đài báo có áp thấp ngoài khơi. Tôi không thích cái kiểu trời đứng gió thế này chút nào."]],
    reward:{coins:3000,prestige:8,know:50}},
@@ -60,8 +60,8 @@ const CONTENT = (() => {
     ["quan","Thị trưởng à, tôi có sẵn hợp đồng mua lại hạ tầng đây. Ký đi, đỡ phải thức trắng vì sự cố."],
     ["mai","Mình không ký đâu ạ! Giữ chuỗi phản ứng nhanh, đừng để sự cố nào quá hạn. Cả thành phố đang nhìn vào mình."]],
    quests:[
-    q("c4_hospital","Tuyến đầu","Xây Bệnh viện Đa khoa.",[1200,220,3,15],s=>has(s,"hospital")),
-    q("c4_waste","Thành phố sạch","Xây Trạm Xử lý Rác.",[1100,220,3,15],s=>has(s,"waste_plant")),
+    q("c4_hospital","Tuyến đầu","Xây Bệnh viện Đa khoa.",[1200,220,3,15],s=>has(s,"hospital"),{build:"hospital"}),
+    q("c4_waste","Thành phố sạch","Xây Trạm Xử lý Rác.",[1100,220,3,15],s=>has(s,"waste_plant"),{build:"waste_plant"}),
     q("c4_combo","Không bỏ sót","Đạt chuỗi 5 sự cố xử lý kịp thời liên tiếp.",[1500,260,4,20],s=>[Math.min(5,s.stats.bestCombo),5]),
     q("c4_solve","Vững vàng trong bão","Xử lý tổng cộng 20 sự cố.",[1600,280,4,20],s=>[Math.min(20,s.stats.crisesSolved),20]),
     q("c4_spec","Bản sắc riêng","Chọn chuyên môn hóa cho một công trình cấp 5.",[1400,240,3,20],s=>[Math.min(1,s.stats.specs),1]),
@@ -74,11 +74,11 @@ const CONTENT = (() => {
     ["mai","Có tin đồn máy chủ Kim Long đang «thăm dò» hệ thống của mình. Em đề nghị xây Trung tâm An ninh Mạng trước khi dựng tháp công nghệ."],
     ["bach","Và nhớ tiến hóa công trình lên bậc II, bậc III. Nhà cấp 4 thì không gánh nổi một siêu đô thị đâu."]],
    quests:[
-    q("c5_office","Vươn lên bầu trời","Xây Khu Văn phòng.",[2000,300,3,20],s=>has(s,"office_tower")),
-    q("c5_solar","Năng lượng sạch","Xây Nhà máy Điện Mặt trời.",[2200,300,3,20],s=>has(s,"solar_plant")),
-    q("c5_cyber","Tường lửa thành phố","Xây Trung tâm An ninh Mạng.",[3000,340,4,30],s=>has(s,"cyber_hub")),
-    q("c5_tier","Tiến hóa đô thị","Đưa một công trình lên cấp 7 (bậc III).",[3500,360,5,30],s=>[Math.min(7,s.stats.maxBuildingLevel),7]),
-    q("c5_tech","Viện Quy hoạch tin cậy","Đạt tổng 8 cấp nghiên cứu.",[3000,340,4,0],s=>[Math.min(8,s.stats.research),8]),
+    q("c5_office","Vươn lên bầu trời","Xây Khu Văn phòng.",[2000,300,3,20],s=>has(s,"office_tower"),{build:"office_tower"}),
+    q("c5_solar","Năng lượng sạch","Xây Nhà máy Điện Mặt trời.",[2200,300,3,20],s=>has(s,"solar_plant"),{build:"solar_plant"}),
+    q("c5_cyber","Tường lửa thành phố","Xây Trung tâm An ninh Mạng.",[3000,340,4,30],s=>has(s,"cyber_hub"),{build:"cyber_hub"}),
+    q("c5_tier","Tiến hóa đô thị","Đưa một công trình lên cấp 7 (bậc III).",[3500,360,5,30],s=>[Math.min(7,s.stats.maxBuildingLevel),7],{upgrade:true}),
+    q("c5_tech","Viện Quy hoạch tin cậy","Đạt tổng 8 cấp nghiên cứu.",[3000,340,4,0],s=>[Math.min(8,s.stats.research),8],{panel:"research"}),
     q("c5_income","Cỗ máy kinh tế","Đạt 600 Vàng/giây.",[4000,400,5,30],s=>[Math.min(600,Math.floor(s.stats.peakIncome)),600])],
    outro:[["lam","Dữ liệu cho thấy Bình Minh là đô thị phát triển nhanh nhất vùng. Tôi tự hào được làm việc ở đây."],
     ["quan","Tôi thừa nhận mình đã đánh giá thấp anh/chị. Kim Long muốn… hợp tác. Xây cùng nhau một thứ để đời, được chứ?"]],
@@ -88,12 +88,12 @@ const CONTENT = (() => {
     ["hanh","Bà con bảo nhau: thành phố lớn mấy cũng phải giữ cái tình. Thị trưởng nhớ sang giúp các thành phố bạn nhé."],
     ["quan","Kim Long góp vốn dựng Kỳ quan. Lần này tôi đứng cùng phía với anh/chị."]],
    quests:[
-    q("c6_port","Vươn ra biển lớn","Xây Cảng Giao thương.",[14000,450,5,40],s=>has(s,"trade_port")),
-    q("c6_help","Hàng xóm nghĩa tình","Hoàn thành 10 lượt chi viện thành phố bạn.",[8000,420,6,40],s=>[Math.min(10,s.profile.helpsGiven),10]),
+    q("c6_port","Vươn ra biển lớn","Xây Cảng Giao thương.",[14000,450,5,40],s=>has(s,"trade_port"),{build:"trade_port"}),
+    q("c6_help","Hàng xóm nghĩa tình","Hoàn thành 10 lượt chi viện thành phố bạn.",[8000,420,6,40],s=>[Math.min(10,s.profile.helpsGiven),10],{panel:"socials"}),
     q("c6_happy","Thành phố đáng sống","Đạt 130% Hạnh phúc.",[9000,440,6,40],s=>[Math.min(130,Math.floor(s.metrics.happiness)),130]),
     q("c6_income","Siêu đô thị","Đạt 2.500 Vàng/giây.",[16000,500,6,40],s=>[Math.min(2500,Math.floor(s.stats.peakIncome)),2500]),
-    q("c6_wonder","Dấu ấn để đời","Xây xong Kỳ quan Đô thị.",[25000,600,10,60],s=>has(s,"metro_wonder")),
-    q("c6_max","Đỉnh cao quy hoạch","Đưa một công trình lên cấp 10.",[20000,550,8,60],s=>[Math.min(10,s.stats.maxBuildingLevel),10])],
+    q("c6_wonder","Dấu ấn để đời","Xây xong Kỳ quan Đô thị.",[25000,600,10,60],s=>has(s,"metro_wonder"),{build:"metro_wonder"}),
+    q("c6_max","Đỉnh cao quy hoạch","Đưa một công trình lên cấp 10.",[20000,550,8,60],s=>[Math.min(10,s.stats.maxBuildingLevel),10],{upgrade:true})],
    outro:[["vy","Tin nóng: Bình Minh chính thức được công nhận đô thị kiểu mẫu! Thị trưởng có muốn nói gì với khán giả không?"],
     ["mai","Chú Tư vừa nhắn: «Chú biết mình chọn đúng người». Em… em hơi xúc động chút. Cảm ơn Thị trưởng."],
     ["hanh","Chuyện thành phố thì chưa bao giờ hết. Mai lại có việc mới thôi — nhưng hôm nay cứ ăn mừng cái đã!"]],

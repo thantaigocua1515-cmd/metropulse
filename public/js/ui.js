@@ -134,6 +134,7 @@ class UIController {
  }
  setTool(name,id=null){
   this.tool=name;this.selection=id;this.moving=null;this.inspect=null;
+  this.buildGuide=null;this.upgradeGuide=null;
   this.canvas.classList.toggle("build",["build","move","demo"].includes(name));
  }
  pick(point){
@@ -149,6 +150,7 @@ class UIController {
   }else if(this.tool==="demo"){
    if(b)this.confirmDemolish(b);
   }else if(this.tool==="look"){
+   if(b!==this.inspect)this.upgradeGuide=null;
    this.inspect=b||null;if(b&&b.id!=="road")this.closeUp(b);
   }
   this.refresh();
@@ -163,9 +165,58 @@ class UIController {
  closeUp(b){this.renderer.closeUp(b.x,b.y,innerWidth<=780?.34:.46)}
  select(id){
   const d=CONFIG.buildings[id];if(!d||this.sim.social.current)return;
+  if(this.buildGuide===id){
+   const block=this.blueprintGuideBlock(d);if(block){this.toast(block);return}
+  }
   if(this.sim.profile.level<d.unlock){this.toast("Mở khóa "+d.name+" khi đạt cấp "+d.unlock+".");return}
   this.setTool("build",id);this.catalogOpen=false;
  }
+ objectiveGuide(q){
+  const guide=q.guide;
+  return guide?.ifMissing&&this.sim.count(guide.build)?null:guide;
+ }
+ objectiveText(q,st){
+  const text='<b>'+htm(q.name)+'</b><small>'+htm(q.desc)+'</small>';
+  return !st.done&&!st.claimed&&!this.sim.social.current&&this.objectiveGuide(q)?
+   this.btn("mission-guide",text+'<span>Chỉ đường ›</span>',{id:q.id,cls:"objective-guide",label:"Chỉ đường: "+q.name+" · "+q.desc}):text;
+ }
+ missionGuide(id){
+  const s=this.sim,q=s.prog.chapter()?.quests.find(q=>q.id===id);
+  if(s.social.current||!q||s.prog.questState(q).done)return;
+  const guide=this.objectiveGuide(q);if(!guide)return;
+  this.nodes.toast.hidden=true;
+  if(guide.panel){
+   this.catalogOpen=false;this.setTool("look");this[guide.panel]();this.refresh();
+  }else if(guide.upgrade)this.guideUpgrade();
+  else this.guideBlueprint(guide.build);
+ }
+ blueprintGuideBlock(d){
+  const p=this.sim.profile;
+  if(p.level<d.unlock)return "Mở khóa ở cấp "+d.unlock+": "+d.name+".";
+  if(p.coins<d.price)return "Thiếu "+fmt(Math.ceil(d.price-p.coins))+" Vàng để xây "+d.name+".";
+  return "";
+ }
+ guideBlueprint(id){
+  const d=CONFIG.buildings[id];
+  this.close();this.setTool("look");this.catalogOpen=true;this.category=d.group;this.buildGuide=id;
+  this.refresh();
+  const card=this.nodes.catalog.querySelector('.blueprint[data-id="'+id+'"]');
+  card?.scrollIntoView({block:"nearest",inline:"center",behavior:"instant"});
+  card?.focus({preventScroll:true});
+  this.toast(this.blueprintGuideBlock(d));
+ }
+ guideUpgrade(){
+  const s=this.sim,candidates=s.world.buildings.filter(b=>b.id!=="road"&&b.level<CONFIG.maxLevel);
+  const next=candidates.map(b=>({b,block:s.upgradeBlock(b),cost:s.upgradeCost(b)})).sort((a,b)=>
+   Number(!!a.block)-Number(!!b.block)||Number(a.b.left>0)-Number(b.b.left>0)||b.b.level-a.b.level||a.cost-b.cost)[0];
+  if(!next){this.guideBlueprint("house_small");return}
+  const {b,block,cost}=next;
+  this.close();this.setTool("look");this.catalogOpen=false;this.inspect=b;this.upgradeGuide=b;this.closeUp(b);
+  this.refresh();
+  if(block)this.toast(block);
+  else if(s.profile.coins<cost)this.toast("Thiếu "+fmt(Math.ceil(cost-s.profile.coins))+" Vàng để nâng cấp.");
+ }
+ missionHighlight(){return " mission-highlight"+(this.sim.reduceEffects?"":" mission-pulse")}
  blueprintDetails(id){
   const d=CONFIG.buildings[id];if(!d)return;
   const hint=Districts.hint(d),locked=this.sim.profile.level<d.unlock;
@@ -191,7 +242,7 @@ class UIController {
    case "look":this.setTool("look");this.catalogOpen=false;break;
    case "build":if(s.social.current)return;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
    case "close-build":this.catalogOpen=false;this.setTool("look");break;
-   case "filter":this.category=id;this.nodes.catalog.scrollLeft=0;break;
+   case "filter":this.category=id;this.buildGuide=null;this.nodes.catalog.scrollLeft=0;break;
    case "select":this.select(id);break;
    case "blueprint-info":this.blueprintDetails(id);return;
    case "move":case "demo":if(!s.social.current){this.catalogOpen=false;this.setTool(this.tool===act?"look":act)}break;
@@ -225,7 +276,7 @@ class UIController {
    }
    case "quick":this.close();this.select(id);break;
    case "focus":if(this.inspect)r.focus(this.inspect.x,this.inspect.y);break;
-   case "inspect-close":this.inspect=null;break;
+   case "inspect-close":this.inspect=null;this.upgradeGuide=null;break;
    case "upgrade":if(tile()){const error=s.upgrade(tile());this.toast(error||"Đã nâng cấp công trình.");if(!error)this.closeUp(tile())}break;
    case "spec":if(tile())this.toast(s.specialize(tile(),arg)||"Đã chọn chuyên môn hóa.");break;
    case "accelerate":if(tile())this.toast(s.accelerate(tile())||"Đã xây xong!");break;
@@ -243,6 +294,7 @@ class UIController {
    case "event-tier":this.currentEvent().claimTier(Number(id));this.eventDialog();break;
    case "event-skin":s.events.selectSkin(id);this.eventDialog();break;
    case "quest-toggle":this.questOpen=!this.questOpen;break;
+   case "mission-guide":this.missionGuide(id);return;
    case "claim":say(s.prog.claimQuest(id));if(this.dialogType==="missions")this.missions();break;
    case "claim-daily":say(s.prog.claimDaily(id));this.missions();break;
    case "claim-bonus":say(s.prog.claimDailyBonus());this.missions();break;
@@ -333,7 +385,7 @@ class UIController {
    this.html("catalog",rows.map(d=>{
     const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,price=fmt(d.price)+" Vàng",
      label=d.name+" · "+price+(locked?" · Mở ở cấp "+d.unlock:"");
-    return '<div class="blueprint-card">'+this.btn("select",'<img src="'+this.thumb(d.id)+'" alt="" loading="lazy" decoding="async"><span class="price '+(poor?"warn":"gold")+'">'+price+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),label,title:label})+
+    return '<div class="blueprint-card">'+this.btn("select",'<img src="'+this.thumb(d.id)+'" alt="" loading="lazy" decoding="async"><span class="price '+(poor?"warn":"gold")+'">'+price+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":"")+(this.buildGuide===d.id?this.missionHighlight():""),label,title:label})+
      this.btn("blueprint-info","i",{id:d.id,cls:"blueprint-info",label:"Chi tiết "+d.name,title:"Chi tiết "+d.name})+'</div>';
    }).join(""));
   }
@@ -403,7 +455,7 @@ class UIController {
    if(b.left>0)actions=this.btn("accelerate","Tăng tốc · "+this.prestigeAmount(1),{id:key,cls:"primary"});
    else if(b.id!=="road"){
     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
-    actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary",disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
+    actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary"+(this.upgradeGuide===b&&b.level<CONFIG.maxLevel?this.missionHighlight():""),disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
    }
    actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
@@ -474,7 +526,7 @@ class UIController {
   const header=this.btn("quest-toggle",this.icon("story")+'<span><small>THEO DÕI CỐT TRUYỆN</small><b>'+summary+'</b></span>'+
    (chapter?'<i>'+claimed+'/'+chapter.quests.length+'</i>':"")+'<span class="quest-chevron" aria-hidden="true"></span>',{cls:"quest-toggle",expanded:this.questOpen,label:"Theo dõi cốt truyện · "+summary+(badges.story?" · "+badges.story+" phần thưởng":"")});
   const list=this.questOpen&&chapter?this.orderedProgress(chapter.quests,q=>s.prog.questState(q)).filter(x=>!x.st.claimed).slice(0,1):[];
-  const body=list.map(({item:q,st})=>'<div class="quest'+(st.done?" ready":"")+'"><b>'+q.name+'</b><small>'+q.desc+'</small>'+
+  const body=list.map(({item:q,st})=>'<div class="quest'+(st.done?" ready":"")+'">'+this.objectiveText(q,st)+
    (st.done?this.btn("claim","Nhận thưởng",{cls:"primary",id:q.id}):this.bar(st.cur/st.goal)+'<small class="count">'+fmt(st.cur)+' / '+fmt(st.goal)+'</small>')+'</div>').join("");
   this.html("quest-track",'<div class="quest-tracker game-frame interactive">'+header+(this.questOpen?'<div class="quest-body">'+body+
    this.btn("missions",chapter?"Xem tất cả nhiệm vụ":"Xem thành tựu",{id:chapter?"story":"ach"})+'</div>':"")+'</div>');
