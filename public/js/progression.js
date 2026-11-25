@@ -16,6 +16,7 @@ class ProgressionManager {
  seen(key){if(!this.p.story.seen.includes(key))this.p.story.seen.push(key);this.sim.storage.save()}
  refresh(){
   const s=this.sim,chapter=this.chapter();
+  s.legacy?.refresh();
   this.ensureDaily();
   if(chapter){
    this.scene(chapter.id+"_intro",chapter,chapter.intro);
@@ -96,6 +97,71 @@ class ProgressionManager {
   const daily=this.p.daily.quests.filter(q=>!q.claimed&&this.dailyState(q).done).length+(this.dailyBonusReady()?1:0);
   const ach=CONTENT.achievements.filter(a=>this.achState(a).claimable).length;
   const research=CONTENT.research.all.some(t=>!s.researchBlock(t))?1:0;
-  return {story,daily,ach,research,login:this.loginState().available?1:0,missions:story+daily+ach};
+  const legacy=s.legacy?.ready()||0;
+  return {story,daily,ach,research,legacy,login:this.loginState().available?1:0,missions:story+daily+ach+legacy};
+ }
+}
+
+class LegacyGoals {
+ static families=Object.values(CONFIG.buildings).filter(d=>d.id!=="road");
+ static plans=[
+  {name:"Khu dân cư bền vững",jobs:[["synergyTiles",6,"Ô có lợi ích quy hoạch",true],["bubbles",9,"Túi thưởng"],["dailyDone",2,"Nhiệm vụ ngày"]]},
+  {name:"Khu phố an toàn",jobs:[["happiness",120,"Mức Hạnh phúc (%)",true],["crisesSolved",5,"Sự cố xử lý"],["bubbles",7,"Túi thưởng"]]},
+  {name:"Kinh tế cộng đồng",jobs:[["pop",200,"Dân số",true],["dailyDone",3,"Nhiệm vụ ngày"],["bubbles",12,"Túi thưởng"]]}
+ ];
+ constructor(sim){
+  this.sim=sim;
+  const data=this.data=sim.progress.legacy??={};
+  data.mastered??={};data.familyClaims??={};data.rankClaims??={};data.round??=0;data.peakScore??=0;
+  for(const b of sim.world.buildings)this.recordBuilding(b);
+  this.refresh();
+ }
+ get unlocked(){return this.sim.profile.level>=16}
+ get plan(){return LegacyGoals.plans[this.data.round%LegacyGoals.plans.length]}
+ refresh(){
+  if(!this.unlocked)return;
+  this.data.peakScore=Math.max(this.data.peakScore,this.sim.metrics.score);
+  if(!this.data.base)this.nextPlan();
+ }
+ nextPlan(){
+  this.data.base=Object.fromEntries(this.plan.jobs.filter(([, , ,live])=>!live).map(([key])=>[key,this.sim.stats[key]||0]));
+ }
+ recordBuilding(b){
+  if(b.id!=="road"&&b.left<=0&&b.level>=CONFIG.maxLevel)this.data.mastered[b.id]=true;
+ }
+ rankStates(){
+  return CONFIG.heritageRanks.map(([goal,name],i)=>({
+   id:String(i),name,cur:this.data.peakScore,goal,claimed:!!this.data.rankClaims[i],done:this.data.peakScore>=goal,
+   reward:{coins:75000*(i+1),prestige:15*(i+1)}
+  }));
+ }
+ familyStates(){
+  return LegacyGoals.families.map(({id,name})=>({
+   id,name,done:!!this.data.mastered[id],claimed:!!this.data.familyClaims[id],reward:{prestige:5}
+  }));
+ }
+ planStates(){
+  return this.plan.jobs.map(([key,goal,name,live])=>{
+   const cur=live?Math.floor(this.sim.metrics[key]):(this.sim.stats[key]||0)-(this.data.base?.[key]||0);
+   return {key,goal,name,cur:clamp(cur,0,goal),done:cur>=goal};
+  });
+ }
+ get planReward(){return {coins:60000,prestige:12}}
+ ready(){
+  return this.unlocked?this.rankStates().concat(this.familyStates()).filter(r=>r.done&&!r.claimed).length+Number(this.planStates().every(r=>r.done)):0;
+ }
+ claim(type,id){
+  if(!this.unlocked)return false;
+  this.refresh();
+  let reward;
+  if(type==="plan"&&this.planStates().every(r=>r.done)){
+   reward=this.planReward;this.data.round++;this.nextPlan();
+  }else if(type==="rank"||type==="family"){
+   const state=(type==="rank"?this.rankStates():this.familyStates()).find(r=>r.id===id);
+   if(!state?.done||state.claimed)return false;
+   this.data[type==="rank"?"rankClaims":"familyClaims"][id]=true;reward=state.reward;
+  }
+  if(!reward)return false;
+  this.sim.grant(reward);this.sim.audio.play("done");this.sim.storage.save();return true;
  }
 }

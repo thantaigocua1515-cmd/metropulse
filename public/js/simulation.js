@@ -1,5 +1,79 @@
 "use strict";
 
+class Districts {
+ static rules=[
+  {id:"road", applies:d=>d.income>0, source:b=>b.id==="road", radius:1, cap:1, kind:"income", amount:-20, absent:true, name:"Chưa nối đường"},
+  {id:"parkIncome", applies:d=>["res","com"].includes(d.group), source:b=>b.id==="park", radius:1, diagonal:true, cap:2, kind:"income", amount:10, name:"Kề công viên"},
+  {id:"parkMood", applies:d=>d.group==="res", source:b=>b.id==="park", radius:1, cap:2, kind:"happy", amount:2, name:"Không gian xanh"},
+  {id:"pollution", applies:d=>d.group==="res", source:b=>["power_plant","waste_plant"].includes(b.id), radius:1, cap:2, kind:"happy", amount:-2, name:"Kề nguồn ô nhiễm"},
+  {id:"school", applies:d=>d.group==="res", source:b=>b.id==="school", radius:2, cap:1, kind:"know", amount:.006, name:"Gần trường học"},
+  {id:"university", applies:d=>d.group==="res", source:b=>b.id==="university", radius:3, cap:1, kind:"know", amount:.012, name:"Gần đại học"},
+  {id:"customers", applies:d=>d.group==="com", source:b=>CONFIG.buildings[b.id].group==="res", radius:1, cap:3, kind:"income", amount:5, name:"Gần khu dân cư"},
+  {id:"metro", applies:d=>d.group==="com", source:b=>b.id==="metro_station", radius:2, cap:1, kind:"income", amount:15, name:"Gần ga Metro"},
+  {id:"fire", applies:d=>d.id!=="road", source:b=>b.id==="fire_station", radius:3, cap:1, kind:"risk", amount:-12, name:"Được cứu hỏa bảo vệ"},
+  {id:"traffic_jam", applies:d=>d.id==="road"||d.group==="com", source:b=>b.id==="police_station", radius:3, cap:1, kind:"risk", amount:-12, name:"Có cảnh sát giao thông"}
+ ];
+ static hints={
+  road:"Đường kề giúp công trình tránh mất 20% thu nhập.",house_small:"Thích gần công viên, trường học và xa nguồn ô nhiễm.",apartment:"Thích gần công viên, trường học và xa nguồn ô nhiễm.",
+  park:"Cải thiện hạnh phúc nhà kề; tăng thu nhập quanh công viên.",school:"Nhà ở trong 2 ô tạo thêm Tri thức.",university:"Nhà ở trong 3 ô tạo thêm Tri thức.",
+  power_plant:"Nhà liền kề giảm hạnh phúc.",waste_plant:"Nhà liền kề giảm hạnh phúc.",metro_station:"Cửa hàng trong 2 ô nhận +15% thu nhập.",
+  fire_station:"Bảo vệ công trình trong 3 ô: giảm rủi ro cháy.",police_station:"Giảm nguy cơ kẹt xe ở đường và cửa hàng trong 3 ô."
+ };
+ static hint(d){return this.hints[d.id]||(d.group==="com"?"Thu nhập tăng khi cạnh nhà ở hoặc gần ga Metro.":"")}
+ static offsets=Array.from({length:49},(_,i)=>[i%7-3,Math.floor(i/7)-3]).filter(([x,y])=>x||y).sort((a,b)=>Math.abs(a[0])+Math.abs(a[1])-Math.abs(b[0])-Math.abs(b[1]));
+ static label(kind,value,explicit=false){
+  const sign=value<0?"−":"+";
+  if(kind==="income")return sign+fmt(Math.abs(value))+"%"+(explicit?" thu nhập":"");
+  if(kind==="risk")return (explicit?sign:value<0?"+":"−")+fmt(Math.abs(value))+"% "+(explicit?"rủi ro":"bảo vệ");
+  if(kind==="know")return sign+fmt(Math.abs(value)*60,2)+" trí/ph";
+  return sign+fmt(Math.abs(value))+" HP";
+ }
+ static effects(b,w,read=(x,y)=>lookup(w,x,y)){
+  const d=CONFIG.buildings[b.id],rules=this.rules.filter(r=>r.applies(d)&&r.kind!=="risk"),matches=rules.map(()=>[]);
+  if(!rules.length)return [];
+  const reach=Math.max(...rules.map(r=>r.radius));
+  for(const [dx,dy] of this.offsets){
+   if(Math.max(Math.abs(dx),Math.abs(dy))>reach||Math.abs(dx)+Math.abs(dy)>Math.max(2,reach))continue;
+   const n=read(b.x+dx,b.y+dy);if(!n||n.left>0)continue;
+   for(let i=0;i<rules.length;i++){
+    const r=rules[i],dist=r.diagonal?Math.max(Math.abs(dx),Math.abs(dy)):Math.abs(dx)+Math.abs(dy);
+    if(dist<=r.radius&&matches[i].length<r.cap&&r.source(n))matches[i].push(n);
+   }
+  }
+  return rules.flatMap((r,i)=>{
+   const sources=matches[i],count=r.absent?Number(!sources.length):sources.length;
+   return count?[{...r,value:r.amount*count,sources}]:[];
+  });
+ }
+ static preview(w,candidate,moving){
+  const {x,y}=candidate;
+  const read=(a,b)=>a===x&&b===y?candidate:(a===moving?.x&&b===moving?.y)?undefined:lookup(w,a,b);
+  const summarize=(b,before,after)=>{
+   const diffs=Object.fromEntries(before.map(e=>[e.id,-e.value]));
+   for(const e of after)diffs[e.id]=(diffs[e.id]||0)+e.value;
+   const labels=this.rules.filter(r=>diffs[r.id]).map(r=>({
+    text:this.label(r.kind,diffs[r.id]),good:r.kind==="risk"?diffs[r.id]<0:diffs[r.id]>0
+   }));
+   return labels.length?{x:b.x,y:b.y,labels}:null;
+  };
+  const nearby=[...this.offsets.map(([dx,dy])=>lookup(w,x+dx,y+dy))];
+  if(moving)nearby.push(...this.offsets.map(([dx,dy])=>lookup(w,moving.x+dx,moving.y+dy)));
+  const effects=(b,read)=>this.effects(b,w,read).concat(this.coverage(b,w,read));
+  return [summarize(candidate,moving?effects(moving):[],effects(candidate,read)),
+   ...[...new Set(nearby)].filter(b=>b&&b!==moving&&b.left<=0).map(b=>summarize(b,effects(b),effects(b,read)))].filter(Boolean);
+ }
+ static coverage(b,w,read=(x,y)=>lookup(w,x,y),id=null){
+  return this.rules.filter(r=>r.kind==="risk"&&(!id||r.id===id)&&r.applies(CONFIG.buildings[b.id])).flatMap(rule=>{
+   for(const [dx,dy] of this.offsets){
+    if(Math.abs(dx)+Math.abs(dy)>rule.radius)break;
+    const source=read(b.x+dx,b.y+dy);
+    if(source?.left<=0&&rule.source(source))return [{...rule,value:rule.amount,sources:[source]}];
+   }
+   return [];
+  });
+ }
+}
+
 class SimulationEngine {
  constructor(data,audio){
   this.audio=audio;this.profile=data.profile;this.world=makeWorld(data.world.buildings,this.profile.level,data.world);
@@ -29,48 +103,55 @@ class SimulationEngine {
   }return best;
  }
  // Hiệu ứng quy hoạch của một công trình: hệ số thu nhập và ghi chú hiển thị.
- synergy(b,w=this.world){
-  const d=CONFIG.buildings[b.id],notes=[];let mult=1,dirty=0;
-  if(b.id==="road")return {mult,notes,dirty};
-  const near=[];for(const [dx,dy] of steps){const n=lookup(w,b.x+dx,b.y+dy);if(n)near.push(n)}
-  if(d.income>0&&!near.some(n=>n.id==="road")){mult*=.8;notes.push(["−20%","Chưa nối đường"])}
-  if(d.group==="res"||d.group==="com"){
-   let parks=0;
-   for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const n=lookup(w,b.x+dx,b.y+dy);if(n&&n.id==="park"&&n.left<=0)parks++}
-   if(parks){const bonus=Math.min(2,parks)*.1;mult*=1+bonus;notes.push(["+"+Math.round(bonus*100)+"%","Kề công viên"])}
+ synergy(b,w=this.world,notes=false){
+  const effects=Districts.effects(b,w);
+  let mult=1,happy=0,know=0;
+  for(const e of effects){
+   if(e.kind==="income")mult*=1+e.value/100;
+   else if(e.kind==="happy")happy+=e.value;
+   else if(e.kind==="know")know+=e.value;
   }
-  if(d.group==="com"){
-   const homes=Math.min(3,near.filter(n=>n.left<=0&&CONFIG.buildings[n.id].group==="res").length);
-   if(homes){mult*=1+homes*.05;notes.push(["+"+homes*5+"%","Gần khu dân cư"])}
-   if((w._metros||[]).some(m=>distance(m,b)<=2)){mult*=1.15;notes.push(["+15%","Gần Ga Metro"])}
+  return {mult,happy,know,good:effects.some(e=>e.value>0),polluted:effects.some(e=>e.id==="pollution"),notes:notes?this.synergyNotes(b,w,effects.concat(Districts.coverage(b,w))):[]};
+ }
+ synergyNotes(b,w,effects){
+  const notes=effects.map(e=>[Districts.label(e.kind,e.value,true),e.name,e.kind!=="risk"&&e.value<0]);
+  const outward=new Map();
+  for(const rule of Districts.rules.filter(r=>!r.absent&&r.source(b))){
+   let count=0;
+   for(const [dx,dy] of Districts.offsets){
+    if((rule.diagonal?Math.max(Math.abs(dx),Math.abs(dy)):Math.abs(dx)+Math.abs(dy))>rule.radius)continue;
+    const recipient=lookup(w,b.x+dx,b.y+dy);
+    if(recipient?.left>0||!recipient||!rule.applies(CONFIG.buildings[recipient.id]))continue;
+    const effects=rule.kind==="risk"?Districts.coverage(recipient,w,undefined,rule.id):Districts.effects(recipient,w);
+    if(effects.some(e=>e.id===rule.id&&e.sources.includes(b)))count++;
+   }
+   if(count)outward.set(rule.id,[Districts.label(rule.kind,rule.amount,true),rule.name+" · "+count+" ô",rule.kind!=="risk"&&rule.amount<0]);
   }
-  if(d.group==="res"){
-   dirty=near.filter(n=>n.left<=0&&(n.id==="power_plant"||n.id==="waste_plant")).length;
-   if(dirty)notes.push(["−"+dirty*2,"Hạnh phúc: kề nguồn ô nhiễm"]);
-  }
-  return {mult,notes,dirty};
+  return notes.concat([...outward.values()]);
  }
  measure(w,level=this.profile.level){
   const mine=w===this.world,T=id=>mine?this.tech(id):0;
-  const m={ps:0,pd:0,ws:0,wd:0,waste:0,pop:0,happiness:100,commerce:0,roads:0,income:0,level,construction:0,know:0,score:0,banks:0,levels:0};
+  const m={ps:0,pd:0,ws:0,wd:0,waste:0,pop:0,happiness:100,commerce:0,roads:0,income:0,level,construction:0,know:0,score:0,banks:0,levels:0,synergyTiles:0,polluted:false};
   const has=id=>w.crises.some(c=>c.id===id),policy=w.activePolicy?.id,grid=1+.1*T("grid");
-  w._metros=w.buildings.filter(b=>b.id==="metro_station"&&b.left<=0);
   w._airport=w.buildings.some(b=>b.id==="airport"&&b.left<=0);
   let earnings=0,wonder=false,pop=0;
   for(const b of w.buildings){
    if(b.left>0){m.construction++;continue}
    const d=CONFIG.buildings[b.id];
    if(b.id==="road"){m.roads++;continue}
+   const synergies=this.synergy(b,w);
+   if(synergies.good)m.synergyTiles++;
+   m.polluted||=synergies.polluted;
    const sg=CONFIG.specGroup(b.id),out=(1+.2*(b.level-1))*grid*(sg==="infra"&&b.spec==="a"?1.4:1);
    if(d.power>0)m.ps+=d.power*out;else m.pd-=d.power;
    if(d.water>0)m.ws+=d.water*out;else m.wd-=d.water;
    m.waste+=d.waste*(d.waste>0&&policy==="festival"?2:1)*(d.waste>0&&sg==="res"&&b.spec==="b"?.5:1);
    pop+=d.pop*(1+.15*(b.level-1))*(sg==="res"&&b.spec==="a"?1.4:1);
    m.happiness+=d.happy+(b.spec==="b"?{res:3,com:4,edu:5,infra:3,special:6}[sg]||0:0);
-   if(d.group==="res")m.happiness-=this.synergy(b,w).dirty*2;
-   m.know+=d.know*(1+.25*(b.level-1))*(sg==="edu"&&b.spec==="a"?1.5:1);
+   m.happiness+=synergies.happy;
+   m.know+=d.know*(1+.25*(b.level-1))*(sg==="edu"&&b.spec==="a"?1.5:1)+synergies.know;
    m.commerce+=d.group==="com"?1:0;m.levels+=b.level;m.banks+=b.id==="bank"?1:0;
-   earnings+=this.production(b,w);wonder||=b.id==="metro_wonder";
+   earnings+=this.production(b,w,synergies.mult);wonder||=b.id==="metro_wonder";
   }
   m.ps=Math.round(m.ps);m.ws=Math.round(m.ws);m.pop=Math.round(pop);m.waste=Math.round(m.waste);
   const mood=m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0)-(m.ps<m.pd?6:0)-(m.ws<m.wd?6:0)+3*T("community")+(mine?this.buff("happy",w):0);
@@ -81,13 +162,13 @@ class SimulationEngine {
   m.score=Math.round(m.pop*2+m.income*4+m.levels*10);
   return m;
  }
- production(b,w=this.world){
+ production(b,w=this.world,synergy){
   if(b.left>0||w.crises.some(c=>c.id==="fire"&&distance(c,b)===0))return 0;
   if((b.id==="office_tower"||b.id==="tech_tower")&&w.crises.some(c=>c.id==="cyber_attack"))return 0;
   const d=CONFIG.buildings[b.id];if(!d.income)return 0;
   const sg=CONFIG.specGroup(b.id),calm=sg==="com"&&b.spec==="b";
   const factor=w.crises.reduce((f,c)=>f*(c.id==="blackout"&&distance(c,b)<=1?.5:c.id==="traffic_jam"&&d.group==="com"&&!calm?.7:1),1);
-  let value=d.income*CONFIG.scale(b.level)*Math.max(.1,factor)*this.synergy(b,w).mult;
+  let value=d.income*CONFIG.scale(b.level)*Math.max(.1,factor)*(synergy??this.synergy(b,w).mult);
   if(d.group==="com")value*=(b.spec==="a"?1.35:1)*(w===this.world?1+.1*this.tech("trade"):1)*(w._airport?1.1:1);
   if(sg==="res"&&b.spec==="a")value*=1.2;
   if(sg==="special"&&b.spec==="a")value*=1.3;
@@ -160,6 +241,7 @@ class SimulationEngine {
   const price=this.upgradeCost(b);if(this.profile.coins<price)return "Không đủ Vàng.";
   const before=CONFIG.tier(b.level);
   this.profile.coins-=price;b.level++;this.stats.upgrades++;this.stats.maxBuildingLevel=Math.max(this.stats.maxBuildingLevel,b.level);
+  this.legacy?.recordBuilding(b);
   if(!(CONFIG.buildings[b.id].group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")))this.gainXP(20*b.level);
   if(CONFIG.tier(b.level)!==before){this.say("Tiến hóa! "+CONFIG.buildings[b.id].name+" nay đã trở thành "+CONFIG.buildingName(b)+".");this.float(b.x,b.y,"★ "+CONFIG.buildingName(b),"#ffe08f")}
   else this.float(b.x,b.y,"Cấp "+b.level);
@@ -237,6 +319,7 @@ class SimulationEngine {
   return [text,option.buff?"Hiệu ứng: "+option.buff[0]:""].filter(Boolean).join(" · ")||"Đã quyết định.";
  }
  tick(dt){
+  this.events?.refresh();
   const w=this.world;this.elapsed+=dt;this.stats.playTime+=dt;w.timeOfDay=(w.timeOfDay+dt/180)%1;w.weatherClock+=dt;
   if(w.weatherClock>=90){
    w.weatherClock-=90;const order=["sunny","heat","storm"];w.weather=order[(order.indexOf(w.weather)+1)%3];
@@ -255,6 +338,9 @@ class SimulationEngine {
    b.left-=dt/speed;if(b.left<=0)this.finish(b);
   }
   const m=this.metrics=this.measure(w),p=this.profile;
+  const hints=this.progress.districtHints??={};
+  if(m.synergyTiles&&!hints.bonus){hints.bonus=true;this.pending.push({type:"toast",text:"Các công trình đang hỗ trợ nhau! Mở thẻ công trình để xem lợi ích quy hoạch."})}
+  if(m.polluted&&!hints.pollution){hints.pollution=true;this.pending.push({type:"toast",text:"Nhà sát nguồn ô nhiễm bị giảm Hạnh phúc. Hãy chừa một ô đệm."})}
   p.coins+=m.income*dt;p.knowledge+=m.know*dt;p.happiness=m.happiness;
   this.stats.peakIncome=Math.max(this.stats.peakIncome,m.income);this.stats.peakPop=Math.max(this.stats.peakPop,m.pop);
   if(!this.stats.news500&&m.income>=500){this.stats.news500=true;this.say(p.mayorName+" vừa vượt mốc 500 Vàng/giây!")}

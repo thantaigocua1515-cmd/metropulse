@@ -1,0 +1,114 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { test } = require("node:test");
+const vm = require("node:vm");
+
+let now;
+class TestClock extends Date {
+  static now() { return now; }
+}
+const { CONFIG, Districts, EventCalendar, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "storage", "events", "progression"].map(file =>
+    fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
+  "\n({ CONFIG, Districts, EventCalendar, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld })",
+  { Date: TestClock }
+);
+
+function setup(buildings, level=16) {
+  const data = StorageManager.fresh();
+  data.profile.level = level;
+  if (buildings) data.world = makeWorld(buildings, level);
+  const sim = new SimulationEngine(data, { enabled: true, play() {} });
+  sim.social = { friends: () => [] };
+  sim.storage = new StorageManager(sim);
+  sim.storage.save = () => true;
+  return sim;
+}
+
+test("district preview and live city use the same completed, bounded neighborhoods", () => {
+  const home = makeBuilding("house_small", 8, 8);
+  const school = makeBuilding("school", 8, 10);
+  const university = makeBuilding("university", 5, 8);
+  const idleUniversity = makeBuilding("university", 9, 9, 1, 5);
+  const plant = makeBuilding("power_plant", 8, 7);
+  const nearShop = makeBuilding("mini_mart", 9, 8);
+  const metro = makeBuilding("metro_station", 11, 8);
+  const road = makeBuilding("road", 9, 7);
+  const fire = makeBuilding("fire_station", 6, 8);
+  const police = makeBuilding("police_station", 10, 7);
+  const s = setup([home, school, university, idleUniversity, plant, nearShop, metro, road, fire, police]);
+  const { world } = s;
+  assert.equal(s.synergy(home).happy, -2);
+  assert.ok(Math.abs(s.synergy(home).know - .018) < 1e-10);
+  assert.ok(Math.abs(s.synergy(nearShop).mult - 1.05*1.15) < 1e-10);
+  assert.equal(Districts.coverage(home, world, undefined, "fire")[0].value, -12);
+  assert.equal(Districts.coverage(road, world, undefined, "traffic_jam")[0].value, -12);
+  assert.equal(Districts.coverage(metro, world, undefined, "fire").length, 0);
+  const park = makeBuilding("park", 7, 8);
+  const preview = Districts.preview(world, park).find(p => p.x === home.x && p.y === home.y);
+  assert.ok(preview.labels.some(label => label.good && label.text === "+2 HP"));
+  const moved = Districts.preview(world, makeBuilding("power_plant", 7, 7), plant);
+  assert.ok(moved.find(p => p.x === home.x && p.y === home.y).labels.some(label => label.text === "+2 HP"));
+  const withPark = makeWorld([...world.buildings, park], 16);
+  assert.equal(s.synergy(home, withPark).happy, 0);
+  assert.ok(s.synergy(park, withPark, true).notes.some(([, label]) => label.includes("Không gian xanh")));
+});
+
+test("Vietnamese events follow lunar holidays and roll over at local midnight", () => {
+  const event = iso => EventCalendar.active(Date.parse(iso)).id;
+  assert.notEqual(event("2026-02-16T16:59:59Z"), "tet");
+  assert.equal(event("2026-02-16T17:00:00Z"), "tet");
+  assert.equal(event("2027-02-06T12:00:00+07:00"), "tet");
+  assert.equal(event("2025-10-06T12:00:00+07:00"), "trung-thu");
+  assert.equal(event("2026-09-25T12:00:00+07:00"), "trung-thu");
+  assert.equal(event("2026-09-02T00:00:00+07:00"), "quoc-khanh");
+  assert.equal(event("2027-01-01T12:00:00+07:00"), "giang-sinh");
+  const a = event("2026-03-02T00:00:00+07:00"), b = event("2026-03-09T00:00:00+07:00");
+  assert.ok(EventCalendar.weekly.includes(a) && EventCalendar.weekly.includes(b) && a !== b);
+});
+
+test("event quest and tier claims are one-time; rollover preserves cosmetics; debug awards do not persist", () => {
+  now = Date.parse("2026-02-17T00:00:00+07:00");
+  const s = setup();
+  const e = new SeasonalEvents(s);
+  assert.equal(e.claimQuest(0), false);
+  for (const [key, goal] of e.def.jobs) s.stats[key] += goal;
+  for (let i = 0; i < 6; i++) assert.equal(e.claimQuest(i), true);
+  assert.equal(e.claimQuest(0), false);
+  assert.equal(e.points, 60);
+  assert.equal(e.claimTier(2), true);
+  assert.equal(e.claimTier(2), false);
+  assert.equal(e.skin, "tet");
+  const save = StorageManager.normalize(s.storage.serialize());
+  assert.equal(save.progress.events.skins.tet, true);
+  now = Date.parse("2026-02-24T00:00:00+07:00");
+  e.refresh();
+  assert.equal(e.points, 0);
+  assert.equal(e.skin, "tet");
+  const preview = new SeasonalEvents(s, "trung-thu");
+  const balance = s.profile.coins;
+  for (const [key, goal] of preview.def.jobs) s.stats[key] += goal;
+  for (let i = 0; i < 6; i++) assert.equal(preview.claimQuest(i), true);
+  assert.equal(preview.claimTier(2), true);
+  assert.equal(s.profile.coins, balance);
+  assert.equal(s.progress.events.skins["trung-thu"], undefined);
+});
+
+test("legacy masters existing cities, claims once, and rotates a clean repeatable plan", () => {
+  const s = setup([makeBuilding("house_small", 8, 8, CONFIG.maxLevel)]);
+  const legacy = new LegacyGoals(s);
+  assert.equal(legacy.claim("family", "house_small"), true);
+  assert.equal(legacy.claim("family", "house_small"), false);
+  s.metrics.score = CONFIG.heritageRanks[0][0];
+  assert.equal(legacy.claim("rank", "0"), true);
+  assert.equal(legacy.claim("rank", "0"), false);
+  assert.equal(legacy.claim("plan", ""), false);
+  s.metrics.synergyTiles = 6;
+  s.stats.bubbles = 9;
+  s.stats.dailyDone = 2;
+  assert.equal(legacy.claim("plan", ""), true);
+  assert.equal(legacy.data.round, 1);
+  assert.equal(legacy.planStates().find(q => q.key === "bubbles").cur, 0);
+  assert.equal(legacy.claim("plan", ""), false);
+});

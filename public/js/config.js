@@ -84,11 +84,12 @@ const CONFIG = (() => {
   return d.group;
  };
  const cityRanks = [[0,"Thị trấn"],[400,"Thị xã"],[1500,"Thành phố trẻ"],[5000,"Đô thị loại I"],[15000,"Siêu đô thị"],[40000,"Đô thị huyền thoại"]];
+ const heritageRanks=[[150000,"Đô thị Tiên phong"],[400000,"Đô thị Kiểu mẫu"],[800000,"Đô thị Di sản"],[1600000,"Thủ phủ Ngàn năm"]];
  // Bộ 36 chân dung trong public/img/npc. `pick` là các chân dung người chơi được chọn (không trùng nhân vật cốt truyện và đội trưởng).
  const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
   roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
  const mayorXP = [170,900,2000,5900,6000,9000,14000,18500,23000];
- return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
+ return {avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25),
   utilityXP:{level:4,perSecond:2},
@@ -98,7 +99,7 @@ const CONFIG = (() => {
   buildingName:b=>buildings[b.id].tiers[level2tier(b.level)],
   scale:level=>1+.35*(level-1),radius:level=>Math.min(8,4+Math.floor((level-1)/2)),
   rank:missions=>{let r=ranks[0];for(const x of ranks)if(missions>=x[0])r=x;return r},
-  cityRank:score=>{let i=0;cityRanks.forEach((r,k)=>{if(score>=r[0])i=k});return {index:i,name:cityRanks[i][1],next:cityRanks[i+1]||null}},
+  cityRank:(score,level=0)=>{const tiers=level>=16?cityRanks.concat(heritageRanks):cityRanks;let i=0;tiers.forEach((r,k)=>{if(score>=r[0])i=k});return {index:i,name:tiers[i][1],next:tiers[i+1]||null}},
   groups:{all:"Tất cả",infra:"Hạ tầng",res:"Dân cư",com:"Thương mại",svc:"Dịch vụ/NPC",special:"Đặc biệt"},
   weather:{sunny:["☀","Nắng đẹp"],heat:["◉","Nắng gắt"],storm:["☂","Mưa bão"]}
  };

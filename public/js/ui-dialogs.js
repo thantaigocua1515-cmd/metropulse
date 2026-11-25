@@ -2,6 +2,30 @@
 
 // Các hộp thoại của giao diện.
 const UIDialogs = {
+ eventBanner(own){
+  const el=this.nodes["event-banner"]??=document.getElementById("event-banner"),e=this.sim.events;
+  el.hidden=!own||!e;
+  if(el.hidden)return;
+  const ready=e.def.jobs.some((_,i)=>{const q=e.quest(i);return q.done&&!q.claimed})||
+   SeasonalEvents.tiers.some((t,i)=>e.points>=t.need&&!e.data.tiers.includes(i));
+  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
+  el.style.setProperty("--event-tone",e.def.tone);
+ },
+ eventDialog(){
+  const e=this.sim.events,def=e.def,c=CONTENT.cast[def.who],jobs=def.jobs.map((_,i)=>e.quest(i));
+  const quests=this.orderedProgress(jobs,q=>q).map(({st:q})=>'<div class="row'+(q.claimed?" dim":"")+'"><div class="grow"><b>'+q.name+'</b><small>'+q.text+' · '+q.cur+'/'+q.goal+' · +10 '+def.points+'</small>'+this.bar(q.cur/q.goal)+'</div>'+
+   this.btn("event-quest",q.claimed?"Đã nhận":q.done?"Nhận điểm":"Đang làm",{id:q.id,cls:q.done?"primary":"",disabled:!q.done||q.claimed})+'</div>').join("");
+  const rewards=this.orderedProgress(SeasonalEvents.tiers.map((t,i)=>({...t,i})),t=>({claimed:e.data.tiers.includes(t.i),done:e.points>=t.need})).map(({item:t,st})=>
+   '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+t.need+' '+def.points+'</b><small>'+this.reward(t.reward)+(t.skin?' · Trang trí '+def.skin:"")+'</small></div>'+
+   this.btn("event-tier",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Chưa mở",{id:t.i,cls:st.done?"primary":"",disabled:!st.done||st.claimed})+'</div>').join("");
+  const skins=Object.keys(e.data.skins).filter(id=>Object.hasOwn(EventContent,id));
+  this.open("event",e.force?"XEM THỬ · KHÔNG LƯU THƯỞNG":"LỄ HỘI BÌNH MINH",def.name,
+   '<div class="event-intro" style="--event-tone:'+def.tone+'">'+this.portrait(def.who)+'<div><b>'+c.name+'</b><p>'+def.line+'</p></div></div>'+
+   '<div class="event-track"><b>'+e.points+'/60 '+def.points+'</b><small>Còn '+e.countdown()+' · giờ Việt Nam</small>'+this.bar(e.points/60)+'</div>'+
+   '<h4>Nhiệm vụ sự kiện</h4>'+quests+'<h4>Mốc phần thưởng</h4>'+rewards+
+   (skins.length?'<h4>Trang trí đã mở khóa</h4><div class="actions">'+this.btn("event-skin","Mặc định",{id:"",cls:e.skin?"":"primary"})+
+    skins.map(id=>this.btn("event-skin",EventContent[id].skin,{id,cls:e.skin===id?"primary":""})).join("")+'</div>':""),true);
+ },
  tabbar(group,items){
   return '<div class="tabs">'+items.map(([id,label,count])=>this.btn("tab",label+(count?'<sup>'+count+'</sup>':""),{id:group,arg:id,cls:this.tabs[group]===id?"active":""})).join("")+'</div>';
  },
@@ -25,8 +49,9 @@ const UIDialogs = {
  },
  missions(){
   const s=this.sim,prog=s.prog,badges=prog.badges(),tab=this.tabs.missions;
-  let body=this.tabbar("missions",[["story","Cốt truyện",badges.story],["daily","Hằng ngày",badges.daily+badges.login],["ach","Thành tựu",badges.ach]]);
-  if(tab==="story"){
+  let body=this.tabbar("missions",[["story","Cốt truyện",badges.story],["daily","Hằng ngày",badges.daily+badges.login],["ach","Thành tựu",badges.ach],["legacy","Di sản",badges.legacy]]);
+  if(tab==="legacy")body+=this.legacyPanel();
+  else if(tab==="story"){
    const current=prog.chapter();
    body+='<div class="timeline">'+CONTENT.chapters.map((c,i)=>{
     const state=s.progress.story.done||i<s.progress.story.chapter?"done":i===s.progress.story.chapter?"now":"lock";
@@ -61,6 +86,18 @@ const UIDialogs = {
    }).join("")+'</div>';
   }
   this.open("missions","HÀNH TRÌNH THỊ TRƯỞNG","Nhiệm vụ",body,true);
+ },
+ legacyPanel(){
+  const legacy=this.sim.legacy;
+  if(!legacy?.unlocked)return '<p class="empty">Di sản mở ở cấp Thị trưởng 16. Hãy hoàn thành các chương để tiến tới cột mốc này.</p>';
+  const contracts=legacy.planStates(),planDone=contracts.every(q=>q.done);
+  const plan={type:"plan",id:"",name:"Quy hoạch mới #"+(legacy.data.round+1)+" · "+legacy.plan.name,done:planDone,
+   reward:legacy.planReward,detail:'<ul class="legacy-contracts">'+contracts.map(q=>'<li>'+q.name+' <b>'+fmt(q.cur)+' / '+fmt(q.goal)+'</b></li>').join("")+'</ul>'};
+  const entries=[plan,...legacy.rankStates().map(r=>({...r,type:"rank",detail:this.bar(r.cur/r.goal)+'<small>'+fmt(Math.min(r.cur,r.goal))+' / '+fmt(r.goal)+' điểm đô thị</small>'})),
+   ...legacy.familyStates().map(r=>({...r,type:"family",name:(r.done?"★ ":"☆ ")+r.name,detail:'<small>Thành thạo dòng công trình · đạt cấp '+CONFIG.maxLevel+'</small>'}))];
+  return '<div class="legacy-panel"><p class="muted">Chinh phục danh hiệu đô thị, sưu tập sao thành thạo và tiếp tục với các đợt Quy hoạch mới. Tiến độ mỗi đợt bắt đầu khi nhận thưởng đợt trước.</p>'+
+   this.orderedProgress(entries,r=>r).map(({st:r})=>'<div class="row'+(r.claimed?" dim":"")+'"><div class="grow"><b>'+r.name+'</b>'+r.detail+'<small>'+this.reward(r.reward)+'</small></div>'+
+   this.btn("claim-legacy",r.claimed?"Đã nhận":r.done?"Nhận thưởng":"Đang làm",{id:r.id,arg:r.type,cls:r.done?"primary":"",disabled:!r.done||r.claimed})+'</div>').join("")+'</div>';
  },
  research(){
   const s=this.sim,R=CONTENT.research;
@@ -122,7 +159,7 @@ const UIDialogs = {
   catch(error){feedback.className="warn";feedback.textContent=error.message}
  },
  profileDialog(){
-  const s=this.sim,p=s.profile,st=s.stats,m=s.metrics,cloud=s.cloud,tab=this.tabs.profile,rank=CONFIG.cityRank(m.score);
+  const s=this.sim,p=s.profile,st=s.stats,m=s.metrics,cloud=s.cloud,tab=this.tabs.profile,rank=CONFIG.cityRank(m.score,p.level);
   let body=this.tabbar("profile",[["me","Hồ sơ"],["account","Tài khoản"],["settings","Cài đặt"]]);
   if(tab==="me"){
    const hours=Math.floor(st.playTime/3600),minutes=Math.floor(st.playTime/60)%60;

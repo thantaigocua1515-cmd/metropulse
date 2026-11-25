@@ -31,9 +31,13 @@ class CrisisAndNPCManager {
   if(w.crises.length>=(m.level>=10?4:3)||w.buildings.filter(b=>b.id!=="road").length<3)return;
   const choices=this.candidates(w,m).filter(z=>z.risk>0&&m.level>=CONFIG.buildings[CONFIG.crises[z.id].hq].unlock&&!w.crises.some(c=>c.id===z.id));
   for(const z of choices.sort((a,b)=>b.risk-a.risk)){
-   if(Math.random()>=z.risk)continue;
+   const roll=Math.random();
+   if(roll>=z.risk)continue;
    const options=z.targets.filter(b=>!w.crises.some(c=>distance(c,b)===0));
-   if(this.spawn(w,z.id,options[Math.floor(Math.random()*options.length)],true))break;
+   const target=options[Math.floor(Math.random()*options.length)];
+   const coverage=target&&(z.id==="fire"||z.id==="traffic_jam")?Districts.coverage(target,w,undefined,z.id)[0]:null;
+   if(coverage&&roll>=z.risk*(1+coverage.value/100))continue;
+   if(this.spawn(w,z.id,target,true))break;
   }
  }
  friendRoll(friend,initial=false){

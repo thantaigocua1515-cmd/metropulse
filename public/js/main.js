@@ -24,6 +24,8 @@
  sim.social=new SocialManager(sim,data.friends);
  sim.storage=new StorageManager(sim);
  sim.prog=new ProgressionManager(sim);
+ sim.events=new SeasonalEvents(sim,new URLSearchParams(location.search).get("event")||"");
+ sim.legacy=new LegacyGoals(sim);
  cloud.attach(sim);
  const renderer=new IsoRenderer(document.getElementById("map"),sim),ui=new UIController(sim,renderer);
  new TutorialManager(sim,ui);

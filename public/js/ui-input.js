@@ -12,6 +12,7 @@ const UIInput = {
   canvas.addEventListener("pointerdown",e=>{
    if(e.button>2)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);
    const p=r.local(e);this.pointers.set(e.pointerId,p);
+   if(e.pointerType==="touch"&&(this.tool==="build"||this.tool==="move"))r.hover=IsoMath.screenToGrid(p.x,p.y,r.camera);
    if(this.pointers.size===1){
     const touch=e.pointerType==="touch";
     this.gesture={start:p,last:p,startedAt:e.timeStamp,threshold:touch?8:5,touch,dragged:false,drawn:false,pan:e.button!==0||this.tool==="look"||touch,road:e.button===0&&this.tool==="build"&&this.selection==="road",old:null};

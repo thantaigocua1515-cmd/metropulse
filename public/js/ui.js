@@ -208,12 +208,17 @@ class UIController {
    case "policies":this.policies();break;
    case "policy":{const error=s.activate(id);if(error){this.close();this.toast(error)}else this.policies();break}
    case "missions":if(id)this.tabs.missions=id;this.missions();break;
+   case "event-open":this.eventDialog();break;
+   case "event-quest":s.events.claimQuest(Number(id));this.eventDialog();break;
+   case "event-tier":s.events.claimTier(Number(id));this.eventDialog();break;
+   case "event-skin":s.events.selectSkin(id);this.eventDialog();break;
    case "quest-toggle":this.questOpen=!this.questOpen;break;
    case "claim":say(s.prog.claimQuest(id));if(this.dialogType==="missions")this.missions();break;
    case "claim-daily":say(s.prog.claimDaily(id));this.missions();break;
    case "claim-bonus":say(s.prog.claimDailyBonus());this.missions();break;
    case "claim-login":say(s.prog.claimLogin());if(this.dialogType==="login")this.close();else this.missions();break;
    case "claim-ach":say(s.prog.claimAchievement(id));this.missions();break;
+   case "claim-legacy":s.legacy.claim(arg,id);this.missions();break;
    case "replay":{const chapter=CONTENT.chapters.find(c=>c.id===id);if(chapter){this.close();this.playScene({type:"scene",key:"",title:chapter.title,subtitle:chapter.subtitle,lines:chapter.intro})}return}
    case "research":this.research();break;
    case "study":{const error=s.research(id);if(error)this.toast(error);this.research();break}
@@ -249,7 +254,7 @@ class UIController {
  reopen(){({missions:()=>this.missions(),social:()=>this.socials(),profile:()=>this.profileDialog()})[this.dialogType]?.()}
  refresh(initial=false){
   if(!this.inspect&&this.tool!=="build")this.renderer.closeDown();
-  const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score);
+  const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score,p.level);
   const xpNext=CONFIG.xpNext(p.level);
   this.html("profile",this.icon("star")+'<strong>'+fmt(p.level)+'</strong>'+this.bar(p.xp/xpNext));
   this.nodes.profile.title="Hồ sơ · "+p.mayorName+" · Cấp "+p.level+" · "+fmt(p.xp)+" / "+fmt(xpNext)+" XP";
@@ -270,6 +275,7 @@ class UIController {
   this.nodes.sound.title=s.audio.enabled?"Tắt âm thanh":"Bật âm thanh";
   this.refreshCloud();
   this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
+  this.eventBanner(own);
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
   const dots={missions:badges.missions,research:badges.research};
@@ -290,9 +296,9 @@ class UIController {
    this.html("filters",Object.entries(CONFIG.groups).map(([id,name])=>this.btn("filter",name,{id,cls:this.category===id?"active":""})).join(""));
    const rows=Object.values(CONFIG.buildings).filter(d=>this.category==="all"||d.group===this.category);
    this.html("catalog",rows.map(d=>{
-    const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,title=d.name+" · "+d.desc;
+    const locked=p.level<d.unlock,poor=!locked&&p.coins<d.price,hint=Districts.hint(d),title=d.name+" · "+d.desc+(hint?" · "+hint:"");
     const facts=[d.income&&"+"+d.income+" V/s",d.pop&&"+"+d.pop+" dân",d.power>0&&"+"+d.power+" điện",d.water>0&&"+"+d.water+" nước",d.happy>0&&"+"+d.happy+" HP",d.know&&"Tri thức"].filter(Boolean).slice(0,2).join(" · ");
-    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt="" loading="lazy"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small></span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
+    return this.btn("select",'<img src="'+this.thumbs[d.id]+'" alt="" loading="lazy"><span><b>'+d.name+'</b><small>'+(locked?'🔒 Mở ở cấp '+d.unlock:(facts||CONFIG.groups[d.group])+' · '+(d.duration?d.duration+' giây':'tức thì'))+'</small>'+(hint?'<small class="district-hint">'+hint+'</small>':"")+'</span><span class="price '+(poor?"warn":"gold")+'">'+fmt(d.price)+'</span>',{id:d.id,cls:"blueprint"+(locked?" locked":"")+(this.selection===d.id?" active":""),title});
    }).join(""));
   }
   this.inspectCard();this.sidebar();this.questTracker(badges);this.fab(badges);
@@ -319,6 +325,7 @@ class UIController {
    this.dialogFrame=Math.floor(s.elapsed);
    if(this.dialogType==="policies")this.policies();
    if(this.dialogType==="research"&&!this.nodes["dialog-body"].matches(":hover"))this.research();
+   if(this.dialogType==="event")this.eventDialog();
   }
   this.pump();this.tutorial?.update();
  }
@@ -337,7 +344,7 @@ class UIController {
   let actions="",extra="";
   if(b.left>0)extra='<small>Đang xây · còn '+Math.ceil(b.left)+' giây</small>'+this.bar(1-b.left/b.total);
   else if(b.id!=="road"){
-   const syn=s.synergy(b,w),facts=[];
+   const facts=[];
    if(d.income)facts.push('<span class="gold">+'+fmt(s.production(b,w),1)+' V/s</span>');
    if(d.pop)facts.push("+"+Math.round(d.pop*(1+.15*(b.level-1))*(group==="res"&&b.spec==="a"?1.4:1))+" dân");
    if(d.power)facts.push("Điện "+(d.power>0?"+"+Math.round(d.power*(1+.2*(b.level-1))):d.power));
@@ -346,11 +353,14 @@ class UIController {
    if(d.waste)facts.push("Rác "+(d.waste>0?"+":"")+d.waste);
    if(d.know)facts.push('<span class="teal">Tri thức +'+fmt(d.know*(1+.25*(b.level-1))*(group==="edu"&&b.spec==="a"?1.5:1)*60,1)+'/ph</span>');
    extra='<div class="facts">'+facts.join(" · ")+'</div>';
-   if(syn.notes.length)extra+='<div class="chips">'+syn.notes.map(([v,label])=>'<span class="chip '+(v.startsWith("−")?"bad":"good")+'">'+v+' '+label+'</span>').join("")+'</div>';
    if(team){const r=CONFIG.rank(b.missions);extra+='<small class="captain">'+this.avatar(team.avatar)+team.captain+' · '+r[1]+' · '+b.missions+' nhiệm vụ · '+CONFIG.vehicles[b.teamLevel-1].name+'</small>'}
    if(b.spec&&group)extra+='<div class="chips"><span class="chip spec">✦ '+CONFIG.specs[group][b.spec][0]+' — '+CONFIG.specs[group][b.spec][1]+'</span></div>';
    else if(own&&group&&b.level>=CONFIG.specLevel)extra+='<div class="spec-pick"><small>Chọn một chuyên môn hóa (không đổi lại được):</small>'+["a","b"].map(k=>this.btn("spec",'<b>'+CONFIG.specs[group][k][0]+'</b><small>'+CONFIG.specs[group][k][1]+'</small>',{id:key,arg:k})).join("")+'</div>';
    else if(own&&group&&b.level<CONFIG.specLevel)extra+='<small class="muted">Chuyên môn hóa mở ở cấp '+CONFIG.specLevel+'.</small>';
+  }
+  if(b.left<=0){
+   const notes=s.synergy(b,w,true).notes;
+   if(notes.length)extra+='<div class="chips">'+notes.map(([v,label,bad])=>'<span class="chip '+(bad?"bad":"good")+'">'+v+' '+label+'</span>').join("")+'</div>';
   }
   if(own){
    if(b.left>0)actions=this.btn("accelerate","Tăng tốc · "+this.prestigeAmount(1),{id:key,cls:"primary"});

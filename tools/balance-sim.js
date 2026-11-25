@@ -4,27 +4,29 @@ const fs=require("node:fs");
 const path=require("node:path");
 const vm=require("node:vm");
 
-// node tools/balance-sim.js [--seed=42] [--session=60] [--days=14] [--json]
+// node tools/balance-sim.js [--seed=42] [--session=60] [--days=14] [--date=2026-01-12] [--json]
 const args=Object.fromEntries(process.argv.slice(2).map(arg=>arg.slice(2).split("=")));
 const seed=Number(args.seed??42),session=Number(args.session??60)*60,days=Number(args.days??14);
 if(!Number.isSafeInteger(seed)||!Number.isInteger(session)||session<0||session>=86400||!Number.isInteger(days)||days<1)
  throw new Error("Use an integer seed, 0 (continuous) or <1440 session minutes, and positive days.");
-let random=seed>>>0,now=Date.UTC(2026,0,12,12);
+let random=seed>>>0,now=Date.parse((args.date??"2026-01-12")+"T12:00:00+07:00");
+if(!Number.isFinite(now))throw new Error("Use --date=YYYY-MM-DD.");
 const math=Object.create(Math);
 math.random=()=>{random=(Math.imul(1664525,random)+1013904223)>>>0;return random/2**32};
 class Clock extends Date{constructor(...args){super(...(args.length?args:[now]))}static now(){return now}}
 const context=vm.createContext({Math:math,Date:Clock,TextEncoder,TextDecoder,btoa,atob});
-for(const file of ["config","content","core","simulation","crisis","social","storage","progression","tutorial"])
+for(const file of ["config","content","core","simulation","crisis","social","storage","progression","tutorial","events"])
  vm.runInContext(fs.readFileSync(path.join(__dirname,"../public/js",file+".js"),"utf8"),context,{filename:file+".js"});
 const simulate=vm.runInContext(`(advance, session, days) => {
  const s=new SimulationEngine(StorageManager.fresh(),{play(){},enabled:false}),w=s.world,p=s.profile;
  s.storage=new StorageManager(s);s.storage.save=()=>true;
  s.crisis=new CrisisAndNPCManager(s);s.social=new SocialManager(s,[]);s.prog=new ProgressionManager(s);
+ s.events=new SeasonalEvents(s);s.legacy=new LegacyGoals(s);
  const tutorial=new TutorialManager(s,{nodes:{coach:{hidden:true}},pinCommands(){},setTool(){},toast(){}});
  let time=0,wall=0,nextPlan=0,nextSupport=0,idle=null,previous=p.level;
- const levels=[],economy=[],stretches=[],cheap={},actions={},offline=[];
+ const levels=[],economy=[],stretches=[],cheap={},actions={},offline=[],events={};
  const snapshot=()=>({level:p.level,active:time,wall,gold:Math.floor(p.coins),prestige:Math.floor(p.prestige),
-  knowledge:Math.floor(p.knowledge),income:+s.metrics.income.toFixed(1),xp:p.xp});
+  knowledge:Math.floor(p.knowledge),income:+s.metrics.income.toFixed(1),xp:p.xp,synergyTiles:s.metrics.synergyTiles});
  const start=snapshot();
  const tick=()=>{s.tick(1);advance(1);time++;wall++;s.pending.length=0};
  const observe=()=>{if(p.level!==previous){levels.push(snapshot());previous=p.level}};
@@ -63,7 +65,8 @@ const simulate=vm.runInContext(`(advance, session, days) => {
    const d=CONFIG.buildings[id];if(p.level<d.unlock)return;
    const options=roadTiles.filter(test);if(!options.length||m.construction>=2)return;
    const risk=t=>d.group==="res"&&steps.some(([dx,dy])=>["power_plant","waste_plant"].includes(lookup(w,t.x+dx,t.y+dy)?.id))?50:0;
-   const slot=options.sort((a,b)=>risk(a)-risk(b)+a.center-b.center+.2*(a.roads-b.roads))[0];
+   const nearby=t=>Districts.effects({id,x:t.x,y:t.y},w).filter(e=>e.value>0&&e.id!=="customers").length;
+   const slot=options.map(t=>({...t,pref:risk(t)+t.center+.2*t.roads-.25*nearby(t)})).sort((a,b)=>a.pref-b.pref)[0];
    candidates.push({price:d.price,score,run:()=>build(id,slot)});
   };
   const growth=p.level<5?4:p.level<10?7:10;
@@ -111,6 +114,14 @@ const simulate=vm.runInContext(`(advance, session, days) => {
   const ch=s.prog.chapter();if(ch)for(const q of ch.quests)any(s.prog.claimQuest(q.id));
   s.prog.ensureDaily();for(const q of s.progress.daily.quests)any(s.prog.claimDaily(q.id));
   any(s.prog.claimDailyBonus());any(s.prog.claimLogin());
+  const event=s.events,e=events[event.event.id]??={quests:0,tiers:0};
+  for(let i=0;i<event.def.jobs.length;i++)if(event.claimQuest(i)){e.quests++;useful=true}
+  for(let i=0;i<SeasonalEvents.tiers.length;i++)if(event.claimTier(i)){e.tiers++;useful=true}
+  if(s.legacy.unlocked){
+   for(const state of s.legacy.rankStates())if(s.legacy.claim("rank",state.id))useful=true;
+   for(const state of s.legacy.familyStates())if(s.legacy.claim("family",state.id))useful=true;
+   any(s.legacy.claim("plan",""));
+  }
   for(const a of CONTENT.achievements)any(s.prog.claimAchievement(a.id));
   if(s.progress.decision){const d=CONTENT.decisions.find(x=>x.id===s.progress.decision.id);
    const best=d.options.map((o,i)=>({i,cost:s.decisionCost(o),xp:o.xp||0})).filter(o=>-o.cost<=p.coins/3).sort((a,b)=>b.xp-a.xp||b.cost-a.cost)[0];if(best)any(s.decide(best.i));
@@ -148,7 +159,7 @@ const simulate=vm.runInContext(`(advance, session, days) => {
   }
  }
  closeIdle();
- return {levels,economy,stretches,cheap,actions,offline,last:snapshot(),stats:s.stats};
+ return {levels,economy,stretches,cheap,actions,offline,events,last:snapshot(),stats:s.stats};
 }`,context);
 const result=simulate(seconds=>{now+=seconds*1000},session,days);
 if("json" in args)console.log(JSON.stringify(result,null,2));
@@ -162,5 +173,6 @@ else{
  console.table(Object.entries(result.cheap).map(([id,{count,first,price}])=>({id,count,level:first.level,active:time(first.active),price})));
  console.log("Economy curve (30-minute samples; --json includes all five-minute samples and offline returns):");
  console.table(result.economy.filter(row=>row.active%1800===0).map(({active,wall,...row})=>({...row,active:time(active),wall:time(wall)})));
+ console.log("Event participation:",JSON.stringify(result.events));
  console.log("Offline returns:",result.offline.length,"Final:",JSON.stringify(result.last));
 }
