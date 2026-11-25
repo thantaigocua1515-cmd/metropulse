@@ -2,7 +2,14 @@
 const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",police_station:"police",
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
-const ROAD_SPRITE_SCALE=1.08;
+const ROAD_DIRECTIONS=[[1,0],[0,-1],[-1,0],[0,1]];
+const ROAD_PROFILES=[[.30,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
+ color,round,outlines:Array.from({length:16},(_,mask)=>ROAD_DIRECTIONS.flatMap(([dx,dy],i)=>{
+  const point=(along,across,corner=false)=>[dx*along+dy*across,dy*along-dx*across,corner];
+  const corner=point(half,half,true);
+  return mask&(1<<i)?[point(.52,-half),point(.52,half),corner]:[corner];
+ }))
+}));
 
 class IsoRenderer {
  constructor(canvas,sim){
@@ -145,9 +152,10 @@ class IsoRenderer {
    const p=this.project(16.38,i+.52,-3),q=this.project(i+.52,16.38,-3);
    this.text(String.fromCharCode(65+i),p.x,p.y,9*z,"#ffffffb0");this.text(String(i+1).padStart(2,"0"),q.x,q.y,9*z,"#ffffffb0");
   }
+  this.roads(w);
  }
  groundLayer(w){
-  const {canvas,ctx,camera:c,dpr}=this,key=[canvas.width,canvas.height,dpr,c.x,c.y,c.zoom,w.unlockedRadius,...w.index.keys(),
+  const {canvas,ctx,camera:c,dpr}=this,key=[canvas.width,canvas.height,dpr,c.x,c.y,c.zoom,w.unlockedRadius,...Array.from(w.index,([k,b])=>b.id==="road"?k+"r":k),
    GameArt.ready("terrain-grass"),GameArt.ready("terrain-props"),GameArt.ready("terrain-edge")].join("|");
   if(this.groundKey!==key){
    this.groundKey=key;this.groundReady=false;this.ground(w);return;
@@ -162,34 +170,43 @@ class IsoRenderer {
   }
   ctx.drawImage(layer,0,0,layer.width/dpr,layer.height/dpr);
  }
- road(b,w){
-  const {x,y}=b,z=this.camera.zoom;
-  const frame=this.roadFrame(b,w),meta=SPRITES.road,art=frame&&meta&&this.sprite("road",frame);
-  if(art){this.drawSprite(art,meta,x,y,ROAD_SPRITE_SCALE);return}
-  const fill=(x1,y1,x2,y2,color)=>this.poly(this.plate(x+x1,y+y1,x+x2,y+y2),color);
-  const bits=[[1,0,.5,.23,1,.77],[0,1,.23,.5,.77,1],[-1,0,0,.23,.5,.77],[0,-1,.23,0,.77,.5]];
-  const linked=bits.filter(([dx,dy])=>lookup(w,x+dx,y+dy)?.id==="road");
-  if(!linked.length){
-   const p=this.project(x+.5,y+.5);
-   this.ellipse(p.x,p.y,13*z,6.5*z,"#929691");this.ellipse(p.x,p.y,11*z,5.5*z,"#767d80");
-   return;
-  }
-  fill(.23,.23,.77,.77,"#767d80");
-  for(const [dx,dy,a,c,e,f] of linked){
-   fill(a,c,e,f,"#767d80");
-   if(linked.length<=2){
-    this.line([this.project(x+.5+dx*.08,y+.5+dy*.08),this.project(x+.5+dx*.39,y+.5+dy*.39)],"#ebd59f",1*z);
-   }else{
-    for(let k=0;k<3;k++){
-     const width=(k-1)*.16;
-     this.line([this.project(x+.5+dx*.33+dy*width,y+.5+dy*.33+dx*width),this.project(x+.5+dx*.45+dy*width,y+.5+dy*.45+dx*width)],"#e2e5c7a3",1.25*z);
+ roadConnections(b,w){
+  return ROAD_DIRECTIONS.reduce((mask,[dx,dy],i)=>mask|(lookup(w,b.x+dx,b.y+dy)?.id==="road"?1<<i:0),0);
+ }
+ roads(w){
+  const tiles=w.buildings.filter(b=>b.id==="road").map(b=>[b.x+.5,b.y+.5,this.roadConnections(b,w)]);
+  if(!tiles.length)return;
+  const g=this.ctx;
+  for(const {color,round,outlines} of ROAD_PROFILES){
+   g.beginPath();
+   for(const [x,y,mask] of tiles){
+    const points=outlines[mask],radius=mask?round:.17;
+    for(let i=0;i<points.length;i++){
+     const [u,v,corner]=points[i],p=this.project(x+u,y+v);
+     const move=i===0?"moveTo":"lineTo";
+     if(!corner){g[move](p.x,p.y);continue}
+     const prev=points[(i+points.length-1)%points.length],next=points[(i+1)%points.length];
+     const near=([a,b])=>this.project(x+u+Math.sign(a-u)*radius,y+v+Math.sign(b-v)*radius);
+     const start=near(prev),end=near(next);
+     g[move](start.x,start.y);g.quadraticCurveTo(p.x,p.y,end.x,end.y);
     }
+    g.closePath();
    }
+   g.fillStyle=color;g.fill();
   }
+  g.beginPath();
+  for(const [x,y,mask] of tiles)for(const [i,[dx,dy]] of ROAD_DIRECTIONS.entries()){
+   if(!(mask&(1<<i))||(dx<0||dy<0))continue;
+   const u=x+dx*.5,v=y+dy*.5;
+   const points=this.plate(u-(dx?.12:.027),v-(dy?.12:.027),u+(dx?.12:.027),v+(dy?.12:.027));
+   g.moveTo(points[0].x,points[0].y);
+   for(const p of points.slice(1))g.lineTo(p.x,p.y);
+   g.closePath();
+  }
+  g.fillStyle="#eed9a0";g.fill();
  }
  roadFrame(b,w){
-  const link=(dx,dy)=>lookup(w,b.x+dx,b.y+dy)?.id==="road";
-  const mask=(link(1,0)?1:0)|(link(0,-1)?2:0)|(link(-1,0)?4:0)|(link(0,1)?8:0);
+  const mask=this.roadConnections(b,w);
   return [null,"end_3","end_0","corner_1","end_1","straight_1","corner_2","tee_1",
    "end_2","corner_0","straight_0","tee_0","corner_3","tee_3","tee_2","cross_0"][mask];
  }
@@ -371,6 +388,7 @@ class IsoRenderer {
  preloadCity(w){
   const urls=new Set();
   for(const b of w.buildings){
+   if(b.id==="road")continue;
    const frame=this.cityFrame(b,w);
    if(!frame)continue;
    const url=this.spritePath(b.id,frame);
@@ -541,10 +559,7 @@ class IsoRenderer {
   const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom;
   const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
   g.setTransform(this.dpr,0,0,this.dpr,0,0);this.ambient(night,own.weather,w);this.groundLayer(w);this.hits=[];
-  for(const b of w.buildings)if(b.id==="road"){
-   this.road(b,w);
-   if(night>.18)this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
-  }
+  if(night>.18)for(const b of w.buildings)if(b.id==="road")this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
   EventMap.draw(this,w,this.sim.events);
   const jobs=[],heights=new Map();
   for(let x=0;x<16;x++)for(let y=0;y<16;y++){
@@ -597,7 +612,7 @@ class IsoRenderer {
   const canvas=document.createElement("canvas");canvas.width=112;canvas.height=94;
   const saved={ctx:this.ctx,camera:this.camera,hits:this.hits};this.ctx=canvas.getContext("2d");this.camera={x:56,y:70,zoom:id==="metro_wonder"?.58:["tech_tower","wind_farm","airport","office_tower","university"].includes(id)?.66:.79};this.hits=[];
   const b=makeBuilding(id,0,0),w=makeWorld(id==="road"?[b,makeBuilding("road",1,0),makeBuilding("road",0,-1)]:[b]);
-  if(id==="road")this.road(b,w);else this.building(b,w,0);
+  if(id==="road")this.roads(w);else this.building(b,w,0);
   Object.assign(this,saved);return canvas.toDataURL();
  }
 }

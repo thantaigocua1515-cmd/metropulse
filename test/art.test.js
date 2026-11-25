@@ -70,5 +70,7 @@ test("ground layer refreshes for camera, tile occupancy and late-loading art", (
   world.index.set("1,1", {}); draw(); draw();
   renderer.camera.x++; draw(); draw();
   assert.deepEqual(painted, Array.from({length: 4}, () => [ctx, groundContext]).flat());
+  world.index.set("1,1", {id:"road"}); draw(); draw();
+  assert.deepEqual(painted.slice(8), [ctx,groundContext]);
   assert.equal(renderer.ctx, ctx);
 });

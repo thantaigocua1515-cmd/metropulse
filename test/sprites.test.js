@@ -67,20 +67,32 @@ test("building previews use level and automatic facing unless manually rotated",
   assert.equal(renderer.spritePreview(b, w), null);
 });
 
-test("road rendering extends sprite joins without moving the road center", () => {
-  const road = makeBuilding("road", 8, 8);
-  const world = makeWorld([road, makeBuilding("road", 9, 8)]);
-  const draws = [], art = {};
-  const r = Object.assign(Object.create(IsoRenderer.prototype), {
-    camera: {x: 112, y: -90, zoom: 1.1},
-    ctx: {drawImage: (...args) => draws.push(args)},
-    sprite(id, frame) { assert.equal(id+"/"+frame, "road/end_3"); return art; }
-  });
-  r.road(road,world);
-  const [[source,x,y,width,height]] = draws;
-  const {w,h,ax,ay} = SPRITES.road, center = r.project(8.5,8.5);
-  assert.equal(source, art);
-  assert.ok(Math.min(width/w, height/h)*.465 > .5*r.camera.zoom);
-  assert.ok(Math.abs(x+ax*width/w-center.x) < 1e-8);
-  assert.ok(Math.abs(y+ay*height/h-center.y) < 1e-8);
+test("road joins share curb and asphalt profiles and get one centered stripe", () => {
+  const world = makeWorld([[8,8],[9,8],[8,9],[8,10],[6,6]].map(([x,y]) => makeBuilding("road",x,y)));
+  const layers = [];
+  const ctx = {
+    beginPath() {this.paths=[]},
+    moveTo(x,y) {this.points=[[x,y]]},
+    lineTo(x,y) {this.points.push([x,y])},
+    quadraticCurveTo(x,y,u,v) {this.points.push([x,y],[u,v])},
+    closePath() {this.paths.push(this.points)},
+    fill() {layers.push(this.paths)}
+  };
+  const r = Object.assign(Object.create(IsoRenderer.prototype), {ctx,project:(x,y)=>({x,y})});
+  r.roads(world);
+  const [curbs,asphalt,stripes] = layers;
+  assert.equal(curbs.length,5);
+  assert.equal(asphalt.length,5);
+  for (const [shapes,half] of [[curbs,.30],[asphalt,.255]]) {
+    for(const [tile,x] of [[0,9.02],[1,8.98]]) {
+      assert.deepEqual(shapes[tile].filter(([u])=>u===x).map(([,y])=>y).sort(),[8.5-half,8.5+half]);
+    }
+    for(const [tile,y] of [[0,9.02],[2,8.98]]) {
+      assert.deepEqual(shapes[tile].filter(([,v])=>v===y).map(([x])=>x).sort(),[8.5-half,8.5+half]);
+    }
+  }
+  assert.deepEqual(stripes.map(points => {
+    const [x,y]=points[0], [u,v]=points[2];
+    return [(x+u)/2,(y+v)/2];
+  }), [[9,8.5],[8.5,9],[8.5,10]]);
 });
