@@ -1,12 +1,12 @@
 "use strict";
 
-const VERSION="4.5.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
+const VERSION="4.6.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
 const root=new URL(self.registration.scope),shell=new URL("./",root).href;
 const build=url=>new URL(url,root).href;
 let cacheHandle;
 const currentCache=()=>cacheHandle??=caches.has(CACHE).then(exists=>exists?caches.open(CACHE):null);
 const staticPath=url=>url.origin===root.origin&&url.pathname.startsWith(root.pathname)&&
- /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|fonts\/be-vietnam-pro-(?:400|600|800)-(?:latin|vietnamese)\.woff2|img\/(?:[\w-]+\.svg|(?:art|bld|npc)\/[\w/-]+\.webp)|audio\/turning-pages\.mp3)$/.test(url.pathname.slice(root.pathname.length))&&
+ /^(?:js\/[\w-]+\.js|css\/[\w-]+\.css|fonts\/be-vietnam-pro-(?:400|600|800)-(?:latin|vietnamese)\.woff2|img\/(?:[\w-]+\.svg|(?:art|bld|npc|skins)\/[\w/-]+\.webp)|audio\/turning-pages\.mp3)$/.test(url.pathname.slice(root.pathname.length))&&
  url.search==="?v="+VERSION;
 const isAsset=res=>res.ok&&!res.redirected&&!/^text\/html\b/i.test(res.headers.get("content-type")||"");
 

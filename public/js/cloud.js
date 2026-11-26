@@ -21,7 +21,13 @@ class CloudClient {
   }finally{clearTimeout(timer)}
  }
  setToken(token){this.token=token;try{if(token)localStorage.setItem(this.tokenKey,token);else localStorage.removeItem(this.tokenKey)}catch(_){}}
- adopt(r){this.setToken(r.token);this.account=r.account}
+ adopt(r){this.setToken(r.token);this.account=r.account;this.confirmOwnership(r)}
+ confirmOwnership(r){
+  if(!Array.isArray(r.skinPacks)||!this.account)return;
+  this.ownership={skinPacks:r.skinPacks,loginDays:r.loginDays||0};
+  try{localStorage.setItem("mp-ownership:"+this.account.code,JSON.stringify(this.ownership))}catch(_){}
+ }
+ ownsSkin(id){return id==="default"||["tet","noel","cyberpunk"].includes(id)&&Array.isArray(this.ownership?.skinPacks)&&this.ownership.skinPacks.includes(id)}
  async guest(){this.adopt(await this.api("/auth/guest",{method:"POST",body:{}}))}
  async signup(username,password){this.adopt(await this.api("/auth/signup",{method:"POST",body:{username,password}}))}
  async signin(username,password){this.adopt(await this.api("/auth/login",{method:"POST",body:{username,password}}))}
@@ -32,7 +38,7 @@ class CloudClient {
    if(health){if(!await health)return null}
    else await this.api("/health",{timeout:8000});
    this.online=true;
-   if(this.token)try{this.account=(await this.api("/me")).account}catch(error){if(error.status!==401)throw error;this.setToken(null)}
+   if(this.token)try{const r=await this.api("/me");this.account=r.account;this.confirmOwnership(r)}catch(error){if(error.status!==401)throw error;this.setToken(null)}
    return this.account?await this.pull():null;
   }catch(_){this.online=false;this.status="offline";return null}
  }
@@ -43,6 +49,10 @@ class CloudClient {
  }
  attach(sim){
   this.sim=sim;sim.cloud=this;
+  if(!this.account&&this.token&&sim.profile.mayorId)try{
+   this.ownership=JSON.parse(localStorage.getItem("mp-ownership:"+sim.profile.mayorId));
+  }catch(_){}
+  if(!this.ownsSkin(sim.profile.skin))sim.profile.skin="default";
   if(this.online&&this.account){sim.profile.mayorId=this.account.code;this.dirty=true}
   setInterval(()=>this.flush(),15000);
   if(this.enabled){
@@ -134,6 +144,24 @@ class CloudClient {
  }
  async removeFriend(code){if(this.online)try{await this.api("/friends/"+encodeURIComponent(code),{method:"DELETE"})}catch(_){}}
  assist(friend){if(this.online&&friend.cloud)this.api("/assist",{method:"POST",body:{code:friend.id}}).catch(()=>{})}
- async mailbox(){return this.online?(await this.api("/mailbox")).gifts:[]}
+ async announcements(){return (await this.api("/announcements",{timeout:5000})).rows||[]}
+ async mailbox(){return this.online?await this.api("/mailbox"):{gifts:[],letters:[]}}
  async claimMail(){return this.api("/mailbox/claim",{method:"POST",body:{}})}
+ async claimLetter(letter){
+  const resources=["coins","prestige","knowledge"].filter(key=>letter.rewards[key]);
+  if(resources.length&&!await this.flush(true))throw Error("Chưa lưu được thành phố. Hãy thử nhận lại.");
+  if(this.busy)throw Error("Đang đồng bộ thành phố. Hãy thử lại.");
+  this.busy=true;
+  try{
+   const r=await this.api("/mailbox/"+encodeURIComponent(letter.id)+"/claim",{method:"POST",body:{}});
+   this.confirmOwnership(r);
+   if(r.rev!=null){
+    if(this.rev!==r.previousRev){this.swap(await this.api("/save"));return r}
+    for(const key of resources)this.sim.profile[key]=(this.sim.profile[key]??0)+r.rewards[key];
+    this.rev=r.rev;
+    if(this.sim.storage.save())this.rememberAdminRevision(r.adminRev);
+   }
+   return r;
+  }finally{this.busy=false}
+ }
 }

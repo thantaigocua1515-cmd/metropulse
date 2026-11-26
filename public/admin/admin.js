@@ -3,7 +3,7 @@
 const app=document.querySelector("#app"),notice=document.querySelector("#notice");
 const nav={
  overview:["▦","Tổng quan"],users:["♙","Người chơi"],events:["✦","Sự kiện"],
- chat:["▤","Trò chuyện"],audit:["☷","Nhật ký"],security:["◈","Bảo mật"]
+ announcements:["◉","Thông báo"],mail:["✉","Gửi thư"],chat:["▤","Trò chuyện"],audit:["☷","Nhật ký"],security:["◈","Bảo mật"]
 };
 const templates={
  tet:"Tết Nguyên Đán","trung-thu":"Tết Trung Thu","quoc-khanh":"Quốc Khánh","giang-sinh":"Giáng Sinh",
@@ -12,8 +12,12 @@ const templates={
 };
 const flash=["rush-hour","weekend-market"];
 const fields={coins:"Vàng",prestige:"Uy tín",knowledge:"Tri thức",level:"Cấp Thị trưởng"};
+const skins={tet:"Tết",noel:"Noel",cyberpunk:"Cyberpunk"};
+const localTime=value=>value?new Date(Date.parse(value)+7*3600000).toISOString().slice(0,16):"";
+const utcTime=value=>value?new Date(value+"+07:00").toISOString():null;
 const actions={"admin.setup":"Thiết lập quản trị","admin.login":"Đăng nhập","admin.login.failed":"Đăng nhập thất bại","admin.logout":"Đăng xuất","admin.logout-all":"Đăng xuất mọi phiên","admin.password":"Đổi mật khẩu","admin.totp.reset":"Đặt lại 2FA",
- "user.ban":"Khóa tài khoản","user.unban":"Mở khóa","user.revoke":"Thu hồi phiên","user.delete":"Xóa tài khoản","user.resources":"Sửa tài nguyên","chat.visibility":"Đổi hiển thị","event.update":"Lưu sự kiện","event.reset":"Xóa cấu hình"};
+ "user.ban":"Khóa tài khoản","user.unban":"Mở khóa","user.revoke":"Thu hồi phiên","user.delete":"Xóa tài khoản","user.resources":"Sửa tài nguyên","chat.visibility":"Đổi hiển thị","event.update":"Lưu sự kiện","event.reset":"Xóa cấu hình",
+ "announcement.create":"Tạo thông báo","announcement.update":"Sửa thông báo","announcement.delete":"Xóa thông báo","mail.send":"Gửi thư quà"};
 const e=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=value=>new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(value??0);
 const date=value=>value?new Intl.DateTimeFormat("vi-VN",{dateStyle:"short",timeStyle:"short",timeZone:"Asia/Ho_Chi_Minh"}).format(new Date(value)):"—";
@@ -75,6 +79,8 @@ async function render(){
   if(view==="overview")html=overview(await api("/overview?days="+range));
   else if(view==="users")html=selected?user(await api("/users/"+encodeURIComponent(selected))):users(await api("/users?"+new URLSearchParams({page,q,sort})));
   else if(view==="events")html=eventPage((await api("/events")).rows);
+  else if(view==="announcements")html=announcementPage((await api("/announcements")).rows);
+  else if(view==="mail")html=mailPage(await api("/mail?page="+page));
   else if(view==="chat")html=chat(await api("/chat?"+new URLSearchParams({page,...(selected?{code:selected}:{})})));
   else if(view==="audit")html=audit(await api("/audit?page="+page));
   else html=security();
@@ -165,6 +171,37 @@ function eventPage(rows){
   preset.map((reward,i)=>field("reward"+i,"Vàng mốc "+(i+1),{type:"number",value:row?.rewards[i]??reward,extra:'required min="0" max="1000000" step="1"'})).join("")+
   '</div><div class="actions"><button class="primary">Lưu cấu hình</button>'+(row?btn("event-reset","Xóa cấu hình",id,"danger"):"")+'</div></form></section></div>';
 }
+const textFields=row=>field("title","Tiêu đề",{value:row?.title,extra:"required maxlength=100"})+
+ '<label>Nội dung<textarea name="body" required maxlength="2400" rows="4">'+e(row?.body)+'</textarea></label>';
+function announcementPage(rows){
+ const row=rows.find(row=>row._id===selected);
+ return heading("Giao tiếp","Thông báo","Thông báo đang hiệu lực hiện khi người chơi vào game.",btn("announcement-edit","＋ Thông báo mới","","primary"))+
+  '<div class="split"><section class="card"><h2 class="section-title">Thông báo đã lưu</h2>'+
+  table(["Thông báo","Trạng thái","Ưu tiên",""],rows.map(r=>'<tr><td><b>'+e(r.title)+'</b><span class="sub">'+date(r.start)+' → '+date(r.end)+'</span></td>'+
+   '<td>'+tag(r.active?"Đã bật":"Đã tắt",!r.active)+'</td><td>'+e(r.priority)+'</td><td>'+btn("announcement-edit","Sửa",r._id)+'</td></tr>').join(""))+
+  '</section><section class="card form"><h2>'+(row?"Sửa thông báo":"Thông báo mới")+'</h2><p class="muted">Giờ Việt Nam. Bỏ trống ngày nếu không giới hạn lịch.</p>'+
+  '<form class="form" data-form="announcement">'+textFields(row)+field("image","URL ảnh HTTPS (tùy chọn)",{value:row?.image,type:"url",extra:"maxlength=500"})+'<div class="grid-form">'+
+   field("start","Bắt đầu",{type:"datetime-local",value:localTime(row?.start)})+field("end","Kết thúc",{type:"datetime-local",value:localTime(row?.end)})+
+   field("priority","Ưu tiên",{type:"number",value:row?.priority??0,extra:"required min=0 max=100"})+
+  '<label class="check"><input name="active" type="checkbox" '+(!row||row.active?"checked":"")+'> Bật thông báo</label></div><div class="controls">'+
+  '<button class="primary">Lưu thông báo</button>'+(row?btn("announcement-delete","Xóa",row._id,"danger"):"")+'</div></form></section></div>';
+}
+function mailPage({rows,page,more}){
+ const rewardText=r=>[...["coins","prestige","knowledge"].filter(key=>r[key]).map(key=>num(r[key])+" "+fields[key]),r.skin&&"Skin "+skins[r.skin]].filter(Boolean).join(" · ");
+ return heading("Giao tiếp","Gửi thư quà","Gửi cho một người chơi hoặc toàn máy chủ, kể cả tài khoản tạo sau.")+
+  '<div class="split"><section class="card"><h2 class="section-title">Lịch sử gửi</h2>'+table(["Thư","Người nhận","Đã nhận"],rows.map(r=>
+   '<tr><td><b>'+e(r.title)+'</b><span class="sub">'+e(rewardText(r.rewards))+'</span><span class="sub">'+date(r.createdAt)+(r.expiresAt?" · Hết hạn "+date(r.expiresAt):"")+'</span></td>'+
+   '<td>'+e(r.toCode||"Toàn máy chủ")+'</td><td>'+num(r.claims)+'</td></tr>').join(""))+
+  '<div class="controls">'+(page>1?btn("prev","Trang trước"):"")+'<span>Trang '+page+'</span>'+(more?btn("next","Trang sau"):"")+'</div></section>'+
+  '<section class="card form"><h2>Soạn thư</h2><form class="form" data-form="mail">'+textFields()+
+  '<label>Người nhận<select name="target"><option value="player">Một người chơi</option><option value="all">Toàn máy chủ (kể cả tài khoản tạo sau)</option></select></label>'+
+  '<div class="form" data-mail-picker><label>Mã hoặc tên người chơi<input name="code" maxlength="40" list="mail-recipients" autocomplete="off"></label>'+
+  '<button type="button" data-action="mail-find">Tìm người chơi</button><datalist id="mail-recipients"></datalist><div class="controls" data-mail-results></div></div>'+
+  '<div data-mail-expiry>'+field("expiresAt","Hạn nhận theo giờ Việt Nam (tùy chọn)",{type:"datetime-local"})+'</div><div class="grid-form">'+
+  ["coins","prestige","knowledge"].map(key=>field(key,fields[key],{type:"number",value:0,extra:"min=0 step=1"})).join("")+
+  '<label>Skin<select name="skin"><option value="">Không đính kèm</option>'+Object.entries(skins).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join("")+
+  '</select></label></div><div><button class="primary">Gửi thư</button></div></form></section></div>';
+}
 function chat(d){
  return heading("Kiểm duyệt","Trò chuyện",selected?"Tin nhắn liên quan đến "+selected:"Ẩn hoặc khôi phục tin nhắn cộng đồng.",selected?btn("chat-all","Xem tất cả"):"")+
   '<section class="card form">'+table(["Thời gian","Người gửi","Kênh","Nội dung","Hiển thị",""],d.rows.map(r=>'<tr><td>'+date(r.createdAt)+'</td><td>'+e(r.name)+'<span class="sub">'+e(r.from)+'</span></td><td>'+e(r.to?"Riêng · "+r.to:"Thế giới")+'</td><td>'+e(r.text)+'</td><td>'+tag(r.hiddenAt?"Đã ẩn":"Công khai",!!r.hiddenAt)+'</td><td>'+btn(r.hiddenAt?"unhide":"hide",r.hiddenAt?"Khôi phục":"Ẩn",r.id)+'</td></tr>').join(""))+nextPage(d,d.more)+'</section>';
@@ -204,7 +241,18 @@ app.addEventListener("click",async event=>{
  const {action,id}=button.dataset,base="/users/"+encodeURIComponent(selected);
  try{
   if(action==="nav"){view=id;selected="";page=1}
-  else if(action==="user"||action==="event-edit"){selected=id}
+  else if(action==="user"||action==="event-edit"||action==="announcement-edit"){selected=id}
+  else if(action==="announcement-delete"){
+   if(!await confirmDialog("Xóa thông báo?","Thông báo sẽ không còn xuất hiện khi người chơi vào game."))return;
+   await api("/announcements/"+id,"DELETE");selected="";show("Đã xóa thông báo.");
+  }else if(action==="mail-find"||action==="mail-pick"){
+   const form=button.closest("form"),input=form.elements.code;
+   if(action==="mail-pick"){input.value=id;return}
+   const {rows}=await api("/users?"+new URLSearchParams({q:input.value}));
+   form.querySelector("#mail-recipients").innerHTML=rows.map(row=>'<option value="'+e(row.code)+'">'+e(row.name)+'</option>').join("");
+   form.querySelector("[data-mail-results]").innerHTML=rows.length?rows.map(row=>btn("mail-pick",row.name+" · "+row.code,row.code)).join(""):"Không tìm thấy người chơi.";
+   return;
+  }
   else if(action==="back"||action==="chat-all"){selected=""}
   else if(action==="continue"){if(!username){login();return}}
   else if(action==="user-chat"){view="chat";page=1}
@@ -258,6 +306,17 @@ app.addEventListener("submit",async event=>{
      multiplier:Number(data.multiplier),rewards:[0,1,2].map(i=>Number(data["reward"+i]))};
     await api("/events/"+encodeURIComponent(data.id),"PUT",config);selected=data.id;show("Đã lưu sự kiện.");break;
    }
+   case "announcement":{
+    const payload={title:data.title,body:data.body,active:data.active==="on",priority:Number(data.priority),image:data.image,start:utcTime(data.start),end:utcTime(data.end)};
+    const {row}=await api("/announcements"+(selected?"/"+encodeURIComponent(selected):""),selected?"PUT":"POST",payload);
+    selected=row._id;show("Đã lưu thông báo.");break;
+   }
+   case "mail":{
+    if(!await confirmDialog("Gửi thư quà?",data.target==="all"?"Thư không hết hạn và sẽ đến cả tài khoản tạo sau.":"Thư sẽ gửi đến mã "+data.code+"."))return;
+    await api("/mail","POST",{title:data.title,body:data.body,target:data.target,code:data.code,expiresAt:data.target==="all"?null:utcTime(data.expiresAt),
+     rewards:{coins:Number(data.coins),prestige:Number(data.prestige),knowledge:Number(data.knowledge),skin:data.skin}});
+    page=1;show("Đã gửi thư.");break;
+   }
    case "password":
     await api("/password","POST",data);login();show("Đã đổi mật khẩu. Hãy đăng nhập lại.");return;
    case "totp-start":{
@@ -274,6 +333,10 @@ app.addEventListener("submit",async event=>{
   await render();
  }catch(error){show(error.message,true)}
  finally{if(button)button.disabled=false}
+});
+app.addEventListener("change",event=>{
+ const node=event.target;
+ if(node.name==="target"&&node.form?.dataset.form==="mail")for(const region of node.form.querySelectorAll("[data-mail-picker],[data-mail-expiry]"))region.hidden=node.value==="all";
 });
 
 (async()=>{

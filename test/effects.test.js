@@ -62,6 +62,21 @@ test("reduce effects is saved and restored without suppressing the actual reward
   assert.equal(restored.fx.length, 0);
 });
 
+test("skin effects draw only near visible completed buildings and cap fireworks",()=>{
+  const runs={flowers:0,snow:0,strokes:0};
+  const ctx={save(){},restore(){},drawImage(){runs.flowers++},fillRect(){runs.snow++},
+    beginPath(){},moveTo(){},lineTo(){},stroke(){runs.strokes++}};
+  const effect=Object.assign(Object.create(CityEffects.prototype),{
+    flower:{},r:{ctx,width:390,height:800,camera:{zoom:1},elapsed:0,project:(x,y)=>({x:x*20,y:y*20})}
+  });
+  const a={x:0,y:0,left:0},visible={buildings:[a,{x:1,y:1,left:1},{x:99,y:99,left:0}]};
+  const heights=new Map([[0,20],[17,20],[1683,20]]);
+  effect.skin("noel",visible,heights);
+  assert.equal(runs.snow,2);
+  effect.skin("tet",{buildings:[...visible.buildings,a,a]},heights);
+  assert.deepEqual(runs,{flowers:6,snow:2,strokes:4});
+});
+
 test("level four gains steady XP from adequately supplied utilities during play", () => {
   const data = StorageManager.fresh();
   data.profile.level = 4;

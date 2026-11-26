@@ -19,3 +19,9 @@ Phiên quản trị hết hạn sau 30 phút không có yêu cầu xác thực h
 - **Nhập lịch sử (tùy chọn)**: chỉ sau khi xác nhận target và quyền, chạy `node scripts/admin-backfill-analytics.js --apply` với cùng biến môi trường. Script thêm ngày hoạt động gần nhất đã ghi trong hồ sơ (trong 60 ngày), không suy diễn các ngày còn thiếu, không tạo phiên online hoặc mẫu CCU giả. Có thể chạy lại. Số tài khoản mới đã dùng ngày tạo trực tiếp, không cần backfill.
 - **Sự kiện:** cấu hình trên máy chủ ghi đè lịch và Vàng theo mốc; hệ số áp dụng vào Vàng. Khi có hai lịch chủ động trùng, lịch có giờ bắt đầu mới hơn được ưu tiên trong cùng loại. Khi không có mạng, game dùng lịch và phần thưởng có sẵn. Game hiện vẫn là mô hình bản lưu do client quản lý, không phải một hệ thống chống sửa save.
 - **Khóa tài khoản** ngăn đăng nhập và các API đã xác thực (gồm trò chuyện), không chặn chơi ngoại tuyến hay tạo một danh tính khác. Xóa tài khoản không thể xóa bản lưu đã nằm trên thiết bị người chơi.
+
+## Thông báo, thư và skin
+
+- **Thông báo**: biểu mẫu nhận giờ Việt Nam, độ ưu tiên cao hơn hiện trước. Thông báo đang bật và trong lịch sẽ hiện khi vào game trực tuyến. Ẩn trong ngày chỉ áp dụng trên trình duyệt đó.
+- **Gửi thư**: tìm theo mã hoặc tên người chơi, hoặc chọn toàn máy chủ. Thư toàn máy chủ không hết hạn và đến cả tài khoản tạo sau khi gửi; chỉ thư gửi một người có thể đặt hạn nhận. Người chơi chủ động nhận quà. Vàng, Uy tín, Tri thức và quyền sở hữu skin được ghi cùng trạng thái nhận thư, mỗi thư chỉ nhận một lần. MongoDB cần replica set hoặc Atlas để chạy giao dịch nhận thư.
+- **Skin**: phát Tết, Noel hoặc Cyberpunk qua thư. Cyberpunk cũng tự mở khóa khi một tài khoản, kể cả tài khoản khách, vào game trực tuyến đủ 7 ngày khác nhau theo giờ Việt Nam; không cần liên tiếp. Ngày trước khi triển khai không được tính lại. Khi ngoại tuyến, game chỉ dùng quyền sở hữu đã nhận khi đồng bộ trước đó trên trình duyệt.

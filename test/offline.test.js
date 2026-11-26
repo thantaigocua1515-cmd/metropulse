@@ -74,17 +74,19 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
     return result;
   };
   const sprite = "img/bld/house_small/01_0.webp?v="+version;
+  const skin = "img/skins/tet/house_small/01_0.webp?v="+version;
   const hud = "img/art/hud.webp?v="+version;
   const eventArt = "img/art/events-tet-trung-thu.webp?v="+version;
   const music = "audio/turning-pages.mp3?v="+version;
   const fonts = [400,600,800].flatMap(weight => ["latin","vietnamese"].map(subset => "fonts/be-vietnam-pro-"+weight+"-"+subset+".woff2?v="+version));
   assert.ok(fetched.includes(origin+hud));
   assert.ok(!fetched.includes(origin+eventArt));
+  assert.ok(!fetched.includes(origin+skin));
   assert.ok(!fetched.includes(origin+music));
   assert.ok(fonts.every(font => fetched.includes(origin+font)));
   const seek = () => request(music,"GET","same-origin",new Headers({range:"bytes=1-3"}));
   assert.equal(await (await seek()).text(), "sse");
-  await wait("message", { data: { type:"warm", version, urls:[sprite, eventArt, "api/auth/me?v="+version, "https://other.example/img/hud.svg?v="+version] } });
+  await wait("message", { data: { type:"warm", version, urls:[sprite, skin, eventArt, "api/auth/me?v="+version, "https://other.example/img/hud.svg?v="+version] } });
   assert.equal(fetched.filter(url => url === origin+sprite).length, 1);
   assert.ok(!fetched.some(url => url.includes("/api/") || url.includes("other.example")));
   offline = true;
@@ -93,6 +95,7 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
   assert.equal(audio.headers.get("content-range"),"bytes 1-3/5");
   assert.equal(await audio.text(),"sse");
   assert.equal(await (await request(sprite)).text(), "asset");
+  assert.equal(await (await request(skin)).text(), "asset");
   assert.equal(await (await request(hud)).text(), "asset");
   assert.equal(await (await request(eventArt)).text(), "asset");
   for (const font of fonts) assert.equal(await (await request(font)).text(), "asset");

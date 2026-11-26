@@ -16,6 +16,7 @@ class IsoRenderer {
   this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.prestigeIcon=new Image();this.prestigeIcon.src=asset("img/prestige.svg");
   this.effects=new CityEffects(this);
+  this.skinMotion=matchMedia("(prefers-reduced-motion: reduce)");
   document.fonts?.load(canvasFont(9,800),"012ABC").then(()=>{this.groundReady=false},()=>{});
   this.resize();addEventListener("resize",()=>this.resize());
  }
@@ -233,8 +234,14 @@ class IsoRenderer {
   const d=CONFIG.buildings[b.id],z=this.camera.zoom,x=b.x,y=b.y,polys=[];
   const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
-  const meta=SPRITES[b.id],rot=meta&&b.left<=0?this.facing(b,w):null;
-  const art=rot===null?false:this.sprite(b.id,this.buildingFrame(b,rot),dark);
+  let meta=SPRITES[b.id],art=false;
+  const rot=meta&&b.left<=0?this.facing(b,w):null;
+  if(rot!==null){
+   const frame=this.buildingFrame(b,rot),skin=this.activeSkin(w),skinMeta=SKIN_SPRITES[skin]?.[b.id];
+   const themed=skinMeta&&this.sprite(b.id,frame,dark,skin);
+   if(themed){art=themed;meta=skinMeta}
+   else art=this.sprite(b.id,frame,dark);
+  }
   let height=0,sprite=null;
   if(art===false){
    this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
@@ -375,7 +382,11 @@ class IsoRenderer {
   this.ctx.drawImage(art,box.x,box.y,box.w,box.h);
   return box;
  }
- spritePath(id,frame){return asset("img/bld/"+id+"/"+frame+".webp")}
+ activeSkin(w){
+  const sim=this.sim,skin=sim?.profile?.skin;
+  return w===sim?.world&&sim?.cloud?.ownsSkin?.(skin)&&Object.hasOwn(SKIN_SPRITES,skin)?skin:"default";
+ }
+ spritePath(id,frame,skin="default"){return asset("img/"+(skin==="default"?"bld":"skins/"+skin)+"/"+id+"/"+frame+".webp")}
  buildingFrame(b,rot){return String(b.level).padStart(2,"0")+"_"+rot}
  cityFrame(b,w){
   if(!SPRITES[b.id]||b.left>0)return null;
@@ -383,28 +394,31 @@ class IsoRenderer {
  }
  spritePreview(b,w){
   const frame=this.cityFrame(b,w);
-  return frame?this.spritePath(b.id,frame):null;
+  if(!frame)return null;
+  const skin=this.activeSkin(w);
+  return this.spritePath(b.id,frame,SKIN_SPRITES[skin]?.[b.id]&&this.requestSprite(b.id,frame,skin).state===1?skin:"default");
  }
  preloadCity(w){
-  const urls=new Set();
+  const urls=new Set(),skin=this.activeSkin(w);
   for(const b of w.buildings){
    if(b.id==="road")continue;
    const frame=this.cityFrame(b,w);
    if(!frame)continue;
-   const url=this.spritePath(b.id,frame);
+   const pack=SKIN_SPRITES[skin]?.[b.id]?skin:"default";
+   const url=this.spritePath(b.id,frame,pack);
    if(urls.has(url))continue;
-   urls.add(url);this.requestSprite(b.id,frame);
+   urls.add(url);this.requestSprite(b.id,frame,pack);
   }
   return [...urls];
  }
- requestSprite(id,frame){
-  const key=id+"/"+frame;let s=this.sprites.get(key);
-  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src=this.spritePath(id,frame);this.sprites.set(key,s)}
+ requestSprite(id,frame,skin="default"){
+  const key=skin+"/"+id+"/"+frame;let s=this.sprites.get(key);
+  if(!s){s={img:new Image(),state:0};s.img.onload=()=>{s.state=1};s.img.onerror=()=>{s.state=-1};s.img.src=this.spritePath(id,frame,skin);this.sprites.set(key,s)}
   return s;
  }
  // Trả về ảnh khi sẵn sàng, null khi đang tải, false khi lỗi.
- sprite(id,frame,dark=false){
-  const s=this.requestSprite(id,frame);
+ sprite(id,frame,dark=false,skin="default"){
+  const s=this.requestSprite(id,frame,skin);
   if(s.state<1)return s.state?false:null;
   if(!dark)return s.img;
   if(!s.dark){
@@ -610,7 +624,10 @@ class IsoRenderer {
    g.strokeStyle="#b7def05e";g.lineWidth=.82;g.stroke();
    const f=this.elapsed%12;if(!this.sim.reduceEffects&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
   }
-  if(!this.sim.reduceEffects)this.effects.render(w,heights);
+  if(!this.sim.reduceEffects){
+   if(!this.skinMotion.matches)this.effects.skin(this.activeSkin(w),w,heights);
+   this.effects.render(w,heights);
+  }
  }
  thumbnail(id){
   if(SPRITES[id])return this.spritePath(id,"thumb");

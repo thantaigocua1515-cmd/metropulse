@@ -4,7 +4,7 @@ class UIController {
  constructor(sim,renderer){
   this.sim=sim;this.renderer=renderer;renderer.ui=this;this.canvas=renderer.canvas;
   this.tool="look";this.selection=null;this.moving=null;this.inspect=null;this.category="all";this.dialogType="";this.catalogOpen=false;
-  this.tabs={missions:"story",social:"friends",profile:"me",account:"register"};this.rank="score";this.rankScope="friends";this.globalRows=null;this.mail=[];
+  this.tabs={missions:"story",social:"friends",profile:"me",account:"register"};this.rank="score";this.rankScope="friends";this.globalRows=null;this.mail=[];this.letters=[];
   this.pointers=new Map();this.gesture=null;this.ownCamera=null;this.nodes={};this.newsCursor=0;this.displayedNews=[];this.newsAt=-30;this.sceneState=null;
   this.questOpen=false;this.commandsOpen=false;this.commandsPinned=false;this.commandBadges=0;
   for(const id of ["stats","utilities","clock","cloud","sound","profile","maplabel","visit","side","filters","catalog","right","incidents","quest-track","inspect","fab","zoom","look","hint","toast","news","build-tools","command-rail","rail-toggle","command-drawer","action-rail","dialog","dialog-tag","dialog-title","dialog-body","scene","scene-body","coach"])this.nodes[id]=document.getElementById(id);
@@ -254,6 +254,10 @@ class UIController {
    case "reduce-effects":s.reduceEffects=!s.reduceEffects;s.fx.length=0;s.storage.save();this.profileDialog();break;
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
+   case "skin-preview":this.skinPreview=id;this.profileDialog();break;
+   case "skin-equip":
+    if(s.cloud?.ownsSkin(id)){s.profile.skin=id;this.skinPreview=id;s.storage.save();s.cloud.flush();this.profileDialog()}
+    break;
    case "avatar":{const n=Number(id);if(CONFIG.avatars.pick.includes(n)){s.profile.avatar=n;s.storage.save();s.cloud?.flush(true);this.profileDialog()}break}
    case "save-name":{
     const input=document.getElementById("mayor-name"),city=document.getElementById("city-name"),name=input?.value.trim(),town=city?.value.trim();
@@ -325,8 +329,10 @@ class UIController {
    case "return":
     s.social.own();if(this.ownCamera)r.camera={...this.ownCamera};else r.center();r.target=null;r.back=null;r.hover=null;this.setTool("look");this.close();break;
    case "login-open":this.loginDialog();break;
-   case "mail-open":this.mailDialog();break;
+   case "mail-open":this.mailDialog();this.refreshMailbox().then(()=>{if(this.dialogType==="mail")this.mailDialog()}).catch(error=>this.toast(error.message));break;
    case "mail-claim":this.claimMail();return;
+   case "letter-claim":this.claimLetter(id);return;
+   case "announcement-hide":this.hideAnnouncements();break;
    case "close-dialog":this.close();break;
    case "welcome":s.audio.play("money");this.close();break;
    case "scene-next":this.sceneNext();return;
@@ -422,7 +428,8 @@ class UIController {
   const s=this.sim,items=[];
   if(s.social.current){this.html("fab","");return}
   if(s.progress.tutorial.done)items.push(this.gameButton("login-open","Điểm danh hằng ngày","gift",{count:badges.login}));
-  if(this.mail.length)items.push(this.gameButton("mail-open","Hộp thư quà chi viện","mail",{count:this.mail.length}));
+  const unread=this.mail.length+(this.unreadLetters||0);
+  if(unread||s.cloud?.online&&s.progress.tutorial.done)items.push(this.gameButton("mail-open","Hộp thư","mail",{count:unread}));
   this.html("fab",items.join(""));
  }
  inspectCard(){
@@ -536,13 +543,14 @@ class UIController {
   const queue=this.sim.pending;
   for(let i=queue.length-1;i>=0;i--)if(queue[i].type==="toast"){this.toast(queue[i].text);queue.splice(i,1)}
   if(!queue.length||this.sceneState||this.nodes.dialog.open||this.sim.social.current)return;
-  const waiting=this.tutorial?.active&&queue[0].type!=="scene";
+  const waiting=this.tutorial?.active&&!["scene","announcements"].includes(queue[0].type);
   if(waiting)return;
   const event=queue.shift();
   if(event.type==="scene")this.playScene(event);
   else if(event.type==="level")this.levelUp(event.level);
   else if(event.type==="login"){if(this.sim.prog.loginState().available)this.loginDialog()}
   else if(event.type==="mail"){if(this.mail.length)this.mailDialog()}
+  else if(event.type==="announcements")this.announcementsDialog(event.rows);
   else if(event.type==="offline")this.offline(event.result);
  }
  playScene(event){

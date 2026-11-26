@@ -59,7 +59,12 @@ function enableOffline(sprites){
  if(sim.progress.tutorial.done&&sim.prog.loginState().available)sim.pending.push({type:"login"});
  if(cloud.online){
   cloud.flush(true);
-  cloud.mailbox().then(gifts=>{ui.mail=gifts;if(gifts.length)sim.pending.push({type:"mail"})}).catch(()=>{});
+  ui.refreshMailbox().then(()=>{if(ui.mail.length)sim.pending.push({type:"mail"})}).catch(()=>{});
+  setInterval(()=>{if(!document.hidden)ui.refreshMailbox().catch(()=>{})},120000);
+ }
+ if(cloud.enabled){
+  const checkAnnouncements=()=>ui.loadAnnouncements().catch(()=>{});
+  checkAnnouncements();addEventListener("online",checkAnnouncements);
  }
  const persist=()=>{sim.storage.save();cloud.flush(true,true)};
  addEventListener("pagehide",persist);

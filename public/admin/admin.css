@@ -4,7 +4,7 @@
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;font-size:14px;line-height:1.5}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;padding:.6rem .85rem;min-height:42px;border:1px solid var(--line);border-radius:9px;background:var(--surface);font-weight:700}
 button:hover{background:#f1f7f4}
 button:disabled{opacity:.55;cursor:wait}
@@ -12,7 +12,8 @@ button.primary{background:var(--brand);color:white;border-color:var(--brand)}
 button.primary:hover{background:#0c5041}
 button.danger{color:var(--danger)}
 a{color:var(--brand)}
-input,select{width:100%;min-height:44px;border:1px solid #baccc7;border-radius:9px;padding:.58rem .75rem;background:white}
+input,select,textarea{width:100%;min-height:44px;border:1px solid #baccc7;border-radius:9px;padding:.58rem .75rem;background:white}
+textarea{resize:vertical}
 :focus-visible{outline:3px solid #268d74;outline-offset:2px}
 label{display:grid;gap:.35rem;font-weight:700}
 label span{font-weight:400}
@@ -68,6 +69,8 @@ td{min-width:85px}
 td .sub{display:block;color:var(--muted);font-size:12px}
 .empty{padding:20px;color:var(--muted);text-align:center}
 .form{display:grid;gap:14px}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card>.controls{margin-top:10px}
 .grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
 .field-wide{grid-column:1/-1}
 .grid-form label:has(input[type="datetime-local"]){grid-column:1/-1;min-width:0}

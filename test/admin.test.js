@@ -1,17 +1,18 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
-const {MongoMemoryServer}=require("mongodb-memory-server"),{MongoClient}=require("mongodb");
+const {MongoMemoryReplSet}=require("mongodb-memory-server"),{MongoClient}=require("mongodb");
 const {createApp}=require("../server/index");
 const {issueSetupToken,totp,matchedStep}=require("../server/admin-auth");
 const {heartbeat,overview}=require("../server/analytics");
 const {sha}=require("../server/auth");
 const {backfill}=require("../scripts/admin-backfill-analytics");
+const {recordLogin}=require("../server/liveops");
 
 const ownerPassword="Đủ dài và chỉ dùng thử 2026";
 const authCode=(secret,now=Date.now())=>String(totp(secret,Math.floor(now/30000))).padStart(6,"0");
 let memory,client,db,server,base,cookie;
 test.before(async()=>{
- memory=await MongoMemoryServer.create();client=await MongoClient.connect(memory.getUri());db=client.db("admin_test");
+ memory=await MongoMemoryReplSet.create({replSet:{count:1}});client=await MongoClient.connect(memory.getUri());db=client.db("admin_test");
  server=createApp(()=>db).listen(0,"127.0.0.1");
  await new Promise(resolve=>server.once("listening",resolve));
  base="http://127.0.0.1:"+server.address().port;
@@ -167,4 +168,80 @@ test("historical backfill adds last activity idempotently without fabricating si
  assert.equal(rows.length,1);
  assert.equal(rows[0].source,"lastSeenAt");
  assert.equal(await db.collection("playSessions").countDocuments({player:"p:"+code}),0);
+});
+
+test("live announcements enforce origin and publish only active, in-window content by priority",async()=>{
+ const marker="Q".repeat(43),expiry=new Date(Date.now()+900000),owner=await db.collection("admins").findOne({_id:"owner"});
+ await db.collection("adminSessions").insertOne({_id:sha(marker),epoch:owner.epoch,expiresAt:expiry,absoluteExpiresAt:expiry});
+ cookie="__Host-mp_admin="+marker;
+ const post=(title,more={})=>admin("/announcements",{method:"POST",body:{title,body:"Tin từ ban điều hành",priority:0,active:true,...more}});
+ assert.equal((await request("/admin/announcements")).status,401);
+ assert.equal((await admin("/announcements",{origin:"https://other.invalid",method:"POST",body:{}})).status,403);
+ assert.equal((await post("Ảnh lỗi",{image:"javascript:void(0)"})).status,400);
+ const first=await post("Thông báo đầu tiên");
+ assert.equal(first.status,201);
+ const next=new Date(Date.now()+86400000).toISOString();
+ assert.equal((await post("Thông báo tương lai",{start:next})).status,201);
+ assert.equal((await post("Ưu tiên",{priority:10})).status,201);
+ assert.deepEqual((await request("/announcements")).data.rows.map(r=>r.title),["Ưu tiên","Thông báo đầu tiên"]);
+ assert.equal((await admin("/announcements/"+first.data.row._id,{method:"PUT",body:{
+  title:"Thông báo đã sửa",body:"Ẩn",priority:100,active:false
+ }})).status,200);
+ assert.deepEqual((await request("/announcements")).data.rows.map(r=>r.title),["Ưu tiên"]);
+ assert.equal((await admin("/announcements/"+first.data.row._id,{method:"DELETE"})).status,200);
+ assert.ok(await db.collection("adminAudit").findOne({action:"announcement.delete",target:first.data.row._id}));
+});
+
+test("broadcast mail reaches future guests, targeted mail stays private and claims apply atomically",async()=>{
+ const send=async(body)=>(await admin("/mail",{method:"POST",body:{title:"Quà",body:"Quà thử",...body}}));
+ const broadcast=await send({target:"all",rewards:{skin:"tet",coins:135,prestige:2,knowledge:3}});
+ assert.equal(broadcast.status,201);
+ const create=async()=>(await request("/auth/guest",{method:"POST",body:{}})).data;
+ const receiver=await create(),other=await create();
+ const letter=broadcast.data.row.id,token=receiver.token;
+ assert.equal(receiver.loginDays,1);
+ const targeted=await send({target:"player",code:receiver.account.code,rewards:{skin:"noel"}});
+ assert.equal(targeted.status,201);
+ assert.equal((await send({target:"all",rewards:{coins:-1}})).status,400);
+ assert.equal((await send({target:"all",expiresAt:new Date(Date.now()+86400000).toISOString(),rewards:{coins:1}})).status,400);
+ assert.deepEqual((await request("/mailbox",{token:other.token})).data.letters.map(row=>row.id),[letter]);
+ const claim=(id,credential=token)=>request("/mailbox/"+id+"/claim",{token:credential,method:"POST",body:{}});
+ assert.equal((await claim(targeted.data.row.id,other.token)).status,404);
+ const save=(rev,data)=>request("/save",{token,method:"PUT",body:{rev,data}});
+ assert.equal((await save(0,{...initialCity,profile:{...initialCity.profile,skin:"tet"}})).status,403);
+ assert.equal((await save(0,initialCity)).status,200);
+ const results=await Promise.all([claim(letter),claim(letter.toUpperCase())]);
+ assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const after=await request("/save",{token});
+ assert.equal(after.data.rev,2);
+ assert.equal(after.data.adminRev,2);
+ assert.equal(after.data.data.profile.coins,initialCity.profile.coins+135);
+ assert.equal(after.data.data.profile.prestige,initialCity.profile.prestige+2);
+ assert.equal(after.data.data.profile.knowledge,initialCity.profile.knowledge+3);
+ assert.deepEqual((await request("/me",{token})).data.skinPacks,["tet"]);
+ assert.equal((await save(2,{...after.data.data,profile:{...after.data.data.profile,skin:"tet"}})).status,200);
+ assert.equal((await request("/mailbox",{token})).data.unread,1);
+ assert.equal((await claim(targeted.data.row.id)).status,200);
+ assert.equal((await request("/mailbox",{token})).data.unread,0);
+ assert.equal((await admin("/mail")).data.rows.find(row=>row.id===letter).claims,1);
+ assert.ok(await db.collection("adminAudit").findOne({action:"mail.send",target:letter}));
+});
+
+test("Cyberpunk is granted once after seven distinct Vietnam login days, even for guests",async()=>{
+ const {data:{account,token}}=await request("/auth/guest",{method:"POST",body:{}});
+ const players=db.collection("players"),player=await players.findOne({code:account.code});
+ const login=(value)=>recordLogin(db,player,new Date(value));
+ await login("2025-12-01T16:55:00Z");
+ await login("2025-12-01T16:59:00Z");
+ for(const day of ["01","04","06","09"])await login("2025-12-"+day+"T17:00:00Z");
+ const before=await request("/me",{token});
+ assert.equal(before.data.loginDays,6);
+ assert.deepEqual(before.data.skinPacks,[]);
+ const last=await Promise.all([login("2025-12-15T17:00:00Z"),login("2025-12-16T17:00:00Z")]);
+ assert.ok(last.every(result=>result.loginDays===7));
+ assert.deepEqual((await request("/me",{token})).data.skinPacks,["cyberpunk"]);
+ const {letters}=((await request("/mailbox",{token})).data);
+ assert.equal(letters.filter(row=>row.id==="login-reward").length,1);
+ assert.equal((await request("/mailbox/login-reward/claim",{token,method:"POST",body:{}})).status,200);
+ assert.equal((await request("/mailbox/login-reward/claim",{token,method:"POST",body:{}})).status,409);
 });

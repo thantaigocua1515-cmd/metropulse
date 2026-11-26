@@ -57,6 +57,61 @@ class CityEffects {
   const e=this.r.sim.fx.find(e=>(e.kind==="upgrade"||e.kind==="built")&&e.x===b.x&&e.y===b.y);
   return e?1+.115*Math.sin(Math.PI*Math.min(1,e.age/e.duration*1.45)):1;
  }
+ skin(pack,world,heights){
+  if(pack!=="tet"&&pack!=="noel")return;
+  const r=this.r,g=r.ctx,z=r.camera.zoom,time=r.elapsed;
+  let bursts=0;
+  g.save();
+  for(const b of world.buildings){
+   const height=heights.get(coord(b.x,b.y));
+   if(!height||b.left>0)continue;
+   const p=r.project(b.x+.5,b.y+.5,height);
+   if(p.x<-32*z||p.x>r.width+32*z||p.y<-((height+16)*z)||p.y>r.height+20*z)continue;
+   const seed=b.x*37+b.y*101+b.x*b.y*17;
+   if(pack==="noel"){
+    g.fillStyle="#f2fcff";
+    for(let i=0;i<2;i++){
+     const phase=(time*.41+seed*.091+i*.49)%1;
+     g.globalAlpha=.86*Math.sin(Math.PI*phase);
+     const x=p.x+((seed+i*23)%41-20+Math.sin(time*2+i+seed)*3)*z,y=p.y+(-10+phase*(height+14))*z;
+     const size=(i?1.45:1.9)*z;
+     g.fillRect(x,y,size,size);
+    }
+    continue;
+   }
+   const flower=this.flower||this.maiFlower();
+   for(let i=0;i<2;i++){
+    const x=p.x+(i?23:-23)*z,y=p.y+(height*.76+((seed+i*7)%9))*z;
+    g.globalAlpha=.48+.42*(1+Math.sin(time*2.7+seed+i*1.8))*.5;
+    g.drawImage(flower,x-3*z,y-3*z,6*z,6*z);
+   }
+   const phase=(time+seed*.199)%19;
+   if(phase>=.85||bursts>=2)continue;
+   bursts++;
+   const spread=(3+phase*20)*z,x=p.x+(seed%9-4)*z,y=p.y-13*z;
+   g.globalAlpha=1-phase/.85;g.lineWidth=Math.max(.75,z);
+   for(const color of ["#ffe48a","#ff7973"]){
+    g.strokeStyle=color;g.beginPath();
+    for(let i=color==="#ffe48a"?0:1;i<8;i+=2){
+     const angle=i*Math.PI/4+seed,dx=Math.cos(angle)*spread,dy=Math.sin(angle)*spread;
+     g.moveTo(x+dx*.65,y+dy*.65);g.lineTo(x+dx,y+dy);
+    }
+    g.stroke();
+   }
+  }
+  g.restore();
+ }
+ maiFlower(){
+  const flower=this.flower=document.createElement("canvas");flower.width=flower.height=24;
+  const g=flower.getContext("2d");
+  g.fillStyle="#ffe17b";g.beginPath();
+  for(let i=0;i<5;i++){
+   const angle=i*Math.PI*2/5,x=12+Math.cos(angle)*4.4,y=12+Math.sin(angle)*4.4;
+   g.moveTo(x+4.4,y);g.arc(x,y,4.4,0,Math.PI*2);
+  }
+  g.fill();g.fillStyle="#e88c1b";g.beginPath();g.arc(12,12,2.2,0,Math.PI*2);g.fill();
+  return flower;
+ }
  render(world,heights){
   const r=this.r,g=r.ctx,z=r.camera.zoom;
   for(const e of r.sim.fx){

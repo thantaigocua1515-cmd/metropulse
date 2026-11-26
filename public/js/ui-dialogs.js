@@ -1,5 +1,12 @@
 "use strict";
 
+const MAYOR_SKINS={
+ default:["Mặc định","Kiến trúc Bình Minh nguyên bản."],
+ tet:["Tết","Đèn lồng, hoa mai lấp lánh và pháo hoa nhỏ."],
+ noel:["Noel","Mái nhà phủ tuyết và tuyết rơi nhẹ."],
+ cyberpunk:["Cyberpunk","Đô thị ánh đèn neon xanh và tím."]
+};
+
 // Các hộp thoại của giao diện.
 const UIDialogs = {
  eventBanner(own){
@@ -171,7 +178,7 @@ const UIDialogs = {
  },
  profileDialog(){
   const s=this.sim,p=s.profile,st=s.stats,m=s.metrics,cloud=s.cloud,tab=this.tabs.profile,rank=CONFIG.cityRank(m.score,p.level);
-  let body=this.tabbar("profile",[["me","Hồ sơ"],["account","Tài khoản"],["settings","Cài đặt"]]);
+  let body=this.tabbar("profile",[["me","Hồ sơ"],["skin","Skin"],["account","Tài khoản"],["settings","Cài đặt"]]);
   if(tab==="me"){
    const hours=Math.floor(st.playTime/3600),minutes=Math.floor(st.playTime/60)%60;
    const cells=[["Điểm đô thị",fmt(m.score)],["Thu nhập cao nhất",fmt(st.peakIncome,1)+" V/s"],["Dân số cao nhất",fmt(st.peakPop)],["Sự cố đã xử lý",fmt(st.crisesSolved)],["Chuỗi tốt nhất","×"+st.bestCombo],["Công trình đã xây",fmt(st.buildingsBuilt)],["Lượt nâng cấp",fmt(st.upgrades)],["Túi thuế đã thu",fmt(st.bubbles)],["Cấp nghiên cứu",st.research+" / 36"],["Lượt chi viện",fmt(p.helpsGiven)],["Ngày điểm danh",fmt(st.loginDays)],["Thời gian chơi",hours+" giờ "+minutes+" phút"]];
@@ -180,7 +187,8 @@ const UIDialogs = {
     '<div class="inline"><input id="mayor-name" maxlength="40" value="'+htm(p.mayorName)+'" aria-label="Tên Thị trưởng"><input id="city-name" maxlength="24" value="'+htm(p.cityName)+'" aria-label="Tên thành phố">'+this.btn("save-name","Lưu tên",{cls:"primary"})+'</div>'+
     '<h4>Chân dung Thị trưởng</h4><div class="avatar-grid">'+CONFIG.avatars.pick.map(n=>'<button type="button" data-act="avatar" data-id="'+n+'" title="'+CONFIG.avatars.roles[n-1]+'" aria-label="'+CONFIG.avatars.roles[n-1]+'" aria-pressed="'+(p.avatar===n)+'"'+(p.avatar===n?' class="active"':"")+'>'+this.avatar(n)+'</button>').join("")+'</div>'+
     '<div class="statgrid">'+cells.map(([k,v])=>'<div><small>'+k+'</small><b>'+v+'</b></div>').join("")+'</div>';
-  }else if(tab==="account"){
+  }else if(tab==="skin")body+=this.skinPanel();
+  else if(tab==="account"){
    if(!cloud?.enabled)body+='<p class="empty">Bạn đang mở trò chơi trực tiếp từ tệp. Tiến độ được lưu trong trình duyệt. Chạy máy chủ (npm start) để dùng lưu đám mây, bảng xếp hạng toàn cầu và kết bạn trực tuyến.</p>';
    else if(cloud.status==="expired")body+='<p class="empty">Phiên đăng nhập đã hết hạn (có thể do đổi mật khẩu ở thiết bị khác). Thành phố vẫn được lưu trên trình duyệt này.</p><div class="actions">'+this.btn("auth","Đăng nhập lại",{id:"relogin",cls:"primary"})+'</div>';
    else if(!cloud.online)body+='<p class="empty">Không kết nối được máy chủ. Trò chơi vẫn tự lưu trên trình duyệt và sẽ đồng bộ lại khi tải lại trang.</p>';
@@ -237,9 +245,66 @@ const UIDialogs = {
    return '<div class="day '+state+'"><small>Ngày '+(i+1)+'</small><b>'+(i===6?"🎁":r.coins?"V":r.know?"✦":this.icon("prestige"))+'</b><small>'+this.reward(prog.loginReward(i)).replaceAll(" · ","<br>")+'</small></div>';
   }).join("")+'</div><div class="actions">'+this.btn("claim-login",login.available?"Nhận quà ngày "+(login.day+1):"Đã nhận hôm nay",{cls:"primary",disabled:!login.available})+this.btn("missions","Nhiệm vụ hôm nay",{id:"daily"})+'</div>',true);
  },
+ skinPanel(){
+  const {profile,cloud}=this.sim,active=profile.skin||"default";
+  const selected=Object.hasOwn(MAYOR_SKINS,this.skinPreview)?this.skinPreview:active;
+  const [name,description]=MAYOR_SKINS[selected],owned=cloud?.ownsSkin(selected);
+  const hint=selected==="cyberpunk"?"Đăng nhập trực tuyến đủ 7 ngày khác nhau (không cần liên tiếp). "+(cloud?.token?"Tiến độ: "+(cloud.ownership?.loginDays||0)+"/7.":"Cần tài khoản, kể cả tài khoản khách."):"Nhận bộ skin qua thư quà từ ban điều hành.";
+  return '<p class="muted">Một bộ skin áp dụng cho toàn bộ công trình của thành phố, không thay đổi chỉ số.</p><div class="skin-grid">'+
+   Object.entries(MAYOR_SKINS).map(([id,[label]])=>this.btn("skin-preview",
+    '<img src="'+asset(id==="default"?"img/bld/house_small/thumb.webp":"img/skins/"+id+"/badge.webp")+'" width="64" height="64" alt=""><b>'+label+'</b><small>'+
+    (id===active?"Đang dùng":cloud?.ownsSkin(id)?"Đã sở hữu":"Chưa sở hữu")+'</small>',
+    {id,cls:"skin-choice"+(id===selected?" active":"")+(cloud?.ownsSkin(id)?"":" locked")})).join("")+
+   '</div><div class="row skin-preview"><img src="'+asset("img/"+(selected==="default"?"bld":"skins/"+selected)+"/house_small/thumb.webp")+
+   '" width="112" height="94" alt="Nhà mẫu bộ '+name+'"><div class="grow"><b>'+name+'</b><p>'+description+'</p><small>'+(!owned?hint:"")+'</small>'+
+   this.btn("skin-equip",selected===active?"Đang sử dụng":owned?"Áp dụng cho thành phố":"Chưa mở khóa",{id:selected,cls:"primary",disabled:!owned||selected===active})+'</div></div>';
+ },
+ async loadAnnouncements(){
+  if(this.loadedAnnouncements||!navigator.onLine)return;
+  this.loadedAnnouncements=true;
+  try{
+   const day=new Date(Date.now()+7*3600000).toISOString().slice(0,10);
+   try{if(localStorage.getItem("mp-announcement-hide")===day)return}catch(_){}
+   const rows=await this.sim.cloud.announcements();
+   if(rows.length)this.sim.pending.unshift({type:"announcements",rows});
+  }catch(error){this.loadedAnnouncements=false;throw error}
+ },
+ announcementsDialog(rows){
+  this.open("announcements","TIN TỪ BAN ĐIỀU HÀNH","Thông báo thành phố",rows.map(row=>
+   '<article class="announcement"><h3>'+htm(row.title)+'</h3>'+(row.image?'<img src="'+htm(row.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':"")+
+   '<p class="message-body">'+htm(row.body)+'</p></article>').join("")+'<div class="actions">'+
+   this.btn("announcement-hide","Không hiện lại hôm nay")+this.btn("close-dialog","Vào thành phố",{cls:"primary"})+'</div>');
+ },
+ hideAnnouncements(){
+  try{localStorage.setItem("mp-announcement-hide",new Date(Date.now()+7*3600000).toISOString().slice(0,10))}catch(_){}
+  this.close();
+ },
+ async refreshMailbox(){
+  const r=await this.sim.cloud.mailbox();
+  this.mail=r.gifts||[];this.letters=r.letters||[];this.unreadLetters=r.unread||0;
+ },
  mailDialog(){
-  const rows=this.mail.map(g=>'<div class="row"><div class="grow"><b>'+htm(g.fromName)+' đã chi viện thành phố của bạn</b><small>'+new Date(g.createdAt).toLocaleString("vi-VN")+'</small></div><b class="gold">+'+fmt(g.coins)+' V</b></div>').join("");
-  this.open("mail","HỘP THƯ","Quà cảm ơn từ bạn bè",(rows||'<p class="empty">Hộp thư trống.</p>')+'<div class="actions">'+this.btn("mail-claim","Nhận tất cả",{cls:"primary",disabled:!this.mail.length})+'</div>');
+  const gifts=this.mail.map(g=>'<div class="row"><div class="grow"><b>'+htm(g.fromName)+' đã chi viện thành phố của bạn</b><small>'+new Date(g.createdAt).toLocaleString("vi-VN")+'</small></div><b class="gold">+'+fmt(g.coins)+' V</b></div>').join("");
+  const rows=this.letters.map(({id,title,body,createdAt,claimedAt,rewards:r})=>{
+   const prize=[this.reward({coins:r.coins,prestige:r.prestige,know:r.knowledge}),r.skin&&"Skin "+MAYOR_SKINS[r.skin]?.[0]].filter(Boolean).join(" · ");
+   return '<article class="mail-letter"><div><b>'+htm(title)+'</b><small>'+new Date(createdAt).toLocaleString("vi-VN")+'</small></div><p class="message-body">'+htm(body)+'</p>'+
+    (prize?'<p>'+prize+'</p>':"")+this.btn("letter-claim",claimedAt?"Đã xem":prize?"Nhận quà":"Đánh dấu đã xem",{id,cls:"primary",disabled:!!claimedAt||this.receivingLetter===id})+'</article>';
+  }).join("");
+  this.open("mail","THƯ TỪ THÀNH PHỐ","Hộp thư",(rows||gifts?"":'<p class="empty">Hộp thư trống.</p>')+rows+gifts+
+   (gifts?'<div class="actions">'+this.btn("mail-claim","Nhận quà chi viện",{cls:"primary"})+'</div>':""));
+ },
+ async claimLetter(id){
+  const row=this.letters.find(letter=>letter.id===id);
+  if(this.receivingLetter||!row||row.claimedAt)return;
+  this.receivingLetter=id;this.mailDialog();
+  try{
+   const r=await this.sim.cloud.claimLetter(row);
+   row.claimedAt=r.claimedAt;
+   this.unreadLetters=Math.max(0,this.unreadLetters-1);
+   if(Object.keys(r.rewards).length)this.toast("Đã nhận quà từ thư.");
+   await this.refreshMailbox().catch(()=>{});
+  }catch(error){this.toast(error.message);if(error.status===409)await this.refreshMailbox().catch(()=>{})}
+  finally{this.receivingLetter=null;if(this.dialogType==="mail")this.mailDialog();this.refresh()}
  },
  async claimMail(){
   try{

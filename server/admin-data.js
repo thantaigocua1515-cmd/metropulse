@@ -2,6 +2,7 @@
 const {ObjectId}=require("mongodb");
 const {CONFIG,inspectSave}=require("./game");
 const events=require("./event-config");
+const liveops=require("./liveops");
 const {overview}=require("./analytics");
 
 const projection={code:1,name:1,username:1,summary:1,coins:1,createdAt:1,lastSeenAt:1,bannedAt:1};
@@ -86,6 +87,7 @@ module.exports=function adminData(router,{audit,wrap,fail}){
   const player="p:"+p.code;
   await Promise.all([
    c(req,"saves").deleteOne({_id:p._id}),c(req,"gifts").deleteMany({$or:[{to:p._id},{fromCode:p.code}]}),
+   c(req,"serverMailClaims").deleteMany({player:p._id}),c(req,"serverMail").deleteMany({to:p._id}),
    c(req,"chatMessages").deleteMany({$or:[{from:p.code},{to:p.code}]}),c(req,"players").updateMany({friends:p.code},{$pull:{friends:p.code}}),
    c(req,"playSessions").deleteMany({player}),c(req,"playDays").deleteMany({player}),c(req,"playIdentities").deleteOne({_id:player})
   ]);
@@ -127,4 +129,5 @@ module.exports=function adminData(router,{audit,wrap,fail}){
   const rows=await c(req,"adminAudit").find().sort(dateSort).skip((page-1)*25).limit(26).toArray();
   res.json({rows:rows.slice(0,25),page,more:rows.length>25});
  }));
+ liveops.adminRoutes(router,{audit,wrap});
 };

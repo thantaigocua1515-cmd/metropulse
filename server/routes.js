@@ -3,6 +3,7 @@ const express=require("express");
 const {sha,newToken,newCode,hashPassword,verifyPassword,limiter}=require("./auth");
 const {CONFIG,inspectSave,publicCity,cleanName}=require("./game");
 const community=require("./community");
+const liveops=require("./liveops");
 const events=require("./event-config"),{heartbeat}=require("./analytics");
 
 const STATS=["score","assets","happiness","helpsGiven"];
@@ -24,6 +25,7 @@ module.exports=function routes(getDb){
  router.get("/events/config",wrap(async(req,res)=>{
   res.set("Cache-Control","public, max-age=60, stale-if-error=300").json({rows:await events.read(getDb())});
  }));
+ router.get("/announcements",wrap(async(req,res)=>res.json({rows:await liveops.announcements(getDb())})));
  const bearer=req=>/^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.get("authorization")||"")?.[1];
  router.post("/presence",wrap(async(req,res)=>{
   const {device,session}=req.body||{},token=bearer(req);
@@ -65,18 +67,18 @@ module.exports=function routes(getDb){
   }
   throw fail(500,"Không tạo được mã thành phố.");
  };
+ const enter=async player=>({token:await issueToken(player._id),account:account(player),...await liveops.recordLogin(getDb(),player)});
 
  router.post("/auth/guest",wrap(async(req,res)=>{
   if(!guestLimit(ip(req)))throw fail(429,"Tạo quá nhiều tài khoản. Hãy thử lại sau.");
-  const player=await createPlayer(),token=await issueToken(player._id);
-  res.status(201).json({token,account:account(player)});
+  res.status(201).json(await enter(await createPlayer()));
  }));
  // Đăng ký tài khoản mới ngay từ màn hình chào (không cần phiên khách trước đó).
  router.post("/auth/signup",wrap(async(req,res)=>{
   if(!authLimit(ip(req)))throw fail(429,"Thao tác quá nhanh. Hãy đợi vài phút.");
   const {username,password}=credentials(req.body);
   const player=await createPlayer({username,usernameLower:username.toLowerCase(),pass:await hashPassword(password)});
-  res.status(201).json({token:await issueToken(player._id),account:account(player)});
+  res.status(201).json(await enter(player));
  }));
  router.post("/auth/login",wrap(async(req,res)=>{
   const {username,password}=req.body||{};
@@ -84,7 +86,7 @@ module.exports=function routes(getDb){
   if(!authLimit(ip(req))||!nameLimit(username.trim().toLowerCase().slice(0,40)))throw fail(429,"Thử đăng nhập quá nhiều lần. Hãy đợi vài phút.");
   const player=await players().findOne({usernameLower:username.trim().toLowerCase()});
   if(!player||player.bannedAt||!(await verifyPassword(password,player.pass)))throw fail(401,"Sai tên đăng nhập hoặc mật khẩu.");
-  res.json({token:await issueToken(player._id),account:account(player)});
+  res.json(await enter(player));
  }));
 
  // Từ đây trở xuống cần đăng nhập bằng token.
@@ -98,7 +100,7 @@ module.exports=function routes(getDb){
 
  router.get("/me",wrap(async(req,res)=>{
   await players().updateOne({_id:req.player._id},{$set:{lastSeenAt:new Date()}});
-  res.json({account:account(req.player)});
+  res.json({account:account(req.player),...await liveops.recordLogin(getDb(),req.player)});
  }));
  router.patch("/me",wrap(async(req,res)=>{
   const name=cleanName(req.body?.name,40);if(!name)throw fail(400,"Tên không hợp lệ.");
@@ -134,6 +136,7 @@ module.exports=function routes(getDb){
   if(!saveLimit(String(req.player._id)))throw fail(429,"Đồng bộ quá nhanh.");
   const {rev,data}=req.body||{},check=inspectSave(data);
   if(check.error)throw fail(400,check.error);
+  if(!liveops.owns(req.player,data.profile.skin??"default"))throw fail(403,"Bạn chưa sở hữu bộ skin này.");
   const current=await saves().findOne({_id:req.player._id},{projection:{rev:1,adminRev:1}}),serverRev=current?.rev||0;
   const conflict=latest=>fail(409,"Bản lưu trên máy chủ đã thay đổi từ thiết bị khác.",{
    rev:latest?.rev||0,...(rev<latest?.adminRev?{adminEdited:true}:{})
@@ -206,9 +209,13 @@ module.exports=function routes(getDb){
   res.status(201).json({ok:true,coins});
  }));
  router.get("/mailbox",wrap(async(req,res)=>{
-  const list=await gifts().find({to:req.player._id,claimedAt:null},{projection:{fromName:1,fromCode:1,coins:1,createdAt:1}}).sort({createdAt:-1}).limit(50).toArray();
-  res.json({gifts:list.map(g=>({id:String(g._id),fromName:g.fromName,fromCode:g.fromCode,coins:g.coins,createdAt:g.createdAt}))});
+  const [list,mail]=await Promise.all([
+   gifts().find({to:req.player._id,claimedAt:null},{projection:{fromName:1,fromCode:1,coins:1,createdAt:1}}).sort({createdAt:-1}).limit(50).toArray(),
+   liveops.mailbox(getDb(),req.player)
+  ]);
+  res.json({...mail,gifts:list.map(g=>({id:String(g._id),fromName:g.fromName,fromCode:g.fromCode,coins:g.coins,createdAt:g.createdAt}))});
  }));
+ router.post("/mailbox/:id/claim",wrap(async(req,res)=>res.json(await liveops.claim(getDb(),req.player,req.tokenHash,req.params.id))));
  router.post("/mailbox/claim",wrap(async(req,res)=>{
   const list=await gifts().find({to:req.player._id,claimedAt:null},{projection:{coins:1}}).limit(50).toArray();
   if(!list.length)return res.json({coins:0,count:0});

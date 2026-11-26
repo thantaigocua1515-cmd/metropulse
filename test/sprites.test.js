@@ -5,9 +5,9 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 
 const root = path.join(__dirname, "../public");
-const { CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose } = vm.runInNewContext(
-  ["config", "sprites", "core", "citylife", "renderer"].map(file => fs.readFileSync(path.join(root, "js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose })"
+const { CONFIG, SPRITES, SKIN_SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose } = vm.runInNewContext(
+  ["config", "sprites", "skin-sprites", "core", "citylife", "renderer"].map(file => fs.readFileSync(path.join(root, "js", file + ".js"), "utf8")).join("\n") +
+  "\n({ CONFIG, SPRITES, SKIN_SPRITES, IsoRenderer, makeWorld, makeBuilding, CityLife, STREET, streetHeading, streetPose, streetNetwork, walkRoute, streetCrewPose })"
 );
 const renderer = Object.create(IsoRenderer.prototype);
 
@@ -85,6 +85,38 @@ test("building art is anchored to a single tile at any zoom", () => {
     assert.equal(box.x+meta.ax*r.camera.zoom,85,id);
     assert.equal(box.y+meta.ay*r.camera.zoom,95,id);
   }
+});
+
+test("each skin covers every building level and facing and fits the same single tile", () => {
+  assert.deepEqual(Object.keys(SKIN_SPRITES).sort(), ["cyberpunk","noel","tet"]);
+  for(const [pack,buildings] of Object.entries(SKIN_SPRITES)){
+    assert.ok(fs.existsSync(path.join(root,"img/skins",pack,"badge.webp")));
+    assert.deepEqual(Object.keys(buildings).sort(),Object.keys(SPRITES).filter(id=>id!=="road").sort());
+    for(const [id,meta] of Object.entries(buildings)){
+      assert.deepEqual(fs.readdirSync(path.join(root,"img/skins",pack,id)).sort(),fs.readdirSync(path.join(root,"img/bld",id)).sort());
+      assert.ok(meta.ax<=CONFIG.tileW/2&&meta.w-meta.ax<=CONFIG.tileW/2&&meta.h-meta.ay<=CONFIG.tileH/2+1);
+      assert.equal(meta.tops.length,CONFIG.maxLevel);
+      assert.ok(meta.tops.every(row=>row.length===4&&row.every(top=>top>0&&top<=meta.ay)));
+    }
+  }
+});
+
+test("owned skin is requested only for the player's city and previews fall back on unavailable art",()=>{
+  const b=makeBuilding("fire_station",8,8,10),w=makeWorld([b]);
+  const calls=[];
+  let state=-1,owned=false;
+  const r=Object.assign(Object.create(IsoRenderer.prototype),{
+    sim:{world:w,profile:{skin:"noel"},cloud:{ownsSkin:id=>owned&&id==="noel"}},
+    requestSprite(id,frame,skin){calls.push([id,frame,skin]);return {state}}
+  });
+  assert.match(r.preloadCity(w)[0],/^img\/bld\//);
+  owned=true;
+  assert.match(r.preloadCity(w)[0],/^img\/skins\/noel\/fire_station\/10_0\.webp/);
+  assert.match(r.spritePreview(b,w),/^img\/bld\//);
+  state=1;
+  assert.match(r.spritePreview(b,w),/^img\/skins\/noel\//);
+  assert.match(r.spritePreview(b,makeWorld([b])),/^img\/bld\//);
+  assert.deepEqual(calls.map(call=>call[2]),["default","noel","noel","noel"]);
 });
 
 test("road joins share curb and asphalt profiles and get one centered stripe", () => {
