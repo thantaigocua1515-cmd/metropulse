@@ -110,7 +110,7 @@ test("building art is anchored to a single tile at any zoom", () => {
 });
 
 test("each skin covers every building level and facing and fits the same single tile", () => {
-  assert.deepEqual(Object.keys(SKIN_SPRITES).sort(), ["cyberpunk","noel","tet"]);
+  assert.deepEqual(Object.keys(SKIN_SPRITES).sort(), ["cyberpunk","desert","jungle","noel","ocean","sakura","steampunk","tet"]);
   for(const [pack,buildings] of Object.entries(SKIN_SPRITES)){
     assert.ok(fs.existsSync(path.join(root,"img/skins",pack,"badge.webp")));
     assert.deepEqual(Object.keys(buildings).sort(),Object.keys(SPRITES).filter(id=>id!=="road").sort());

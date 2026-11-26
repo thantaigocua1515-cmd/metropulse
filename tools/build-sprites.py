@@ -22,7 +22,7 @@ TILE = (64, 32)
 RESOLUTION = 3
 CLOUD_FACING = ("SW", "NW", "NE", "SE")
 CLOUD_ROADS = ("SE", "SW", "NW", "NE")
-SKINS = ("tet", "noel", "cyberpunk")
+SKINS = ("tet", "noel", "cyberpunk", "sakura", "desert", "jungle", "ocean", "steampunk")
 
 
 def thumbnail(frame):
@@ -156,14 +156,20 @@ def convert_cloud(source, contact_dir, badge=None):
     with ZipFile(source) as archive:
         manifest = json.loads(archive.read("manifest.json"))
         skin = manifest.get("skin", {}).get("id")
-        if skin not in (*SKINS, None) or bool(skin) != bool(badge):
-            raise ValueError("A supported Cloud City skin archive requires --skin-badge")
+        if skin not in (*SKINS, None) or (not skin and badge):
+            raise ValueError("Unsupported Cloud City skin archive")
+        if skin and badge is None:
+            icon = manifest["skin"].get("icon")
+            if not icon:
+                raise ValueError(f"{skin}: archive has no icon; supply --skin-badge")
+            badge = io.BytesIO(archive.read(icon))
         assets = {entry["id"]: entry for entry in manifest["assets"]}
         if len(assets) != len(manifest["assets"]) or (not skin and set(assets) != {*IDS, "road"}):
             raise ValueError("Missing, extra or duplicate building IDs in the Cloud City manifest")
         ids = [gid for gid in IDS if gid in assets]
         if skin:
-            print(f"{skin}: {len(ids)}/{len(IDS)} building families; missing: {sorted(set(IDS) - assets.keys())}")
+            print(f"{skin}: {len(ids)}/{len(IDS)} building families; missing: {sorted(set(IDS) - assets.keys())}; "
+                  f"unused: {sorted(assets.keys() - set(IDS))}")
         # Cloud City labels the viewpoint, whereas MetroPulse indexes the direction of the entrance.
         frames = {gid: cloud_frames(archive, assets[gid], CLOUD_ROADS if gid == "road" else CLOUD_FACING)
                   for gid in (ids if skin else [*ids, "road"])}
@@ -226,21 +232,31 @@ def main():
     args = parser.parse_args()
     if args.contact_dir:
         args.contact_dir.mkdir(parents=True, exist_ok=True)
-    if args.skin_badge:
-        if len(args.source) != len(args.skin_badge):
-            parser.error("Provide one --skin-badge per source archive in the same order")
-        packs = dict(convert_cloud(source, args.contact_dir / source.stem if args.contact_dir else None, badge)
-                     for source, badge in zip(args.source, args.skin_badge))
-        (PUBLIC / "js" / "skin-sprites.js").write_text(
-            '"use strict";\nconst SKIN_SPRITES = ' + json.dumps(packs, separators=(",", ":")) + ";\n", encoding="utf-8"
-        )
+    if args.skin_badge and len(args.source) != len(args.skin_badge):
+        parser.error("Provide one --skin-badge per source archive in the same order")
+    if all(source.is_file() for source in args.source):
+        if len(args.source) > 1:
+            for source in args.source:
+                with ZipFile(source) as archive:
+                    if not json.loads(archive.read("manifest.json")).get("skin", {}).get("id"):
+                        parser.error("Provide one base asset source, or one or more skin archives")
+        packs = {}
+        for source, badge in zip(args.source, args.skin_badge or [None] * len(args.source)):
+            contact = args.contact_dir / source.stem if args.contact_dir and len(args.source) > 1 else args.contact_dir
+            pack = convert_cloud(source, contact, badge)
+            if pack:
+                packs[pack[0]] = pack[1]
+        if packs:
+            dest = PUBLIC / "js" / "skin-sprites.js"
+            existing = json.loads(dest.read_text(encoding="utf-8").split("const SKIN_SPRITES = ", 1)[1].rstrip(";\n")) if dest.exists() else {}
+            dest.write_text('"use strict";\nconst SKIN_SPRITES = ' + json.dumps(existing | packs, separators=(",", ":")) + ";\n",
+                            encoding="utf-8")
         return
+    if args.skin_badge:
+        parser.error("--skin-badge requires archive files")
     if len(args.source) != 1:
         parser.error("Provide one base asset source")
     source, = args.source
-    if source.is_file():
-        convert_cloud(source, args.contact_dir)
-        return
     dirs = {folder.name for folder in source.iterdir() if folder.is_dir()}
     expected = {*IDS, "road"}
     if dirs != expected:

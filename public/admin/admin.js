@@ -12,7 +12,7 @@ const templates={
 };
 const flash=["rush-hour","weekend-market"];
 const fields={coins:"Vàng",prestige:"Uy tín",knowledge:"Tri thức",level:"Cấp Thị trưởng"};
-const skins={tet:"Tết",noel:"Noel",cyberpunk:"Cyberpunk"};
+const skins={tet:"Tết",noel:"Noel",cyberpunk:"Cyberpunk",sakura:"Sakura",desert:"Sa Mạc",jungle:"Rừng Xanh",ocean:"Đại Dương",steampunk:"Steampunk"};
 const localTime=value=>value?new Date(Date.parse(value)+7*3600000).toISOString().slice(0,16):"";
 const utcTime=value=>value?new Date(value+"+07:00").toISOString():null;
 const actions={"admin.setup":"Thiết lập quản trị","admin.login":"Đăng nhập","admin.login.failed":"Đăng nhập thất bại","admin.logout":"Đăng xuất","admin.logout-all":"Đăng xuất mọi phiên","admin.password":"Đổi mật khẩu","admin.totp.reset":"Đặt lại 2FA",

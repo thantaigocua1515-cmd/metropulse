@@ -27,7 +27,7 @@ class CloudClient {
   this.ownership={skinPacks:r.skinPacks,loginDays:r.loginDays||0};
   try{localStorage.setItem("mp-ownership:"+this.account.code,JSON.stringify(this.ownership))}catch(_){}
  }
- ownsSkin(id){return id==="default"||["tet","noel","cyberpunk"].includes(id)&&Array.isArray(this.ownership?.skinPacks)&&this.ownership.skinPacks.includes(id)}
+ ownsSkin(id){return id==="default"||Object.hasOwn(SKIN_SPRITES,id)&&Array.isArray(this.ownership?.skinPacks)&&this.ownership.skinPacks.includes(id)}
  async guest(){this.adopt(await this.api("/auth/guest",{method:"POST",body:{}}))}
  async signup(username,password){this.adopt(await this.api("/auth/signup",{method:"POST",body:{username,password}}))}
  async signin(username,password){this.adopt(await this.api("/auth/login",{method:"POST",body:{username,password}}))}

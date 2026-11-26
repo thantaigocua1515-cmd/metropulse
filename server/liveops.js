@@ -3,7 +3,7 @@ const {ObjectId}=require("mongodb");
 const {dayOf}=require("./analytics");
 const {inspectSave}=require("./game");
 
-const PACKS=["tet","noel","cyberpunk"],DEFAULT="default",LOGIN_DAYS=7;
+const PACKS=["tet","noel","cyberpunk","sakura","desert","jungle","ocean","steampunk"],DEFAULT="default",LOGIN_DAYS=7;
 const LIMITS={coins:1e15,prestige:1e9,knowledge:1e12};
 const owned=p=>(Array.isArray(p.skinPacks)?p.skinPacks:[]).filter(id=>PACKS.includes(id));
 const owns=(p,id)=>id===DEFAULT||owned(p).includes(id);

@@ -4,7 +4,12 @@ const MAYOR_SKINS={
  default:["Mặc định","Kiến trúc Bình Minh nguyên bản."],
  tet:["Tết","Đèn lồng, hoa mai lấp lánh và pháo hoa nhỏ."],
  noel:["Noel","Mái nhà phủ tuyết và tuyết rơi nhẹ."],
- cyberpunk:["Cyberpunk","Đô thị ánh đèn neon xanh và tím."]
+ cyberpunk:["Cyberpunk","Đô thị ánh đèn neon xanh và tím."],
+ sakura:["Sakura","Mái tím mận, sân hồng nhạt và chậu hoa anh đào."],
+ desert:["Sa Mạc","Đá sa thạch vàng, kính xanh ngọc và chậu xương rồng."],
+ jungle:["Rừng Xanh","Mái xanh, gỗ tre và những cụm cọ ven công trình."],
+ ocean:["Đại Dương","Mái xanh biển, gạch màu vỏ sò và cụm san hô."],
+ steampunk:["Steampunk","Mái đồng, gạch nâu và ống hơi bằng đồng thau."]
 };
 
 // Các hộp thoại của giao diện.

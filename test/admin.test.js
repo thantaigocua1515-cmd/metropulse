@@ -227,6 +227,23 @@ test("broadcast mail reaches future guests, targeted mail stays private and clai
  assert.ok(await db.collection("adminAudit").findOne({action:"mail.send",target:letter}));
 });
 
+test("each new skin is locked until a player claims it from admin mail",async()=>{
+ const {data:{account,token}}=await request("/auth/guest",{method:"POST",body:{}});
+ const packs=["sakura","desert","jungle","ocean","steampunk"];
+ const save=(rev,skin)=>request("/save",{token,method:"PUT",body:{rev,data:{...initialCity,profile:{...initialCity.profile,skin}}}});
+ for(const [rev,skin] of packs.entries()){
+  assert.equal((await save(rev,skin)).status,403,skin);
+  const sent=await admin("/mail",{method:"POST",body:{
+   title:skin,body:"Bộ skin mới",target:"player",code:account.code,rewards:{skin}
+  }});
+  assert.equal(sent.status,201,skin);
+  const claimed=await request("/mailbox/"+sent.data.row.id+"/claim",{token,method:"POST",body:{}});
+  assert.equal(claimed.status,200,skin);
+  assert.deepEqual(claimed.data.skinPacks,packs.slice(0,rev+1));
+  assert.equal((await save(rev,skin)).status,200,skin);
+ }
+});
+
 test("Cyberpunk is granted once after seven distinct Vietnam login days, even for guests",async()=>{
  const {data:{account,token}}=await request("/auth/guest",{method:"POST",body:{}});
  const players=db.collection("players"),player=await players.findOne({code:account.code});
