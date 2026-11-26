@@ -3,21 +3,25 @@
 // Các hộp thoại của giao diện.
 const UIDialogs = {
  eventBanner(own){
-  const el=this.nodes["event-banner"]??=document.getElementById("event-banner"),e=this.sim.events;
+  const el=this.nodes["event-banner"]??=document.getElementById("event-banner"),season=this.sim.events?.def?this.sim.events:null;
+  const flash=this.sim.flash?.def?this.sim.flash:null,e=season||flash;
   el.hidden=!own||!e;
   if(el.hidden)return;
-  const flash=this.sim.flash?.def?this.sim.flash:null;
   const claimable=event=>event.def.jobs.some((_,i)=>{const q=event.quest(i);return q.done&&!q.claimed})||
    event.tiers.some((t,i)=>event.points>=t.need&&!event.data.tiers.includes(i));
   const ready=claimable(e)||flash&&claimable(flash);
-  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true" data-event-art="'+e.event.id+'">'+e.def.icon+'</span><span><b>'+e.def.name+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+(flash?" · "+flash.def.name:"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
+  this.html("event-banner",this.btn("event-open",'<span class="event-mark" aria-hidden="true" data-event-art="'+(e.event.template||e.event.id)+'">'+e.def.icon+'</span><span><b>'+htm(e.def.name)+'</b><small>'+e.countdown()+(e.force?" · Xem thử":"")+(season&&flash?" · "+htm(flash.def.name):"")+'</small></span>'+(ready?'<sup aria-label="Có thưởng">!</sup>':""),{cls:"event-button",title:"Xem sự kiện và phần thưởng"}));
   el.style.setProperty("--event-tone",e.def.tone);
  },
- currentEvent(){return this.eventTab==="flash"&&this.sim.flash?.def?this.sim.flash:this.sim.events},
+ currentEvent(){
+  const {flash,events}=this.sim;
+  return flash?.def&&(this.eventTab==="flash"||!events?.def)?flash:events?.def?events:null;
+ },
  eventDialog(){
-  const e=this.currentEvent(),def=e.def,c=CONTENT.cast[def.who],jobs=def.jobs.map((_,i)=>e.quest(i));
-  const tabs=this.sim.flash?.def?'<div class="tabs">'+this.btn("event-tab",this.sim.events.def.name,{id:"season",cls:e.flash?"":"active"})+
-   this.btn("event-tab",this.sim.flash.def.name,{id:"flash",cls:e.flash?"active":""})+'</div>':'<p class="muted">Sự kiện ngắn: Giờ Cao Điểm 18:00–20:00 ngày thường; Chợ Cuối Tuần từ 08:00 thứ Bảy đến hết Chủ nhật (giờ Việt Nam).</p>';
+  const e=this.currentEvent();if(!e){if(this.dialogType==="event")this.close();return}
+  const def=e.def,c=CONTENT.cast[def.who],jobs=def.jobs.map((_,i)=>e.quest(i));
+  const tabs=this.sim.events?.def&&this.sim.flash?.def?'<div class="tabs">'+this.btn("event-tab",htm(this.sim.events.def.name),{id:"season",cls:e.flash?"":"active"})+
+   this.btn("event-tab",htm(this.sim.flash.def.name),{id:"flash",cls:e.flash?"active":""})+'</div>':'<p class="muted">Sự kiện ngắn: Giờ Cao Điểm 18:00–20:00 ngày thường; Chợ Cuối Tuần từ 08:00 thứ Bảy đến hết Chủ nhật (giờ Việt Nam).</p>';
   const quests=this.orderedProgress(jobs,q=>q).map(({st:q})=>'<div class="row'+(q.claimed?" dim":"")+'"><div class="grow"><b>'+q.name+'</b><small>'+q.text+' · '+q.cur+'/'+q.goal+' · +10 '+def.points+'</small>'+this.bar(q.cur/q.goal)+'</div>'+
    this.btn("event-quest",q.claimed?"Đã nhận":q.done?"Nhận điểm":"Đang làm",{id:q.id,cls:q.done?"primary":"",disabled:!q.done||q.claimed})+'</div>').join("");
   const rewards=this.orderedProgress(e.tiers.map((t,i)=>({...t,i})),t=>({claimed:e.data.tiers.includes(t.i),done:e.points>=t.need})).map(({item:t,st})=>

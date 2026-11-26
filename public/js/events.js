@@ -113,25 +113,33 @@ class SeasonalEvents {
   this.preview={};this.refresh();
  }
  get data(){return this.force?this.preview:(this.sim.progress[this.flash?"flash":"events"]??={})}
- get tiers(){return this.flash?SeasonalEvents.flashTiers:SeasonalEvents.tiers}
- refresh(){
+ get tiers(){
+  const tiers=this.flash?SeasonalEvents.flashTiers:SeasonalEvents.tiers;
+  return this.override?tiers.map((t,i)=>({...t,reward:{...t.reward,coins:Math.round(this.override.rewards[i]*this.override.multiplier)}})):tiers;
+ }
+ refresh(reset=false){
   const now=Date.now(),day=EventCalendar.civil(now);
+  const minute=Math.floor(now/60000);
+  if(!reset&&this.minute===minute)return;
+  this.minute=minute;
   if(this.flash){
-   const minute=Math.floor(now/60000);
-   if(this.minute===minute)return;
-   this.minute=minute;
    if(this.force&&!this.previewSlot)this.previewSlot={id:this.force,start:now,end:now+7200000};
    this.event=this.previewSlot||EventCalendar.flash(now);
-   this.def=this.event&&FlashContent[this.event.id];
   }else{
-   if(this.day===day)return;
-   this.day=day;
    const current=EventCalendar.active(now);
    const id=this.force==="weekly"?EventCalendar.weekly.find(id=>id===current.id)||EventCalendar.weekly[0]:this.force||current.id;
    this.event=this.force?{id,start:day,end:day+7}:current;
-   this.def=EventContent[this.event.id];
   }
-  if(!this.event)return;
+  const configs=this.force?[]:(this.sim.eventConfig||[]).filter(c=>c.kind===(this.flash?"flash":"season"));
+  const active=configs.filter(c=>c.enabled&&c.start&&Date.parse(c.start)<=now&&now<Date.parse(c.end))
+   .sort((a,b)=>Date.parse(b.start)-Date.parse(a.start)||a._id.localeCompare(b._id))[0];
+  this.override=active||configs.find(c=>c._id===this.event?.id)||null;
+  if(active)this.event={id:active._id,template:active.template,start:Date.parse(active.start),end:Date.parse(active.end),absolute:true};
+  else if(this.override&&(!this.override.enabled||this.override.start))this.event=null;
+  const template=this.event?.template||this.event?.id;
+  const definition=(this.flash?FlashContent:EventContent)[template];
+  this.def=definition&&(this.override?.name?{...definition,name:this.override.name}:definition);
+  if(!this.event||!this.def)return;
   const key=this.event.id+":"+this.event.start;
   if(this.key===key)return;
   this.key=key;
@@ -144,7 +152,7 @@ class SeasonalEvents {
  get points(){return this.data.quests.length*10}
  get skin(){return Object.hasOwn(this.data.skins,this.data.selected)&&Object.hasOwn(EventContent,this.data.selected)?this.data.selected:""}
  countdown(){
-  const mins=Math.max(0,Math.ceil(((this.flash?this.event.end:EventCalendar.instant(this.event.end))-Date.now())/60000));
+  const mins=Math.max(0,Math.ceil(((this.flash||this.event.absolute?this.event.end:EventCalendar.instant(this.event.end))-Date.now())/60000));
   return (mins>=1440?Math.floor(mins/1440)+"n ":"")+String(Math.floor(mins/60)%24).padStart(2,"0")+"g "+String(mins%60).padStart(2,"0")+"p";
  }
  quest(id){
@@ -220,22 +228,22 @@ class EventMap {
   }
  }
  static draw(r,w,events){
-  if(w!==r.sim.world||!events?.event)return;
-  const id=events.event.id,z=r.camera.zoom;
+  if(w!==r.sim.world)return;
+  const id=events?.event?.id,z=r.camera.zoom;
   let gate=null;
   for(const b of w.buildings){
    if(b.id!=="road")continue;
    if(!gate||Math.abs(b.x-8)+Math.abs(b.y-7)<Math.abs(gate.x-8)+Math.abs(gate.y-7))gate=b;
-   if(id==="cho-phien"||(b.x*3+b.y*7)%4)continue;
+   if(!id||id==="cho-phien"||(b.x*3+b.y*7)%4)continue;
    const p=r.project(b.x+.87,b.y+.18,1);
    this.shape(r,id,p.x,p.y,z,false,(b.x+b.y)%3===0);
   }
   const flash=r.sim.flash?.event;
-  if(gate&&flash&&flash.id!=="weekend-market"){
+  if(gate&&flash&&(flash.template||flash.id)!=="weekend-market"){
    const p=r.project(gate.x+.82,gate.y+.88,1);
-   this.shape(r,flash.id,p.x,p.y,z,true);
+   this.shape(r,flash.template||flash.id,p.x,p.y,z,true);
   }
-  if(gate&&(events.skin||!EventCalendar.weekly.includes(id))){
+  if(gate&&(events?.skin||id&&!EventCalendar.weekly.includes(id))){
    const p=r.project(gate.x+.28,gate.y+.78,1);
    this.shape(r,events.skin||id,p.x,p.y,z*1.4,true);
   }

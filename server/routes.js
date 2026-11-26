@@ -3,6 +3,7 @@ const express=require("express");
 const {sha,newToken,newCode,hashPassword,verifyPassword,limiter}=require("./auth");
 const {CONFIG,inspectSave,publicCity,cleanName}=require("./game");
 const community=require("./community");
+const events=require("./event-config"),{heartbeat}=require("./analytics");
 
 const STATS=["score","assets","happiness","helpsGiven"];
 const today=()=>new Date().toISOString().slice(0,10);
@@ -20,11 +21,31 @@ module.exports=function routes(getDb){
 
  router.use((req,res,next)=>{if(!getDb())return next(fail(503,"Máy chủ chưa kết nối được cơ sở dữ liệu."));next()});
  router.get("/health",(req,res)=>res.json({ok:true,time:Date.now()}));
+ router.get("/events/config",wrap(async(req,res)=>{
+  res.set("Cache-Control","public, max-age=60, stale-if-error=300").json({rows:await events.read(getDb())});
+ }));
+ const bearer=req=>/^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.get("authorization")||"")?.[1];
+ router.post("/presence",wrap(async(req,res)=>{
+  const {device,session}=req.body||{},token=bearer(req);
+  const id=/^[a-f0-9]{32}$/;
+  if(typeof device!=="string"||typeof session!=="string"||!id.test(device)||!id.test(session))throw fail(400,"Phiên không hợp lệ.");
+  const now=Date.now(),window=Math.floor(now/60000),limits=getDb().collection("presenceLimits");
+  const key=window+":"+sha(ip(req));
+  let bucket;
+  try{bucket=await limits.findOneAndUpdate({_id:key},{$inc:{hits:1},$setOnInsert:{expiresAt:new Date((window+2)*60000)}},{upsert:true,returnDocument:"after"})}
+  catch(error){if(error.code!==11000)throw error;bucket=await limits.findOneAndUpdate({_id:key},{$inc:{hits:1}},{returnDocument:"after"})}
+  if(!bucket||bucket.hits>120)throw fail(429,"Đồng bộ quá nhanh.");
+  const account=token&&await players().findOne({"tokens.hash":sha(token),bannedAt:{$exists:false}},{projection:{code:1,createdAt:1}});
+  if(req.get("authorization")&&!account)throw fail(401,"Phiên đăng nhập đã hết hạn.");
+  if(!await heartbeat(getDb(),{device,session,account},new Date(now)))throw fail(400,"Phiên không hợp lệ.");
+  res.status(204).end();
+ }));
 
  const issueToken=async id=>{
   const token=newToken();
   // Giữ tối đa 5 phiên đăng nhập gần nhất cho mỗi người chơi.
-  await players().updateOne({_id:id},{$push:{tokens:{$each:[{hash:sha(token),createdAt:new Date()}],$slice:-5}}});
+  const issued=await players().updateOne({_id:id,bannedAt:{$exists:false}},{$push:{tokens:{$each:[{hash:sha(token),createdAt:new Date()}],$slice:-5}}});
+  if(!issued.modifiedCount)throw fail(401,"Sai tên đăng nhập hoặc mật khẩu.");
   return token;
  };
  // Kiểm tra tên đăng nhập và mật khẩu mới; trả về dữ liệu đã chuẩn hóa.
@@ -62,7 +83,7 @@ module.exports=function routes(getDb){
   if(typeof username!=="string"||typeof password!=="string")throw fail(400,"Thiếu tên đăng nhập hoặc mật khẩu.");
   if(!authLimit(ip(req))||!nameLimit(username.trim().toLowerCase().slice(0,40)))throw fail(429,"Thử đăng nhập quá nhiều lần. Hãy đợi vài phút.");
   const player=await players().findOne({usernameLower:username.trim().toLowerCase()});
-  if(!player||!(await verifyPassword(password,player.pass)))throw fail(401,"Sai tên đăng nhập hoặc mật khẩu.");
+  if(!player||player.bannedAt||!(await verifyPassword(password,player.pass)))throw fail(401,"Sai tên đăng nhập hoặc mật khẩu.");
   res.json({token:await issueToken(player._id),account:account(player)});
  }));
 
@@ -70,7 +91,7 @@ module.exports=function routes(getDb){
  router.use(wrap(async(req,res,next)=>{
   const header=req.get("authorization")||"",token=header.startsWith("Bearer ")?header.slice(7):"";
   if(!token)throw fail(401,"Chưa đăng nhập.");
-  const player=await players().findOne({"tokens.hash":sha(token)},{projection:{pass:0,tokens:0}});
+  const player=await players().findOne({"tokens.hash":sha(token),bannedAt:{$exists:false}},{projection:{pass:0,tokens:0}});
   if(!player)throw fail(401,"Phiên đăng nhập đã hết hạn.");
   req.player=player;req.tokenHash=sha(token);next();
  }));
@@ -107,22 +128,25 @@ module.exports=function routes(getDb){
 
  router.get("/save",wrap(async(req,res)=>{
   const save=await saves().findOne({_id:req.player._id});
-  res.json(save?{rev:save.rev,data:save.data,updatedAt:save.updatedAt}:{rev:0,data:null});
+  res.json(save?{rev:save.rev,data:save.data,updatedAt:save.updatedAt,...(save.adminRev?{adminRev:save.adminRev}:{})}:{rev:0,data:null});
  }));
  router.put("/save",wrap(async(req,res)=>{
   if(!saveLimit(String(req.player._id)))throw fail(429,"Đồng bộ quá nhanh.");
   const {rev,data}=req.body||{},check=inspectSave(data);
   if(check.error)throw fail(400,check.error);
-  const current=await saves().findOne({_id:req.player._id},{projection:{rev:1}}),serverRev=current?.rev||0;
-  if(!Number.isSafeInteger(rev)||rev!==serverRev)throw fail(409,"Bản lưu trên máy chủ đã thay đổi từ thiết bị khác.",{rev:serverRev});
+  const current=await saves().findOne({_id:req.player._id},{projection:{rev:1,adminRev:1}}),serverRev=current?.rev||0;
+  const conflict=latest=>fail(409,"Bản lưu trên máy chủ đã thay đổi từ thiết bị khác.",{
+   rev:latest?.rev||0,...(rev<latest?.adminRev?{adminEdited:true}:{})
+  });
+  if(!Number.isSafeInteger(rev)||rev!==serverRev)throw conflict(current);
   const now=new Date(),next=serverRev+1;
   // Chỉ ghi khi rev chưa đổi để hai thiết bị không đè lên nhau một cách âm thầm.
   let result;
   try{result=await saves().updateOne({_id:req.player._id,rev:serverRev||{$exists:false}},{$set:{rev:next,data,updatedAt:now}},{upsert:!current})}
   catch(error){if(error.code!==11000)throw error;result={matchedCount:0,upsertedCount:0}}
   if(!result.matchedCount&&!result.upsertedCount){
-   const latest=await saves().findOne({_id:req.player._id},{projection:{rev:1}});
-   throw fail(409,"Bản lưu trên máy chủ đã thay đổi từ thiết bị khác.",{rev:latest?.rev||0});
+   const latest=await saves().findOne({_id:req.player._id},{projection:{rev:1,adminRev:1}});
+   throw conflict(latest);
   }
   await players().updateOne({_id:req.player._id},{$set:{name:check.name,summary:check.summary,city:check.city,coins:check.coins,updatedAt:now,lastSeenAt:now}});
   res.json({rev:next,updatedAt:now});

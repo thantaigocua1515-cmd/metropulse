@@ -1,6 +1,7 @@
 "use strict";
 const path=require("path"),fs=require("fs"),express=require("express");
 const db=require("./db"),routes=require("./routes");
+const {adminRouter}=require("./admin-auth"),adminData=require("./admin-data");
 
 // Nạp .env nếu có (không cần thư viện ngoài).
 const envFile=path.join(__dirname,"../.env");
@@ -13,7 +14,13 @@ function createApp(getDb){
  const app=express();
  app.disable("x-powered-by");app.set("trust proxy",1);
  app.use((req,res,next)=>{res.set({"X-Content-Type-Options":"nosniff","Referrer-Policy":"same-origin"});next()});
+ app.use("/api/admin",adminRouter(getDb,adminData));
  app.use("/api",express.json({limit:"600kb"}),routes(getDb));
+ app.use("/admin",(req,res,next)=>{
+  res.set({"Cache-Control":"no-store","X-Robots-Tag":"noindex, nofollow","X-Frame-Options":"DENY","Referrer-Policy":"no-referrer",
+   "Content-Security-Policy":"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"});
+  next();
+ },express.static(path.join(__dirname,"../public/admin"),{cacheControl:false}));
  app.use(express.static(path.join(__dirname,"../public"),{extensions:["html"],setHeaders:res=>res.set("Cache-Control","no-cache")}));
  return app;
 }

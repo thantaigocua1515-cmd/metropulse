@@ -22,7 +22,7 @@ module.exports=function community(router,{getDb,players,gifts,fail,wrap}){
  const friend=async(player,raw)=>{
   const code=codeOf(raw);
   if(!/^MP-[A-Z0-9]{4,8}$/.test(code)||code===player.code)throw fail(400,"Hãy chọn một thành phố bạn bè.");
-  const other=await players().findOne({code},{projection:{code:1,name:1,friends:1}});
+  const other=await players().findOne({code,bannedAt:{$exists:false}},{projection:{code:1,name:1,friends:1}});
   if(!other||!((player.friends||[]).includes(code)||(other.friends||[]).includes(player.code)))throw fail(403,"Chỉ mở cho bạn bè đã kết nối.");
   return other;
  };
@@ -37,9 +37,9 @@ module.exports=function community(router,{getDb,players,gifts,fail,wrap}){
  router.get("/chat/activity",wrap(async(req,res)=>{
   const {code}=req.player;
   const [world,dms]=await Promise.all([
-   messages().findOne({room:"world",from:{$ne:code},createdAt:recent()},{sort:newest,projection:{_id:1}}),
+   messages().findOne({room:"world",from:{$ne:code},createdAt:recent(),hiddenAt:{$exists:false}},{sort:newest,projection:{_id:1}}),
    messages().aggregate([
-    {$match:{to:code,createdAt:recent()}},{$sort:newest},{$group:{_id:"$from",latest:{$first:"$_id"},name:{$first:"$name"},createdAt:{$first:"$createdAt"}}},
+    {$match:{to:code,createdAt:recent(),hiddenAt:{$exists:false}}},{$sort:newest},{$group:{_id:"$from",latest:{$first:"$_id"},name:{$first:"$name"},createdAt:{$first:"$createdAt"}}},
     {$sort:{createdAt:-1}},{$limit:50}
    ]).toArray()
   ]);
@@ -47,14 +47,14 @@ module.exports=function community(router,{getDb,players,gifts,fail,wrap}){
  }));
  router.get("/chat",wrap(async(req,res)=>{
   const {room}=await channel(req.player,req.query.channel);
-  const result=await messages().find({room,createdAt:recent()}).sort(newest).limit(40).toArray();
+  const result=await messages().find({room,createdAt:recent(),hiddenAt:{$exists:false}}).sort(newest).limit(40).toArray();
   res.json({messages:result.reverse().map(row)});
  }));
  router.post("/chat",wrap(async(req,res)=>{
   const {room,to}=await channel(req.player,req.body?.channel);
   const text=messageText(req.body?.text);
   if(!text)throw fail(400,"Tin nhắn cần 1–240 ký tự và không chứa từ ngữ thô tục.");
-  const now=new Date(),slot=await players().updateOne({_id:req.player._id,$or:[{chatAt:{$exists:false}},{chatAt:{$lte:new Date(+now-2000)}}]},{$set:{chatAt:now}});
+  const now=new Date(),slot=await players().updateOne({_id:req.player._id,bannedAt:{$exists:false},$or:[{chatAt:{$exists:false}},{chatAt:{$lte:new Date(+now-2000)}}]},{$set:{chatAt:now}});
   if(!slot.modifiedCount)throw fail(429,"Chờ 2 giây trước khi gửi tin nhắn tiếp theo.");
   const message={room,to,from:req.player.code,name:named(req.player),text,createdAt:now};
   const {insertedId}=await messages().insertOne(message);

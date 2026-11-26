@@ -33,7 +33,9 @@ function enableOffline(sprites){
  }
  if(remote?.data){
   const cloudData=StorageManager.normalize(remote.data);
-  if(cloudData&&(force||!data.restored||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0)))data=cloudData;
+  if(cloudData&&(force||!data.restored||(remote.adminRev||0)>cloud.knownAdminRevision()||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0))){
+   data=cloudData;cloud.rememberAdminRevision(remote.adminRev);
+  }
  }
  stage(3,"Đang dựng thành phố…");
  audio.enabled=data.sound!==false;

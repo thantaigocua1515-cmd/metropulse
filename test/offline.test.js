@@ -101,5 +101,8 @@ test("worker installs a complete shell, caches assets, and leaves API requests o
   assert.equal(request("api/health"), undefined);
   assert.equal(request("api/save"), undefined);
   assert.equal(request("api/auth/login", "POST"), undefined);
+  assert.equal(request("api/admin/overview"), undefined);
+  assert.equal(request("admin", "GET", "navigate"), undefined);
+  assert.equal(request("admin/admin.js?v="+version), undefined);
   assert.equal(request("js/main.js?v=old"), undefined);
 });

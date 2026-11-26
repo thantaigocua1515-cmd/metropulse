@@ -45,6 +45,45 @@ class CloudClient {
   this.sim=sim;sim.cloud=this;
   if(this.online&&this.account){sim.profile.mayorId=this.account.code;this.dirty=true}
   setInterval(()=>this.flush(),15000);
+  if(this.enabled){
+   const refresh=()=>{if(!document.hidden)this.refreshEventConfig()};
+   const pulse=()=>{if(!document.hidden)this.presence()};
+   refresh();pulse();setInterval(refresh,120000);setInterval(pulse,60000);
+   document.addEventListener("visibilitychange",()=>{refresh();pulse()});
+   addEventListener("online",()=>{refresh();pulse()});
+   addEventListener("offline",()=>this.applyEventConfig([]));
+  }
+ }
+ async refreshEventConfig(){
+  if(!navigator.onLine)return;
+  try{
+   const response=await fetch("api/events/config",{signal:AbortSignal.timeout(5000)});
+   if(!response.ok)return;
+   const {rows}=await response.json();
+   if(navigator.onLine&&Array.isArray(rows))this.applyEventConfig(rows);
+  }catch(_){}
+ }
+ applyEventConfig(rows){
+  if(JSON.stringify(rows)===JSON.stringify(this.sim.eventConfig))return;
+  this.sim.eventConfig=rows;
+  for(const event of [this.sim.events,this.sim.flash])event?.refresh(true);
+ }
+ async presence(){
+  const now=Date.now();
+  if(!navigator.onLine||!globalThis.crypto?.getRandomValues||now-(this.lastPulse||0)<30000)return;
+  const makeId=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("");
+  if(!this.deviceId)try{
+   this.deviceId=localStorage.getItem("mp-play-device")||makeId();localStorage.setItem("mp-play-device",this.deviceId);
+  }catch(_){this.deviceId||=makeId()}
+  if(now-(this.lastPulse||0)>150000||!this.playId)this.playId=makeId();
+  this.lastPulse=now;
+  try{await this.api("/presence",{method:"POST",body:{device:this.deviceId,session:this.playId},timeout:5000})}catch(_){}
+ }
+ knownAdminRevision(){
+  try{return Number(localStorage.getItem("mp-admin-rev:"+this.account?.code))||0}catch(_){return 0}
+ }
+ rememberAdminRevision(rev){
+  if(this.account&&rev)try{localStorage.setItem("mp-admin-rev:"+this.account.code,String(rev))}catch(_){}
  }
  queue(){this.dirty=true}
  async flush(force=false,keepalive=false){
@@ -56,6 +95,9 @@ class CloudClient {
    const r=await this.api("/save",{method:"PUT",body,keepalive:keepalive&&JSON.stringify(body).length<60000});
    this.rev=r.rev;this.status="synced";this.lastSync=Date.now();return true;
   }catch(error){
+   if(error.status===409&&error.data?.adminEdited){
+    try{this.swap(await this.api("/save"));return false}catch(_){this.status="offline";this.dirty=true;return false}
+   }
    // Thiết bị khác đã lưu bản mới hơn: thiết bị đang chơi sẽ ghi đè ở lần đồng bộ kế tiếp.
    if(error.status===409&&error.data?.rev){this.rev=error.data.rev;this.status="syncing"}
    else if(error.status===401){this.online=false;this.status="expired"}
@@ -67,6 +109,7 @@ class CloudClient {
  async register(username,password){const r=await this.api("/auth/register",{method:"POST",body:{username,password}});this.account=r.account;return r.account}
  swap(save){
   this.sim.storage.erasing=true;
+  this.rememberAdminRevision(save?.adminRev);
   try{if(save?.data)localStorage.setItem(CONFIG.key,JSON.stringify(save.data));else localStorage.removeItem(CONFIG.key);localStorage.removeItem(CONFIG.legacyKey)}catch(_){}
   location.reload();
  }

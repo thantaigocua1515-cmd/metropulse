@@ -37,7 +37,21 @@ async function ensureIndexes(db){
   chat.createIndex({room:1,createdAt:-1,_id:-1}),
   chat.createIndex({to:1,createdAt:-1,_id:-1}),
   chat.createIndex({createdAt:1},{expireAfterSeconds:7*86400}),
-  coop.createIndex({createdAt:1},{expireAfterSeconds:30*86400})
+  coop.createIndex({createdAt:1},{expireAfterSeconds:30*86400}),
+  players.createIndex({createdAt:-1,_id:-1}),
+  players.createIndex({lastSeenAt:-1,_id:-1}),
+  players.createIndex({"summary.level":-1,_id:-1}),
+  chat.createIndex({from:1,createdAt:-1,_id:-1}),
+  db.collection("adminRateLimits").createIndex({expiresAt:1},{expireAfterSeconds:0}),
+  db.collection("adminSessions").createIndex({expiresAt:1},{expireAfterSeconds:0}),
+  db.collection("adminAudit").createIndex({at:-1,_id:-1}),
+  db.collection("presenceLimits").createIndex({expiresAt:1},{expireAfterSeconds:0}),
+  ...["playSessions","playDays","playIdentities","playMinutes"].map(name=>db.collection(name).createIndex({expiresAt:1},{expireAfterSeconds:0})),
+  db.collection("playSessions").createIndex({seenAt:-1,player:1}),
+  db.collection("playSessions").createIndex({player:1}),
+  db.collection("playDays").createIndex({day:-1,player:1}),
+  db.collection("playDays").createIndex({player:1,day:1},{unique:true}),
+  db.collection("playIdentities").createIndex({kind:1,firstDay:-1})
  ]);
 }
 

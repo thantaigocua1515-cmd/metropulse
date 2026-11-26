@@ -52,6 +52,29 @@ test("flash windows use Vietnam time and leave the seasonal track independent", 
   }finally{now=original}
 });
 
+test("operator overrides replace the schedule and rewards without changing built-in offline defaults", () => {
+  const original=now;
+  try {
+    now=Date.parse("2026-09-02T18:20:00+07:00");
+    const sim=setup(),season=new SeasonalEvents(sim),flash=new SeasonalEvents(sim,"",true);
+    sim.eventConfig=[
+      {_id:"quoc-khanh",kind:"season",template:"quoc-khanh",enabled:false},
+      {_id:"pho-dem",kind:"flash",template:"rush-hour",name:"Phố đêm",enabled:true,start:"2026-09-02T11:00:00Z",
+       end:"2026-09-02T12:00:00Z",rewards:[20,40,80],multiplier:1.5}
+    ];
+    season.refresh(true);flash.refresh(true);
+    assert.equal(season.event,null);
+    assert.equal(flash.event.id,"pho-dem");
+    assert.equal(flash.def.name,"Phố đêm");
+    assert.equal(flash.countdown(),"00g 40p");
+    assert.equal(flash.tiers[0].reward.coins,30);
+    sim.eventConfig=[];season.refresh(true);flash.refresh(true);
+    assert.equal(season.event.id,"quoc-khanh");
+    assert.equal(flash.event.id,"rush-hour");
+    assert.equal(flash.tiers[0].reward.coins,80);
+  } finally { now=original; }
+});
+
 test("district preview and live city use the same completed, bounded neighborhoods", () => {
   const home = makeBuilding("house_small", 8, 8);
   const school = makeBuilding("school", 8, 10);

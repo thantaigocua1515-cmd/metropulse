@@ -290,8 +290,8 @@ class UIController {
    case "missions":if(id)this.tabs.missions=id;this.missions();break;
    case "event-open":this.eventDialog();break;
    case "event-tab":this.eventTab=id;this.eventDialog();break;
-   case "event-quest":this.currentEvent().claimQuest(Number(id));this.eventDialog();break;
-   case "event-tier":this.currentEvent().claimTier(Number(id));this.eventDialog();break;
+   case "event-quest":this.currentEvent()?.claimQuest(Number(id));this.eventDialog();break;
+   case "event-tier":this.currentEvent()?.claimTier(Number(id));this.eventDialog();break;
    case "event-skin":s.events.selectSkin(id);this.eventDialog();break;
    case "quest-toggle":this.questOpen=!this.questOpen;break;
    case "mission-guide":this.missionGuide(id);return;

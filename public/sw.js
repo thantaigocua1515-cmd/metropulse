@@ -1,6 +1,6 @@
 "use strict";
 
-const VERSION="4.4.9",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
+const VERSION="4.5.0",PREFIX="metropulse-static-",CACHE=PREFIX+VERSION;
 const root=new URL(self.registration.scope),shell=new URL("./",root).href;
 const build=url=>new URL(url,root).href;
 let cacheHandle;
@@ -59,7 +59,7 @@ self.addEventListener("fetch",event=>{
  const request=event.request,url=new URL(request.url);
  if(url.origin!==root.origin||!url.pathname.startsWith(root.pathname))return;
  const path=url.pathname.slice(root.pathname.length);
- if(path==="api"||path.startsWith("api/")||request.method!=="GET")return;
+ if(path==="api"||path.startsWith("api/")||path==="admin"||path.startsWith("admin/")||request.method!=="GET")return;
  if(request.mode==="navigate"&&(!path||path==="index.html")){
   event.respondWith((async()=>{
    try{return await fetch(request)}
