@@ -54,7 +54,7 @@ class CloudClient {
   }catch(_){}
   if(!this.ownsSkin(sim.profile.skin))sim.profile.skin="default";
   if(this.online&&this.account){sim.profile.mayorId=this.account.code;this.dirty=true}
-  setInterval(()=>this.flush(),15000);
+  setInterval(()=>{if(!document.hidden)this.flush()},15000);
   if(this.enabled){
    const refresh=()=>{if(!document.hidden)this.refreshEventConfig()};
    const pulse=()=>{if(!document.hidden)this.presence()};

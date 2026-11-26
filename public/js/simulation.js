@@ -361,12 +361,28 @@ class SimulationEngine {
   if(this.fx.length)this.fx=this.reduceEffects?[]:this.fx.filter(q=>(q.age+=dt)<q.duration);
  }
  start(renderer,ui){
-  let last=performance.now(),hud=1,save=0,mission=1;
+  let request=null,last=0,step=0,renderTime=0,nextRender=0,hud=1,save=0,mission=1;
   const frame=now=>{
-   const dt=clamp((now-last)/1000,0,.1);last=now;this.tick(dt);renderer.render(dt);
-   hud+=dt;save+=dt;mission+=dt;if(mission>=.8){this.prog.refresh();mission=0}if(hud>=.18){ui.refresh();hud=0}if(save>=5){this.storage.save();save=0}
-   requestAnimationFrame(frame);
+   const dt=last?clamp((now-last)/1000,0,.25):0;last=now;
+   step+=dt;renderTime+=dt;
+   while(step>=.05){this.tick(.05);step-=.05}
+   const interval=1000/renderer.frameRate();
+   if(now+1>=nextRender||nextRender-now>interval){
+    renderer.render(renderTime);renderTime=0;
+    nextRender=nextRender>now+1||nextRender+interval<=now+1?now+interval:nextRender+interval;
+   }
+   hud+=dt;save+=dt;mission+=dt;
+   if(mission>=.8){this.prog.refresh();mission=0}
+   if(hud>=.25){ui.refresh();hud=0}
+   if(save>=5){this.storage.save();save=0}
+   request=requestAnimationFrame(frame);
   };
-  requestAnimationFrame(frame);
+  const visibility=()=>{
+   if(document.hidden){
+    if(request!==null)cancelAnimationFrame(request);
+    request=null;last=renderTime=nextRender=0;
+   }else if(request===null)request=requestAnimationFrame(frame);
+  };
+  document.addEventListener("visibilitychange",visibility);visibility();
  }
 }

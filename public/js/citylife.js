@@ -245,7 +245,7 @@ class CityLife {
   if(roads.length<2){list.length=0;return}
   const crews=w.npcs.filter(n=>n.phase!=="repair").map(n=>streetCrewPose(n,w));
   const quiet=(c.night?.55:1)*(c.weather==="storm"?.7:1);
-  const cars=Math.min(14,Math.ceil(roads.length/3),Math.round((roads.length/4+c.pop/180)*(c.night?.6:1))),people=Math.min(14,roads.length,Math.round((2+c.pop/30)*quiet));
+  const limit=this.r.quality?.agents??14,cars=Math.min(limit,Math.ceil(roads.length/3),Math.round((roads.length/4+c.pop/180)*(c.night?.6:1))),people=Math.min(limit,roads.length,Math.round((2+c.pop/30)*quiet));
   let nc=0,np=0;for(const a of list)a.car?nc++:np++;
   if(nc<cars&&Math.random()<dt*2){const a=this.create(true);if(this.spawn(a,crews)){list.push(a);nc++}}
   if(np<people&&Math.random()<dt*2.5){const a=this.create(false);if(this.spawn(a,crews)){list.push(a);np++}}
@@ -359,7 +359,8 @@ class CityLife {
   const label=name?name+": ":"",w=Math.min(230,g.measureText(label+text).width)+16,h=size+11,left=clamp(x-w/2,6,this.r.width-w-6),top=y-h-6,rad=h/2;
   g.beginPath();g.moveTo(left+rad,top);g.arcTo(left+w,top,left+w,top+h,rad);g.arcTo(left+w,top+h,left,top+h,rad);g.arcTo(left,top+h,left,top,rad);g.arcTo(left,top,left+w,top,rad);g.closePath();
   g.moveTo(x-4,top+h-1);g.lineTo(x,y);g.lineTo(x+4,top+h-1);
-  g.shadowColor="#1f2f4a40";g.shadowBlur=8;g.shadowOffsetY=2;g.fillStyle="#fff";g.fill();g.shadowColor="transparent";g.shadowBlur=0;g.shadowOffsetY=0;
+  if(this.r.qualityId==="high"){g.shadowColor="#1f2f4a40";g.shadowBlur=8;g.shadowOffsetY=2}
+  g.fillStyle="#fff";g.fill();g.shadowColor="transparent";g.shadowBlur=0;g.shadowOffsetY=0;
   g.textAlign="left";g.textBaseline="middle";
   if(label){g.fillStyle="#178a4c";g.fillText(label,left+8,top+h/2+.5,w-16)}
   g.fillStyle="#1d2733";g.fillText(text,left+8+g.measureText(label).width,top+h/2+.5,w-16-g.measureText(label).width);
@@ -369,6 +370,7 @@ class CityLife {
   const r=this.r,z=r.camera.zoom;
   for(const a of this.agents){
    const p=r.project(a.x+.5,a.y+.5),head=p.y-(a.car?9:a.kid?10:13)*z;
+   if(!r.inView(p,24,52))continue;
    if(!a.car)r.hits.push({citizen:a,x:p.x,y:p.y-5*z,r:Math.max(11,8*z)});
    const talking=a.say&&(!a.say.from||this.clock>=a.say.from);
    if(talking)this.bubble(p.x,head-2,a.say.text,a.say.name);

@@ -32,7 +32,10 @@ class UIController {
    sim.audio.setMusic(sim.audio.musicEnabled,Number(e.target.value)/100);
    document.getElementById("music-volume-value").textContent=e.target.value+"%";
   });
-  document.addEventListener("change",e=>{if(e.target.id==="music-volume")sim.storage.save()});
+  document.addEventListener("change",e=>{
+   if(e.target.id==="music-volume")sim.storage.save();
+   if(e.target.id==="graphics-quality")renderer.setQuality(e.target.value);
+  });
   document.addEventListener("keydown",e=>{
    sim.audio.unlock();
    if(this.sceneState){if(e.key==="Enter"||e.key===" "||e.key==="Escape"){e.preventDefault();this.sceneNext()}return}

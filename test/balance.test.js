@@ -11,6 +11,26 @@ const source=["config","core","storage","simulation"].map(name=>
  fs.readFileSync(path.join(__dirname,"../public/js",name+".js"),"utf8")).join("\n");
 const {CONFIG,StorageManager,SimulationEngine}=vm.runInNewContext(source+"\n;({CONFIG,StorageManager,SimulationEngine})");
 
+test("the game clock is independent of render quality and pauses in a hidden tab",()=>{
+ let callback,visibility,now=0,simulated=0,renders=0,refreshes=0;
+ const document={hidden:false,addEventListener(type,fn){assert.equal(type,"visibilitychange");visibility=fn}};
+ const start=vm.runInNewContext(source+"\nSimulationEngine.prototype.start",{
+  document,requestAnimationFrame(fn){callback=fn;return 1},cancelAnimationFrame(){callback=null}
+ });
+ const sim={tick(dt){simulated+=dt},prog:{refresh(){}},storage:{save(){}}};
+ const advance=(frames)=>{for(let i=0;i<frames;i++){now+=1000/60;callback(now)}};
+ let fps=60;
+ start.call(sim,{frameRate:()=>fps,render(){renders++}},{refresh(){refreshes++}});
+ advance(61);
+ assert.ok(Math.abs(simulated-1)<.051);assert.equal(renders,61);assert.ok(refreshes<=5);
+ fps=15;advance(60);
+ assert.ok(Math.abs(simulated-2)<.051);assert.equal(renders,76);
+ document.hidden=true;visibility();assert.equal(callback,null);
+ const prior=simulated;
+ now+=60000;document.hidden=false;visibility();advance(1);
+ assert.equal(simulated,prior);
+});
+
 test("the starter budget covers the tutorial and city foundations",()=>{
  const {road,house_small,power_plant,water_tower}=CONFIG.buildings;
  assert.ok(house_small.price+2*road.price<=CONFIG.starterCoins);

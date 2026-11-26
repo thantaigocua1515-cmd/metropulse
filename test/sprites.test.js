@@ -11,6 +11,28 @@ const { CONFIG, SPRITES, SKIN_SPRITES, IsoRenderer, makeWorld, makeBuilding, Cit
 );
 const renderer = Object.create(IsoRenderer.prototype);
 
+test("graphics tiers limit backing pixels and idle animations without changing the view", () => {
+  const r=Object.assign(Object.create(IsoRenderer.prototype),{
+    canvas:{getBoundingClientRect:()=>({width:390,height:844,left:0,top:0})},
+    camera:{x:160,y:400,zoom:1.3},width:390,height:844,hover:null
+  });
+  const run=vm.runInNewContext(["config","core","citylife","renderer"].map(file=>fs.readFileSync(path.join(root,"js",file+".js"),"utf8")).join("\n")+
+    "\n;({set:IsoRenderer.prototype.setQuality,resize:IsoRenderer.prototype.resize})",{devicePixelRatio:3,localStorage:{setItem:(key,value)=>{r.saved=[key,value]}}});
+  r.resize=run.resize;
+  run.set.call(r,"balanced");
+  assert.equal(r.canvas.width,488);
+  assert.equal(r.frameRate(),30);
+  r.lastView={...r.camera,hover:null};
+  assert.equal(r.frameRate(),24);
+  run.set.call(r,"battery");
+  assert.equal(r.canvas.width,390);
+  assert.equal(r.frameRate(),15);
+  assert.deepEqual(r.saved,["mp-graphics","battery"]);
+  assert.equal(r.camera.zoom,1.3);
+  assert.equal(r.inView({x:0,y:850},20,20),true);
+  assert.equal(r.inView({x:0,y:900},20,20),false);
+});
+
 test("mobile framing and marker picking favor readable, reachable city actions", () => {
   const r = Object.assign(Object.create(IsoRenderer.prototype), { width: 390, height: 800 });
   r.center();

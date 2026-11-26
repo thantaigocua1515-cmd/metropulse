@@ -70,7 +70,7 @@ class CityEffects {
    const seed=b.x*37+b.y*101+b.x*b.y*17;
    if(pack==="noel"){
     g.fillStyle="#f2fcff";
-    for(let i=0;i<2;i++){
+    for(let i=0;i<(r.quality?.flakes??2);i++){
      const phase=(time*.41+seed*.091+i*.49)%1;
      g.globalAlpha=.86*Math.sin(Math.PI*phase);
      const x=p.x+((seed+i*23)%41-20+Math.sin(time*2+i+seed)*3)*z,y=p.y+(-10+phase*(height+14))*z;
@@ -80,7 +80,7 @@ class CityEffects {
     continue;
    }
    const flower=this.flower||this.maiFlower();
-   for(let i=0;i<2;i++){
+   for(let i=0;i<(r.quality?.flakes??2);i++){
     const x=p.x+(i?23:-23)*z,y=p.y+(height*.76+((seed+i*7)%9))*z;
     g.globalAlpha=.48+.42*(1+Math.sin(time*2.7+seed+i*1.8))*.5;
     g.drawImage(flower,x-3*z,y-3*z,6*z,6*z);

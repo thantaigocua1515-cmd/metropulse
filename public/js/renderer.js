@@ -2,6 +2,11 @@
 const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",police_station:"police",
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
+const GRAPHICS={
+ battery:{label:"Tiết kiệm pin",fps:20,idle:15,dpr:1,agents:5,rain:36,flakes:1},
+ balanced:{label:"Cân bằng",fps:30,idle:24,dpr:1.25,agents:9,rain:76,flakes:2},
+ high:{label:"Cao",fps:60,idle:60,dpr:2,agents:14,rain:165,flakes:2}
+};
 const ROAD_DIRECTIONS=[[1,0],[0,-1],[-1,0],[0,1]];
 const ROAD_PROFILES=[[STREET.sidewalk,.10,"#c9c5ae"],[STREET.curb,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
  color,round,outlines:Array.from({length:16},(_,mask)=>ROAD_DIRECTIONS.flatMap(([dx,dy],i)=>{
@@ -13,18 +18,37 @@ const ROAD_PROFILES=[[STREET.sidewalk,.10,"#c9c5ae"],[STREET.curb,.085,"#ddd7c5"
 
 class IsoRenderer {
  constructor(canvas,sim){
-  this.canvas=canvas;this.ctx=canvas.getContext("2d");this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
+  this.canvas=canvas;this.ctx=canvas.getContext("2d",{alpha:false});this.sim=sim;this.camera={x:0,y:0,zoom:1};this.hover=null;this.target=null;this.hits=[];this.life=new CityLife(this);this.guide=null;this.elapsed=0;this.width=0;this.height=0;this.paintCache=new Map();this.sprites=new Map();
   this.prestigeIcon=new Image();this.prestigeIcon.src=asset("img/prestige.svg");
   this.effects=new CityEffects(this);
+  const mobile=matchMedia("(pointer: coarse)").matches||matchMedia("(max-width: 780px)").matches;
+  this.qualityId=mobile?"balanced":"high";
+  try{const id=localStorage.getItem("mp-graphics");if(Object.hasOwn(GRAPHICS,id))this.qualityId=id}catch(_){}
+  this.quality=GRAPHICS[this.qualityId];this.jobs=[];this.heights=new Map();
   this.skinMotion=matchMedia("(prefers-reduced-motion: reduce)");
   document.fonts?.load(canvasFont(9,800),"012ABC").then(()=>{this.groundReady=false},()=>{});
   this.resize();addEventListener("resize",()=>this.resize());
  }
  resize(){
-  const rect=this.canvas.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1),oldW=this.width,oldH=this.height;
+  const rect=this.canvas.getBoundingClientRect(),dpr=Math.min(this.quality.dpr,devicePixelRatio||1),oldW=this.width,oldH=this.height;
   this.origin={x:rect.left,y:rect.top};
   this.width=rect.width;this.height=rect.height;this.dpr=dpr;this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
   if(oldW){this.camera.x+=(this.width-oldW)/2;this.camera.y+=(this.height-oldH)/2}else this.center();
+ }
+ setQuality(id){
+  if(!Object.hasOwn(GRAPHICS,id)||id===this.qualityId)return;
+  this.qualityId=id;this.quality=GRAPHICS[id];
+  try{localStorage.setItem("mp-graphics",id)}catch(_){}
+  this.resize();
+ }
+ frameRate(){
+  const c=this.camera,previous=this.lastView;
+  return this.target||!previous||c.x!==previous.x||c.y!==previous.y||c.zoom!==previous.zoom||this.hover!==previous.hover?
+   this.quality.fps:this.quality.idle;
+ }
+ inView(p,side,top,bottom=side){
+  const z=this.camera.zoom;
+  return p.x>=-side*z&&p.x<=this.width+side*z&&p.y>=-bottom*z&&p.y<=this.height+top*z;
  }
  center(){
   const zoom=this.width<=780?1.1:clamp(Math.min((this.width-22)/940,(this.height-98)/595),.5,1.2);
@@ -87,9 +111,14 @@ class IsoRenderer {
   this.ellipse(p.x,p.y-15.5*z,9*z,10*z,colors[0]);this.ellipse(p.x-2*z,p.y-17*z,7.1*z,8.5*z,colors[1]);this.ellipse(p.x-3*z,p.y-20*z,4.5*z,4.7*z,colors[2]);
  }
  ambient(night,mood,world){
-  const g=this.ctx,{width:w,height:h}=this,gradient=g.createLinearGradient(0,0,w*.27,h);
-  const palette=mood==="storm"?["#8fa5b0","#a9bcc4","#7f97a3"]:night>.5?["#2b4660","#3c5e79","#253f58"]:mood==="heat"?["#e9e4c6","#f1ecd4","#d8ddba"]:["#cfe6ee","#e4f1f4","#b8d9e4"];
-  gradient.addColorStop(0,palette[0]);gradient.addColorStop(.52,palette[1]);gradient.addColorStop(1,palette[2]);g.fillStyle=gradient;g.fillRect(0,0,w,h);
+  const g=this.ctx,{width:w,height:h}=this,phase=mood==="storm"?mood:night>.5?"night":mood,key=phase+":"+w+":"+h;
+  if(this.ambientKey!==key){
+   const gradient=g.createLinearGradient(0,0,w*.27,h);
+   const palette=phase==="storm"?["#8fa5b0","#a9bcc4","#7f97a3"]:phase==="night"?["#2b4660","#3c5e79","#253f58"]:phase==="heat"?["#e9e4c6","#f1ecd4","#d8ddba"]:["#cfe6ee","#e4f1f4","#b8d9e4"];
+   gradient.addColorStop(0,palette[0]);gradient.addColorStop(.52,palette[1]);gradient.addColorStop(1,palette[2]);
+   this.ambientKey=key;this.ambientGradient=gradient;
+  }
+  g.fillStyle=this.ambientGradient;g.fillRect(0,0,w,h);
   const water=GameArt.image("background-map-water");
   if(water){
    this.waterPattern??=g.createPattern(water,"repeat");
@@ -155,18 +184,19 @@ class IsoRenderer {
   }
   this.roads(w);
  }
- groundLayer(w){
+ groundLayer(w,background){
   const {canvas,ctx,camera:c,dpr}=this,key=[canvas.width,canvas.height,dpr,c.x,c.y,c.zoom,w.unlockedRadius,...Array.from(w.index,([k,b])=>b.id==="road"?k+"r":k),
-   GameArt.ready("terrain-grass"),GameArt.ready("terrain-props"),GameArt.ready("terrain-edge")].join("|");
+   GameArt.ready("terrain-grass"),GameArt.ready("terrain-props"),GameArt.ready("terrain-edge"),background&&background.join(":")].join("|");
+  const paint=()=>{if(background)this.ambient(background[0],background[1],w);this.ground(w)};
   if(this.groundKey!==key){
-   this.groundKey=key;this.groundReady=false;this.ground(w);return;
+   this.groundKey=key;this.groundReady=false;paint();return;
   }
   const layer=this.groundCanvas??=document.createElement("canvas");
   if(!this.groundReady){
    layer.width=canvas.width;layer.height=canvas.height;
    const g=layer.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
    this.ctx=g;
-   try{this.ground(w)}finally{this.ctx=ctx}
+   try{paint()}finally{this.ctx=ctx}
    this.groundReady=true;
   }
   ctx.drawImage(layer,0,0,layer.width/dpr,layer.height/dpr);
@@ -230,14 +260,14 @@ class IsoRenderer {
   this.poly(l,this.tone(color,.9));this.poly(r,this.tone(color,1.13));this.poly(end,this.tone(color,.69));this.line([back,front],this.tone(color,1.26),this.camera.zoom);
   hits.push(l,r,end);
  }
- building(b,w,night){
+ building(b,w,night,skin=this.activeSkin(w)){
   const d=CONFIG.buildings[b.id],z=this.camera.zoom,x=b.x,y=b.y,polys=[];
   const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
   let meta=SPRITES[b.id],art=false;
   const rot=meta&&b.left<=0?this.facing(b,w):null;
   if(rot!==null){
-   const frame=this.buildingFrame(b,rot),skin=this.activeSkin(w),skinMeta=SKIN_SPRITES[skin]?.[b.id];
+   const frame=this.buildingFrame(b,rot),skinMeta=SKIN_SPRITES[skin]?.[b.id];
    const themed=skinMeta&&this.sprite(b.id,frame,dark,skin);
    if(themed){art=themed;meta=skinMeta}
    else art=this.sprite(b.id,frame,dark);
@@ -572,26 +602,41 @@ class IsoRenderer {
    c.x+=(t.x-c.x)*blend;c.y+=(t.y-c.y)*blend;if(t.zoom)c.zoom+=(t.zoom-c.zoom)*blend;
    if(Math.hypot(c.x-t.x,c.y-t.y)<.4&&(!t.zoom||Math.abs(c.zoom-t.zoom)<.003)){c.x=t.x;c.y=t.y;if(t.zoom)c.zoom=t.zoom;this.target=null}
   }
-  const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom;
+  const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom,skin=this.activeSkin(w),c=this.camera;
+  this.lastView={x:c.x,y:c.y,zoom:z,hover:this.hover};
   const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
-  g.setTransform(this.dpr,0,0,this.dpr,0,0);this.ambient(night,own.weather,w);this.groundLayer(w);this.hits=[];
-  if(night>.18)for(const b of w.buildings)if(b.id==="road")this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
+  g.setTransform(this.dpr,0,0,this.dpr,0,0);
+  if(GameArt.image("background-map-water"))this.groundLayer(w,[night>.5?1:0,own.weather]);
+  else{this.ambient(night,own.weather,w);this.groundLayer(w)}
+  this.hits=[];
+  if(night>.18)for(const b of w.buildings)if(b.id==="road"&&this.inView(this.project(b.x+.5,b.y+.5),30,14))
+   this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
   EventMap.draw(this,w,this.sim.events);
-  const jobs=[],heights=new Map();
+  const {jobs,heights}=this;jobs.length=0;heights.clear();
   for(let x=0;x<16;x++)for(let y=0;y<16;y++){
-   const b=lookup(w,x,y);if(b&&b.id!=="road")jobs.push({x,y,draw:()=>heights.set(coord(x,y),this.building(b,w,night))});
+   const b=lookup(w,x,y);
+   if(b&&b.id!=="road"){
+    if(this.inView(this.project(x+.5,y+.5),66,220,100))jobs.push({x,y,building:b});
+   }
    else if(!b){
     const hash=(x*31+y*43+x*y*13)%113;
-    if((!unlocked(w,x,y)&&hash%7<2)||(unlocked(w,x,y)&&hash%17===3))jobs.push({x,y,draw:()=>this.tree(x+.53,y+.57,hash%3,.62+hash%5*.1)});
+    if((unlocked(w,x,y)?hash%17===3:hash%7<2)&&this.inView(this.project(x+.5,y+.5),24,36))jobs.push({x,y,tree:hash});
    }
   }
   this.life.update(w,dt);
-  for(const a of this.life.agents)jobs.push({x:a.x+.05,y:a.y+.05,draw:()=>this.life.draw(a,night)});
+  for(const a of this.life.agents)if(this.inView(this.project(a.x+.5,a.y+.5),24,24))jobs.push({x:a.x+.05,y:a.y+.05,agent:a});
   for(const n of w.npcs){
    const pose=streetCrewPose(n,w);
-   jobs.push({x:pose.x+.1,y:pose.y+.1,draw:()=>this.npc(n,pose)});
+   if(this.inView(this.project(pose.x+.5,pose.y+.5),24,24))jobs.push({x:pose.x+.1,y:pose.y+.1,npc:n,pose});
   }
-  jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);for(const job of jobs)job.draw();
+  jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);
+  for(const job of jobs){
+   const {x,y}=job;
+   if(job.building)heights.set(coord(x,y),this.building(job.building,w,night,skin));
+   else if(job.agent)this.life.draw(job.agent,night);
+   else if(job.npc)this.npc(job.npc,job.pose);
+   else this.tree(x+.53,y+.57,job.tree%3,.62+job.tree%5*.1);
+  }
   if(night>.01){g.fillStyle="rgba(27,50,110,"+night*.37+")";g.fillRect(0,0,this.width,this.height)}
   if(own.weather==="heat"){g.fillStyle="#eb9e4820";g.fillRect(0,0,this.width,this.height)}
   if(this.hover&&inside(this.hover.x,this.hover.y)){
@@ -616,16 +661,16 @@ class IsoRenderer {
   }
   if(own.weather==="storm"){
    g.fillStyle="#293f571b";g.fillRect(0,0,this.width,this.height);g.beginPath();
-   for(let i=0;i<165;i++){
+   for(let i=0;i<this.quality.rain;i++){
     const h=this.height+40,a=(i*164.53+this.elapsed*101)%(this.width+30)-15,b=(i*89.167+this.elapsed*(380+(i%4)*33))%h-20;
-    if(i%6===0&&GameArt.draw(g,"vfx-incidents-weather","rain",a+3,b+8,8,17))continue;
+    if(this.qualityId==="high"&&i%6===0&&GameArt.draw(g,"vfx-incidents-weather","rain",a+3,b+8,8,17))continue;
     g.moveTo(a,b);g.lineTo(a+6,b+13+(i%3)*3);
    }
    g.strokeStyle="#b7def05e";g.lineWidth=.82;g.stroke();
    const f=this.elapsed%12;if(!this.sim.reduceEffects&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
   }
   if(!this.sim.reduceEffects){
-   if(!this.skinMotion.matches)this.effects.skin(this.activeSkin(w),w,heights);
+   if(!this.skinMotion.matches)this.effects.skin(skin,w,heights);
    this.effects.render(w,heights);
   }
  }
