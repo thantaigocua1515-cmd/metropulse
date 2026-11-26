@@ -17,8 +17,9 @@ test.before(async()=>{
  base="http://127.0.0.1:"+server.address().port;
 });
 test.after(async()=>{if(server)await new Promise(resolve=>server.close(resolve));await client?.close();await memory?.stop()});
-const request=async(path,{method="GET",body,session,origin=base,token,ip}={})=>{
+const request=async(path,{method="GET",body,session,origin=base,token,ip,fetchSite}={})=>{
  const r=await fetch(base+"/api"+path,{method,headers:{...(origin?{Origin:origin}:{}),...(body?{"Content-Type":"application/json"}:{}),
+  ...(fetchSite?{"Sec-Fetch-Site":fetchSite}:{}),
   ...(session?{Cookie:session}:{}),...(token?{Authorization:"Bearer "+token}:{}),...(ip?{"X-Forwarded-For":ip}:{})},body:body?JSON.stringify(body):undefined});
  return {status:r.status,data:r.status===204?{}:await r.json(),headers:r.headers};
 };
@@ -32,6 +33,28 @@ test("TOTP matches RFC 6238 SHA-1 test vector with six displayed digits",()=>{
  assert.equal(totp(secret,1),287082);
  assert.equal(matchedStep(secret,"287082",59000),1);
  assert.equal(matchedStep(secret,"287082",120000),null);
+});
+
+test("admin accepts configured, default and same-host Vercel origins but rejects cross-site requests",async t=>{
+ for(const key of ["ADMIN_ORIGIN","VERCEL_PROJECT_PRODUCTION_URL","VERCEL"]){
+  const previous=process.env[key];
+  t.after(()=>{if(previous===undefined)delete process.env[key];else process.env[key]=previous});
+ }
+ delete process.env.ADMIN_ORIGIN;
+ process.env.VERCEL_PROJECT_PRODUCTION_URL="metro-project.vercel.app";
+ process.env.VERCEL="1";
+ const defaultOrigin="https://metropulse-nu.vercel.app",sameHost=base.replace("http:","https:");
+ const mutate=async(origin,fetchSite)=>(await request("/admin/logout",{method:"POST",origin,fetchSite})).status;
+ assert.equal(await mutate(defaultOrigin),401);
+ process.env.ADMIN_ORIGIN="https://admin.example.com";
+ for(const origin of [defaultOrigin,"https://admin.example.com","https://metro-project.vercel.app",sameHost]){
+  assert.equal(await mutate(origin,"same-origin"),401);
+  assert.equal(await mutate(origin,"cross-site"),403);
+ }
+ assert.equal(await mutate("https://other.example.com"),403);
+ assert.equal(await mutate(base),403);
+ delete process.env.VERCEL;
+ assert.equal(await mutate(sameHost),403);
 });
 
 test("owner setup, Origin, session expiry, one-use recovery and cross-IP lockout",async()=>{

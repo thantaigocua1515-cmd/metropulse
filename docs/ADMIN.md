@@ -4,7 +4,7 @@
 
 ## Thiết lập trên Vercel
 
-1. Trong **Vercel → MetroPulse → Settings → Environment Variables → Production**, đặt `ADMIN_ORIGIN=https://metropulse-nu.vercel.app` (chỉ một origin HTTPS, không có đường dẫn). Nếu sử dụng tên miền khác, thay bằng tên miền chính thức. Khi không đặt biến này, máy chủ chỉ chấp nhận origin suy ra từ `VERCEL_PROJECT_PRODUCTION_URL`. Triển khai lại nếu vừa đổi biến.
+1. Máy chủ chấp nhận origin `https://metropulse-nu.vercel.app`, origin suy ra từ `VERCEL_PROJECT_PRODUCTION_URL` và origin HTTPS trùng host của yêu cầu trên Vercel. Nếu cần thêm origin, đặt `ADMIN_ORIGIN` trong **Vercel → MetroPulse → Settings → Environment Variables → Production** (một origin HTTPS, không có đường dẫn), rồi triển khai lại. Yêu cầu được trình duyệt đánh dấu là cross-site vẫn bị từ chối.
 2. Trong terminal riêng, cung cấp `MONGODB_URI` (và `MONGODB_DB` nếu đã đặt) bằng **chính cấu hình Production của cùng dự án**. Dùng kho bí mật hoặc bản tải xuống môi trường Production nếu Vercel cho phép; không dùng URI từ Preview/Development, không in hoặc dán URI vào chat, không commit tệp môi trường. Thiết lập cùng `ADMIN_ORIGIN` như trên.
 3. Từ thư mục dự án, chạy `node scripts/admin-setup-token.js`. Gửi liên kết mà script in ra qua kênh riêng. Liên kết có hiệu lực 30 phút, dùng một lần; chạy lại trước khi tạo tài khoản sẽ vô hiệu hóa liên kết cũ. Với tệp môi trường riêng, có thể chạy `node --env-file=/đường/dẫn/riêng/production.env scripts/admin-setup-token.js`.
 4. Mở liên kết trên đúng origin. Đặt tên, mật khẩu dài ít nhất 14 ký tự và quét mã bằng ứng dụng xác thực. Nhập mã 6 số. Lưu mã khôi phục vào trình quản lý mật khẩu hoặc nơi an toàn; chúng chỉ hiện một lần.

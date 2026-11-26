@@ -5,6 +5,7 @@ const QRCode=require("qrcode");
 const {sha,newToken,hashPassword,verifyPassword}=require("./auth");
 
 const OWNER="owner",COOKIE="__Host-mp_admin",MINUTE=60000,IDLE=30*MINUTE,ABSOLUTE=12*60*MINUTE;
+const DEFAULT_ADMIN_ORIGIN="https://metropulse-nu.vercel.app";
 const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",tokenPattern=/^[A-Za-z0-9_-]{43}$/;
 const dummy={salt:"0".repeat(32),hash:"0".repeat(128)};
 const fail=(status,message)=>Object.assign(new Error(message),{status});
@@ -40,18 +41,23 @@ const tokenHash=token=>typeof token==="string"&&tokenPattern.test(token)?sha(tok
 const cookieOptions={httpOnly:true,secure:true,sameSite:"strict",path:"/"};
 const cookieValue=req=>(req.get("cookie")||"").split(";").map(s=>s.trim()).find(s=>s.startsWith(COOKIE+"="))?.slice(COOKIE.length+1);
 const boundedName=name=>typeof name==="string"&&/^[a-zA-Z0-9_.-]{3,40}$/.test(name)?name:null;
-function adminOrigin(){
- const configured=process.env.ADMIN_ORIGIN||(process.env.VERCEL_PROJECT_PRODUCTION_URL?"https://"+process.env.VERCEL_PROJECT_PRODUCTION_URL:"");
+function httpsOrigin(configured){
  if(!configured)return null;
  try{
   const url=new URL(configured);
   return url.protocol==="https:"&&!url.username&&!url.password&&url.pathname==="/"&&!url.search&&!url.hash?url.origin:null;
  }catch{return null}
 }
+const vercelProductionOrigin=()=>process.env.VERCEL_PROJECT_PRODUCTION_URL?"https://"+process.env.VERCEL_PROJECT_PRODUCTION_URL:null;
+function adminOrigin(){
+ return httpsOrigin(process.env.ADMIN_ORIGIN||vercelProductionOrigin());
+}
 function checkOrigin(req){
- const origin=req.get("origin");
- const expected=adminOrigin()||(!process.env.VERCEL&&process.env.NODE_ENV!=="production"&&/^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$/.test(req.get("host"))?"http://"+req.get("host"):null);
- if(!expected||origin!==expected||req.get("sec-fetch-site")==="cross-site")throw fail(403,"Yêu cầu không hợp lệ.");
+ const origin=req.get("origin"),host=req.get("host");
+ const allowed=[httpsOrigin(process.env.ADMIN_ORIGIN),httpsOrigin(vercelProductionOrigin()),DEFAULT_ADMIN_ORIGIN];
+ if(process.env.VERCEL&&host)allowed.push(httpsOrigin("https://"+host));
+ else if(!process.env.VERCEL&&!adminOrigin()&&process.env.NODE_ENV!=="production"&&/^localhost(?::\d+)?$|^127\.0\.0\.1(?::\d+)?$/.test(host))allowed.push("http://"+host);
+ if(!origin||!allowed.includes(origin)||req.get("sec-fetch-site")==="cross-site")throw fail(403,"Yêu cầu không hợp lệ.");
 }
 async function issueSetupToken(db){
  const token=newToken(),now=new Date(),expiresAt=new Date(+now+30*MINUTE);
