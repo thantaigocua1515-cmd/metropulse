@@ -8,6 +8,16 @@ const script = name => fs.readFileSync(path.join(__dirname, "../public/js", name
 const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui", "ui-dialogs"].map(script).concat("UIController").join("\n"), globals);
 const UIController = loadUI({});
 
+test("all nine skin cards use the same house preview style as the default",()=>{
+  const ui=Object.create(UIController.prototype);
+  ui.sim={profile:{skin:"default"},cloud:{ownsSkin:id=>id==="default"}};
+  const html=ui.skinPanel(),grid=html.split('<div class="row skin-preview">')[0];
+  assert.deepEqual([...grid.matchAll(/<img src="(img\/[^"?]+)\?v=[^"]+" width="64" height="64"/g)].map(m=>m[1]),
+    ["bld","skins/tet","skins/noel","skins/cyberpunk","skins/sakura","skins/desert","skins/jungle","skins/ocean","skins/steampunk"]
+      .map(pack=>"img/"+pack+"/house_small/thumb.webp"));
+  assert.doesNotMatch(html,/badge\.webp/);
+});
+
 test("incidents keep a dispatch control before assignment and only a progress portrait afterward", () => {
   const ui = Object.create(UIController.prototype);
   const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[],index:new Map([[117,{id:"office_tower",level:1}]])};

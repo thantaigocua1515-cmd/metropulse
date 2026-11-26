@@ -4,12 +4,12 @@ const MAYOR_SKINS={
  default:["Mặc định","Kiến trúc Bình Minh nguyên bản."],
  tet:["Tết","Đèn lồng, hoa mai lấp lánh và pháo hoa nhỏ."],
  noel:["Noel","Mái nhà phủ tuyết và tuyết rơi nhẹ."],
- cyberpunk:["Cyberpunk","Đô thị ánh đèn neon xanh và tím."],
- sakura:["Sakura","Mái tím mận, sân hồng nhạt và chậu hoa anh đào."],
- desert:["Sa Mạc","Đá sa thạch vàng, kính xanh ngọc và chậu xương rồng."],
- jungle:["Rừng Xanh","Mái xanh, gỗ tre và những cụm cọ ven công trình."],
- ocean:["Đại Dương","Mái xanh biển, gạch màu vỏ sò và cụm san hô."],
- steampunk:["Steampunk","Mái đồng, gạch nâu và ống hơi bằng đồng thau."]
+ cyberpunk:["Cyberpunk","Ánh neon xanh tím chớp nhẹ cùng tia sáng hologram."],
+ sakura:["Sakura","Mái tím mận và cánh hoa anh đào rơi quanh nhà."],
+ desert:["Sa Mạc","Đá sa thạch, chậu xương rồng và những vệt cát bay nhẹ."],
+ jungle:["Rừng Xanh","Mái xanh, lá rơi và đom đóm sáng rõ hơn về đêm."],
+ ocean:["Đại Dương","Mái xanh biển, cụm san hô và bong bóng nổi lên quanh nhà."],
+ steampunk:["Steampunk","Mái đồng, ống hơi và những tia lửa nhỏ."]
 };
 
 // Các hộp thoại của giao diện.
@@ -255,13 +255,14 @@ const UIDialogs = {
   const {profile,cloud}=this.sim,active=profile.skin||"default";
   const selected=Object.hasOwn(MAYOR_SKINS,this.skinPreview)?this.skinPreview:active;
   const [name,description]=MAYOR_SKINS[selected],owned=cloud?.ownsSkin(selected);
+  const housePreview=id=>asset("img/"+(id==="default"?"bld":"skins/"+id)+"/house_small/thumb.webp");
   const hint=selected==="cyberpunk"?"Đăng nhập trực tuyến đủ 7 ngày khác nhau (không cần liên tiếp). "+(cloud?.token?"Tiến độ: "+(cloud.ownership?.loginDays||0)+"/7.":"Cần tài khoản, kể cả tài khoản khách."):"Nhận bộ skin qua thư quà từ ban điều hành.";
   return '<p class="muted">Một bộ skin áp dụng cho toàn bộ công trình của thành phố, không thay đổi chỉ số.</p><div class="skin-grid">'+
    Object.entries(MAYOR_SKINS).map(([id,[label]])=>this.btn("skin-preview",
-    '<img src="'+asset(id==="default"?"img/bld/house_small/thumb.webp":"img/skins/"+id+"/badge.webp")+'" width="64" height="64" alt=""><b>'+label+'</b><small>'+
+    '<img src="'+housePreview(id)+'" width="64" height="64" alt=""><b>'+label+'</b><small>'+
     (id===active?"Đang dùng":cloud?.ownsSkin(id)?"Đã sở hữu":"Chưa sở hữu")+'</small>',
     {id,cls:"skin-choice"+(id===selected?" active":"")+(cloud?.ownsSkin(id)?"":" locked")})).join("")+
-   '</div><div class="row skin-preview"><img src="'+asset("img/"+(selected==="default"?"bld":"skins/"+selected)+"/house_small/thumb.webp")+
+   '</div><div class="row skin-preview"><img src="'+housePreview(selected)+
    '" width="112" height="94" alt="Nhà mẫu bộ '+name+'"><div class="grow"><b>'+name+'</b><p>'+description+'</p><small>'+(!owned?hint:"")+'</small>'+
    this.btn("skin-equip",selected===active?"Đang sử dụng":owned?"Áp dụng cho thành phố":"Chưa mở khóa",{id:selected,cls:"primary",disabled:!owned||selected===active})+'</div></div>';
  },

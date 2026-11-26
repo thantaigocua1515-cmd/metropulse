@@ -3,9 +3,9 @@ const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",p
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
 const GRAPHICS={
- battery:{label:"Tiết kiệm pin",fps:20,idle:15,dpr:1,agents:5,rain:36,flakes:1},
- balanced:{label:"Cân bằng",fps:30,idle:24,dpr:1.25,agents:9,rain:76,flakes:2},
- high:{label:"Cao",fps:60,idle:60,dpr:2,agents:14,rain:165,flakes:2}
+ battery:{label:"Tiết kiệm pin",fps:20,idle:15,dpr:1,agents:5,rain:36,flakes:1,skinStamps:28,skinLayers:1},
+ balanced:{label:"Cân bằng",fps:30,idle:24,dpr:1.25,agents:9,rain:76,flakes:2,skinStamps:64,skinLayers:2},
+ high:{label:"Cao",fps:60,idle:60,dpr:2,agents:14,rain:165,flakes:2,skinStamps:128,skinLayers:3}
 };
 const ROAD_DIRECTIONS=[[1,0],[0,-1],[-1,0],[0,1]];
 const ROAD_PROFILES=[[STREET.sidewalk,.10,"#c9c5ae"],[STREET.curb,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
@@ -670,7 +670,7 @@ class IsoRenderer {
    const f=this.elapsed%12;if(!this.sim.reduceEffects&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
   }
   if(!this.sim.reduceEffects){
-   if(!this.skinMotion.matches)this.effects.skin(skin,w,heights);
+   if(!this.skinMotion.matches)this.effects.skin(skin,w,heights,night);
    this.effects.render(w,heights);
   }
  }

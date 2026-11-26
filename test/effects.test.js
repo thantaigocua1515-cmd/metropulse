@@ -94,3 +94,32 @@ test("level four gains steady XP from adequately supplied utilities during play"
   assert.equal(sim.profile.level, 5);
   assert.equal(sim.profile.xp, 0);
 });
+
+test("new city skins draw their own stamps, scale with quality and cull unfinished and offscreen buildings",()=>{
+  const draws=[];
+  const ctx={save(){},restore(){},drawImage(stamp,...box){draws.push({stamp,box,alpha:this.globalAlpha})}};
+  const effect=Object.assign(Object.create(CityEffects.prototype),{
+    stamp:kind=>kind,r:{ctx,width:390,height:800,camera:{zoom:1},elapsed:1,
+      quality:{skinStamps:128,skinLayers:3},project:(x,y)=>({x:x*20,y:y*20})}
+  });
+  const world={buildings:[{x:0,y:0,left:0},{x:1,y:1,left:1},{x:99,y:99,left:0}]};
+  const heights=new Map([[0,20],[17,20],[1683,20]]);
+  const expected={cyberpunk:["neon","hologram"],sakura:["petal","petal"],desert:["sand","sand"],
+    jungle:["firefly","leaf"],ocean:["bubble","bubble"],steampunk:["steam","spark"]};
+  for(const [pack,[primary,secondary]] of Object.entries(expected)){
+    effect.skin(pack,world,heights,1);
+    assert.deepEqual(draws.splice(0).map(d=>d.stamp),[primary,secondary,secondary],pack);
+  }
+  effect.skin("jungle",world,heights,0);
+  const daytime=draws.splice(0)[0].alpha;
+  effect.skin("jungle",world,heights,1);
+  assert.ok(draws.splice(0)[0].alpha>daytime);
+  effect.r.quality={skinStamps:28,skinLayers:1};
+  effect.skin("steampunk",world,heights);
+  assert.deepEqual(draws.splice(0).map(d=>d.stamp),["steam"]);
+  effect.r.quality={skinStamps:1,skinLayers:3};
+  effect.skin("ocean",world,heights);
+  assert.equal(draws.splice(0).length,1);
+  effect.skin("default",world,heights);
+  assert.equal(draws.length,0);
+});

@@ -1,8 +1,18 @@
 "use strict";
 
+const SKIN_STAMPS={
+ cyberpunk:["neon","hologram"],sakura:["petal","petal"],desert:["sand","sand"],
+ jungle:["firefly","leaf"],ocean:["bubble","bubble"],steampunk:["steam","spark"]
+};
+const STAMP_GLOWS={
+ neon:["#c3fcff","#27ecdfa0","#159aff00"],hologram:["#e3bdff","#aa52ff99","#ac19ff00"],
+ firefly:["#fcffb2","#d9ff6066","#a5ef2000"],steam:["#f8ffffd9","#cbecf28c","#b7ecff00"],
+ spark:["#fff9ce","#ff9c43a0","#ff711500"]
+};
+
 class CityEffects {
  constructor(renderer){
-  this.r=renderer;this.windows=new WeakMap();
+  this.r=renderer;this.windows=new WeakMap();this.stamps=new Map();
   const flare=this.halo=document.createElement("canvas");flare.width=flare.height=48;
   const g=flare.getContext("2d"),grad=g.createRadialGradient(24,24,0,24,24,24);
   grad.addColorStop(0,"#fff3c1b5");grad.addColorStop(.35,"#ffd58159");grad.addColorStop(1,"#ffb64800");
@@ -57,7 +67,8 @@ class CityEffects {
   const e=this.r.sim.fx.find(e=>(e.kind==="upgrade"||e.kind==="built")&&e.x===b.x&&e.y===b.y);
   return e?1+.115*Math.sin(Math.PI*Math.min(1,e.age/e.duration*1.45)):1;
  }
- skin(pack,world,heights){
+ skin(pack,world,heights,night=0){
+  if(Object.hasOwn(SKIN_STAMPS,pack)){this.themeStamps(pack,world,heights,night);return}
   if(pack!=="tet"&&pack!=="noel")return;
   const r=this.r,g=r.ctx,z=r.camera.zoom,time=r.elapsed;
   let bursts=0;
@@ -98,6 +109,77 @@ class CityEffects {
     }
     g.stroke();
    }
+  }
+  g.restore();
+ }
+ stamp(kind){
+  if(this.stamps.has(kind))return this.stamps.get(kind);
+  const image=document.createElement("canvas");image.width=image.height=32;
+  const g=image.getContext("2d"),colors=STAMP_GLOWS[kind];
+  if(colors){
+   const glow=g.createRadialGradient(16,16,0,16,16,16);
+   glow.addColorStop(0,colors[0]);glow.addColorStop(.35,colors[1]);glow.addColorStop(1,colors[2]);
+   g.fillStyle=glow;g.fillRect(0,0,32,32);
+  }
+  if(kind==="petal"||kind==="leaf"){
+   g.fillStyle=kind==="petal"?"#ff9cc0":"#85c55b";g.beginPath();g.ellipse(16,16,13,8,-.6,0,Math.PI*2);g.fill();
+   g.fillStyle=kind==="petal"?"#ffe0ee":"#e5ef99";g.beginPath();g.ellipse(17,15,7,2,-.6,0,Math.PI*2);g.fill();
+  }else if(kind==="bubble"){
+   g.fillStyle="#60d8eb40";g.strokeStyle="#9af7ff";g.lineWidth=3;
+   g.beginPath();g.arc(16,16,12,0,Math.PI*2);g.fill();g.stroke();
+   g.fillStyle="#edffff";g.fillRect(11,9,5,4);
+  }else if(kind==="sand"){
+   g.strokeStyle="#efc180";g.lineWidth=2;g.beginPath();
+   g.moveTo(3,20);g.quadraticCurveTo(15,7,29,12);g.moveTo(8,25);g.quadraticCurveTo(16,17,25,17);g.stroke();
+  }else if(kind==="hologram"||kind==="spark"){
+   g.fillStyle=colors[0];g.fillRect(14,9,4,14);g.fillRect(9,14,14,4);
+  }else if(kind==="firefly"){
+   g.fillStyle=colors[0];g.fillRect(13,13,6,6);
+  }
+  this.stamps.set(kind,image);return image;
+ }
+ themeStamps(pack,world,heights,night){
+  const r=this.r,g=r.ctx,z=r.camera.zoom,time=r.elapsed;
+  const [primary,secondary]=SKIN_STAMPS[pack],first=this.stamp(primary),second=this.stamp(secondary);
+  const budget=r.quality?.skinStamps??64,layers=r.quality?.skinLayers??2;
+  const stride=Math.max(1,Math.ceil(heights.size*(layers===2?1.5:layers)/budget));
+  let building=0,drawn=0;
+  g.save();
+  for(const b of world.buildings){
+   const height=heights.get(coord(b.x,b.y));
+   if(!height||b.left>0||building++%stride)continue;
+   const p=r.project(b.x+.5,b.y+.5,height);
+   if(p.x<-32*z||p.x>r.width+32*z||p.y<-((height+20)*z)||p.y>r.height+24*z)continue;
+   const seed=b.x*37+b.y*101+b.x*b.y*17;
+   for(let i=0,n=layers===2?1+seed%2:layers;i<n&&drawn<budget;i++){
+    const phase=(time*.36+seed*.071+i*.47)%1,fade=Math.sin(Math.PI*phase);
+    const drift=Math.sin(time*1.8+seed+i*2),offset=(seed+i*13)%31-15;
+    let x=offset,y=0,w=8,h=8,alpha=.8*fade;
+    switch(pack){
+     case "cyberpunk":
+      if(!i){y=height*.48;w=20;h=11;alpha=(.36+.44*night)*(.68+.32*Math.sin(time*9+seed))}
+      else{x+=drift*5;y=height*.54-phase*(height*.7+9);w=h=7}
+      break;
+     case "sakura":
+      x+=drift*7;y=-12+phase*(height*.9+22);w=5+2*Math.abs(drift);h=6;break;
+     case "desert":
+      x=(phase-.5)*46+offset*.35;y=height+8+i*4-drift*4;w=20+7*phase;h=9;alpha*=.72;break;
+     case "jungle":
+      if(!i){x+=drift*11;y=height*.64+Math.cos(time*2+seed)*8;w=h=8;alpha=(.24+.68*night)*fade}
+      else{x+=drift*7;y=-8+phase*(height+16);w=6;h=7}
+      break;
+     case "ocean":
+      x+=drift*5;y=height*.73-phase*(height*.84+20);w=h=5+4*phase;break;
+     case "steampunk":
+      if(!i){x=offset*.55+phase*9;y=4-phase*25;w=h=8+13*phase;alpha*=.83}
+      else{x+=drift*7;y=height*.55-phase*16;w=h=6;alpha*=1-phase}
+      break;
+    }
+    g.globalAlpha=alpha;
+    g.drawImage(i?second:first,p.x+(x-w/2)*z,p.y+(y-h/2)*z,w*z,h*z);
+    drawn++;
+   }
+   if(drawn===budget)break;
   }
   g.restore();
  }
