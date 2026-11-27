@@ -74,26 +74,26 @@ class SocialManager {
  }
  export(){
   const {profile:p,world:w}=this.sim;
-  return SocialStorageAdapter.code([1,p.mayorId,p.mayorName,p.level,Math.max(0,Math.floor(p.coins)),Math.round(p.happiness),p.helpsGiven,w.buildings.map(b=>[b.id,b.x,b.y,b.level])]);
+  return SocialStorageAdapter.code([w.land?2:1,p.mayorId,p.mayorName,p.level,Math.max(0,Math.floor(p.coins)),Math.round(p.happiness),p.helpsGiven,w.buildings.map(b=>[b.id,b.x,b.y,b.level]),...(w.land?[w.land]:[])]);
  }
  // Dựng thành phố bạn bè từ bộ dữ liệu [phiên bản, mã, tên, cấp, vàng, hạnh phúc, lượt chi viện, bố cục].
  build(data,extra={}){
   const within=(v,min,max)=>Number.isSafeInteger(v)&&v>=min&&v<=max;
-  if(!Array.isArray(data)||data.length!==8)throw Error("Định dạng mã thành phố không được hỗ trợ.");
-  const [ver,id,name,level,coins,happiness,helpsGiven,layout]=data;
-  if(ver!==1||typeof id!=="string"||!/^MP-[A-Z0-9]{4,8}$/.test(id)||typeof name!=="string"||!name.trim()||name.length>40||
+  if(!Array.isArray(data)||!((data[0]===1&&data.length===8)||(data[0]===2&&data.length===9&&data[8]>0)))throw Error("Định dạng mã thành phố không được hỗ trợ.");
+  const [,id,name,level,coins,happiness,helpsGiven,layout,land=0]=data,size=CONFIG.landSize(land);
+  if(!CONFIG.validLand(land,level)||typeof id!=="string"||!/^MP-[A-Z0-9]{4,8}$/.test(id)||typeof name!=="string"||!name.trim()||name.length>40||
      !within(level,1,Number.MAX_SAFE_INTEGER)||!within(coins,0,Number.MAX_SAFE_INTEGER)||!within(happiness,20,150)||
-     !within(helpsGiven,0,Number.MAX_SAFE_INTEGER)||!Array.isArray(layout)||layout.length>256)throw Error("Hồ sơ thành phố không hợp lệ.");
+     !within(helpsGiven,0,Number.MAX_SAFE_INTEGER)||!Array.isArray(layout)||layout.length>size**2)throw Error("Hồ sơ thành phố không hợp lệ.");
   if(id===this.sim.profile.mayorId)throw Error("Đây là mã thành phố của bạn.");
-  const grid={unlockedRadius:CONFIG.radius(level)},used=new Set(),buildings=[];
+  const grid={unlockedRadius:CONFIG.radius(level),gridSize:size,land},used=new Set(),buildings=[];
   for(const item of layout){
    if(!Array.isArray(item)||item.length!==4)throw Error("Bố cục công trình không hợp lệ.");
    const [type,x,y,l]=item;
-   if(typeof type!=="string"||!Object.hasOwn(CONFIG.buildings,type)||!within(x,0,15)||!within(y,0,15)||!within(l,1,CONFIG.maxLevel)||
+   if(typeof type!=="string"||!Object.hasOwn(CONFIG.buildings,type)||!within(x,0,size-1)||!within(y,0,size-1)||!within(l,1,CONFIG.maxLevel)||
       CONFIG.buildings[type].unlock>level||!unlocked(grid,x,y)||used.has(coord(x,y)))throw Error("Bố cục công trình không hợp lệ.");
    used.add(coord(x,y));const b=makeBuilding(type,x,y,l);b.age=100;buildings.push(b);
   }
-  return {id,name:name.trim(),avatar:this.guessAvatar(id),level,coins,happiness,helpsGiven,clock:0,seeded:true,...extra,world:makeWorld(buildings,level)};
+  return {id,name:name.trim(),avatar:this.guessAvatar(id),level,coins,happiness,helpsGiven,clock:0,seeded:true,...extra,world:makeWorld(buildings,level,{land})};
  }
  import(code){
   const friend=this.build(SocialStorageAdapter.decode(code.trim()));

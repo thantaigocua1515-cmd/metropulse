@@ -8,12 +8,67 @@ let now;
 class TestClock extends Date {
   static now() { return now; }
 }
-const { CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld } = vm.runInNewContext(
-  ["config", "content", "core", "simulation", "storage", "events", "progression"].map(file =>
+const {inspectSave,publicCity}=require("../server/game");
+const { CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld })",
+  "\n({ CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager })",
   { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
+
+test("land purchase keeps old tiles, extends routes, and round trips through public cities",()=>{
+ const s=setup([makeBuilding("road",15,5)],17);
+ s.profile.coins=3e6;s.addMaterials({steel:30,glass:30,chip:10});
+ assert.equal(Pathfinding.route(s.world,{x:15,y:5},{x:17,y:5}),null);
+ assert.equal(s.buyLand(),"");
+ assert.equal(s.world.gridSize,18);
+ assert.equal(s.profile.materials.steel,22);
+ assert.equal(s.world.buildings[0].x,15);
+ assert.equal(Pathfinding.route(s.world,{x:15,y:5},{x:17,y:5}).path.at(-1).x,17);
+ assert.match(s.buyLand(),/23/);
+ s.profile.level=23;
+ assert.equal(s.buyLand(),"");
+ s.world.buildings.push(makeBuilding("road",19,5));
+ const data=s.storage.serialize(),check=inspectSave(data);
+ assert.equal(check.error,undefined);
+ const shared=publicCity({code:"MP-ABCD",name:"Bình Minh",summary:check.summary,city:check.city,coins:check.coins});
+ const friend=SocialManager.prototype.build.call({sim:s,guessAvatar:()=>10},shared);
+ assert.equal(friend.world.gridSize,20);
+ assert.equal(friend.world.buildings.at(-1).x,19);
+ assert.equal(StorageManager.normalize(data).world.gridSize,20);
+ data.world.land=0;
+ assert.match(inspectSave(data).error,/Công trình/);
+});
+
+test("advanced research, specialist skills and timed wonders spend stock and retain progress",()=>{
+ const team=makeBuilding("fire_station",6,6),wonder=makeBuilding("metro_wonder",7,6,11);
+ const s=setup([team,wonder],21);
+ s.crisis=new CrisisAndNPCManager(s);
+ s.profile.coins=5e6;s.profile.knowledge=1e4;s.profile.prestige=100;
+ s.addMaterials({steel:30,glass:30,chip:10});
+ s.progress.research.tax=3;
+ assert.equal(s.research("tax"),"");
+ assert.equal(s.tech("tax"),4);
+ assert.equal(s.profile.materials.glass,26);
+ assert.match(s.research("tax"),/22/);
+ assert.match(s.crisis.train(team,"routing"),/5 ca/);
+ team.missions=5;
+ assert.equal(s.crisis.train(team,"routing"),"");
+ assert.equal(team.skills.routing,1);
+ assert.equal(s.profile.materials.chip,7);
+ const before=s.measure(s.world).income;
+ now=Date.now()||Date.parse("2026-07-14T00:00:00Z");
+ assert.equal(s.startWonder(),"");
+ assert.match(s.startWonder(),/đang thi công/);
+ const ready=s.progress.wonder.readyAt;
+ assert.equal(inspectSave(s.storage.serialize()).error,undefined);
+ s.finishWonder(ready-1);
+ assert.equal(s.progress.wonder.stage,0);
+ s.finishWonder(ready);
+ s.finishWonder(ready+1);
+ assert.equal(s.progress.wonder.stage,1);
+ assert.ok(s.measure(s.world).income>before);
+});
 
 function setup(buildings, level=16) {
   const data = StorageManager.fresh();

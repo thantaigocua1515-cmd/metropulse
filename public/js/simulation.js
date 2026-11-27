@@ -157,7 +157,8 @@ class SimulationEngine {
   const mood=m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0)-(m.ps<m.pd?6:0)-(m.ws<m.wd?6:0)+3*T("community")+(mine?this.buff("happy",w):0);
   m.happiness=clamp(mood*(policy==="green"?1.2:1),20,150);
   const globalPenalty=Math.max(.1,w.crises.reduce((f,c)=>f*(c.id==="flu_outbreak"?.75:1),1));
-  m.income=(CONFIG.baseIncome+earnings)*m.happiness/100*globalPenalty*(policy==="festival"?1.5:1)*(wonder?1.2:1)*(1+.08*T("tax"))*(mine?this.buff("income",w):1);
+  const wonderBonus=mine?.06*(this.progress.wonder?.stage||0):0;
+  m.income=(CONFIG.baseIncome+earnings)*m.happiness/100*globalPenalty*(policy==="festival"?1.5:1)*(wonder?1.2+wonderBonus:1)*(1+.08*T("tax"))*(mine?this.buff("income",w):1);
   m.know=mine?CONFIG.baseKnowledge+m.know:0;
   m.score=Math.round(m.pop*2+m.income*4+m.levels*10);
   return m;
@@ -189,6 +190,40 @@ class SimulationEngine {
   const stock=this.profile.materials??={};
   for(const key of Object.keys(CONFIG.materials))if(rewards[key]>0)
    stock[key]=Math.min(CONFIG.materialMax,(stock[key]||0)+rewards[key]);
+ }
+ hasMaterials(cost){return Object.entries(cost).every(([key,n])=>(this.profile.materials?.[key]||0)>=n)}
+ spendMaterials(cost){for(const [key,n] of Object.entries(cost))if(n)this.profile.materials[key]-=n}
+ landState(){
+  const {land,gridSize:size}=this.world,plan=CONFIG.landPlans[land];
+  const block=!plan?"Đã mở rộng hết địa giới.":this.profile.level<plan.mayor?"Cần Thị trưởng cấp "+plan.mayor+".":this.profile.coins<plan.coins?"Không đủ Vàng.":!this.hasMaterials(plan.materials)?"Không đủ vật liệu.":"";
+  return {size,plan,block};
+ }
+ buyLand(){
+  const {plan,block}=this.landState();if(block)return block;
+  this.profile.coins-=plan.coins;this.spendMaterials(plan.materials);
+  this.world.land++;this.world.gridSize=CONFIG.landSize(this.world.land);
+  this.storage.save();return "";
+ }
+ wonderState(){
+  const {stage=0,readyAt=0}=this.progress.wonder||{},plan=CONFIG.wonderPhases[stage];
+  const eligible=this.active().some(b=>b.id==="metro_wonder"&&b.level>=(plan?.level||1));
+  const block=!plan?"Đã hoàn tất mọi giai đoạn.":!eligible?"Cần Kỳ quan Đô thị hoạt động ở cấp "+plan.level+".":this.profile.level<plan.mayor?"Cần Thị trưởng cấp "+plan.mayor+".":this.profile.coins<plan.coins?"Không đủ Vàng.":!this.hasMaterials(plan.materials)?"Không đủ vật liệu.":"";
+  return {stage,readyAt,plan,block};
+ }
+ startWonder(){
+  const {stage,readyAt,plan,block}=this.wonderState();
+  if(readyAt)return "Kỳ quan đang thi công.";
+  if(block)return block;
+  this.profile.coins-=plan.coins;this.spendMaterials(plan.materials);
+  this.progress.wonder={stage,readyAt:Date.now()+plan.seconds*1000};
+  this.storage.save();return "";
+ }
+ finishWonder(now){
+  const wonder=this.progress.wonder;
+  if(!wonder?.readyAt||wonder.readyAt>now)return;
+  wonder.stage++;delete wonder.readyAt;
+  this.say("Hoàn thành giai đoạn Kỳ quan: "+CONFIG.wonderPhases[wonder.stage-1].name+"!");
+  this.storage.save();
  }
  supplyState(){
   const day=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Ho_Chi_Minh"});
@@ -322,6 +357,9 @@ class SimulationEngine {
   const level=this.tech(tech.id);
   if(level>=CONTENT.research.maxLevel)return "Đã đạt cấp tối đa.";
   if(tech.prev&&!this.tech(tech.prev))return "Cần nghiên cứu «"+CONTENT.research.all.find(t=>t.id===tech.prev).name+"» trước.";
+  const advanced=CONTENT.research.advanced[level-3];
+  if(advanced&&this.profile.level<advanced.mayor)return "Cần Thị trưởng cấp "+advanced.mayor+".";
+  if(advanced&&!this.hasMaterials(advanced.materials))return "Không đủ vật liệu.";
   if(this.profile.knowledge<CONTENT.research.cost(tech,level))return "Chưa đủ Tri thức.";
   return "";
  }
@@ -329,6 +367,7 @@ class SimulationEngine {
   const tech=CONTENT.research.all.find(t=>t.id===id);if(!tech)return "Không tìm thấy công nghệ.";
   const block=this.researchBlock(tech);if(block)return block;
   const level=this.tech(id);this.profile.knowledge-=CONTENT.research.cost(tech,level);this.progress.research[id]=level+1;this.stats.research++;
+  const advanced=CONTENT.research.advanced[level-3];if(advanced)this.spendMaterials(advanced.materials);
   this.say("Viện Quy hoạch công bố: "+tech.name+" đạt cấp "+(level+1)+".");this.audio.play("level");this.storage.save();return "";
  }
  spawnBubble(){
@@ -374,6 +413,7 @@ class SimulationEngine {
   if(!w.crises.some(c=>c.id==="water_leak"))w.happyDelta-=Math.sign(w.happyDelta)*Math.min(Math.abs(w.happyDelta),dt*.035);
   const speed=(this.count("construction_hq")?.9:1)*(w.activePolicy?.id==="overtime"?.65:1)*(1-.1*this.tech("construct"))*this.buff("build");
   const now=Date.now();
+  this.finishWonder(now);
   for(const b of w.buildings){
    if(b.upgradeReadyAt&&b.upgradeReadyAt<=now)this.finishUpgrade(b);
    if(b.left<=0){b.age+=dt;continue}

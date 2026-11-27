@@ -91,10 +91,19 @@ const CONFIG = (() => {
  const mayorXP = [170,900,2000,5900,6000,9000,14000,18500,23000];
  const tierNamesRoman=["I","II","III","IV","V","VI"],tierMin=[1,4,7,11,16,21],tierMayors=[1,5,10,16,21,26];
  const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
+ const baseSize=16,landPlans=[{mayor:17,coins:250000,materials:{steel:8,glass:5}},{mayor:23,coins:2000000,materials:{steel:20,glass:14,chip:6}}];
  const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
- return {assetVersion:"4.7.1",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+ return {assetVersion:"4.7.2",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
   tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
   supplyLevel:16,supplySources:{steel:["construction_hq",3,24],glass:["waste_plant",2,18],chip:["tech_tower",1,12]},
+  landPlans,landSize:land=>baseSize+2*land,validLand:(land,level)=>Number.isInteger(land)&&land>=0&&land<=landPlans.length&&(!land||level>=landPlans[land-1].mayor),
+  specialist:{mayor:16,missions:[5,15,30],skills:{routing:"Điều phối",fieldwork:"Tác nghiệp"}},
+  researchMax:5,researchAdvanced:[{mayor:16,materials:{glass:4,chip:2}},{mayor:22,materials:{glass:8,chip:5}}],
+  wonderPhases:[
+   {name:"Quảng trường Di sản",mayor:18,level:11,coins:1500000,seconds:3600,materials:{steel:18,glass:12,chip:4}},
+   {name:"Đài quan sát Bình Minh",mayor:23,level:16,coins:12000000,seconds:14400,materials:{steel:36,glass:28,chip:12}},
+   {name:"Bảo tồn Di sản Thế giới",mayor:30,level:21,coins:80000000,seconds:43200,materials:{steel:65,glass:50,chip:24}}
+  ],
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25*Math.max(1,level/16)**.65),
   mayorReward:level=>({coins:150*level,prestige:level>=20&&level%5===0?15:5,

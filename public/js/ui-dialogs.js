@@ -55,9 +55,21 @@ const UIDialogs = {
    const d=CONFIG.buildings[b.id],team=CONFIG.npcs[b.id],v=CONFIG.vehicles[b.teamLevel-1],key=coord(b.x,b.y),rank=CONFIG.rank(b.missions),next=CONFIG.ranks.find(r=>r[0]>b.missions);
    return '<div class="row">'+this.face(team.avatar,htm(team.icon),team.color)+'<div class="grow"><b>'+team.captain+' · '+team.name+'</b><small>'+CONFIG.buildingName(b)+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+(b.spec?' · ✦ '+CONFIG.specs.svc[b.spec][0]:'')+'</small><small>'+(b.left>0?"Đang xây":'Xe cấp '+b.teamLevel+' · '+v.name+' · '+fmt(v.speed,1)+' ô/giây · sửa '+fmt(v.repair*rank[2],1)+' giây · '+(b.crew-s.crisis.busy(b))+'/'+b.crew+' rảnh')+'</small><small class="mint">Quân hàm: '+rank[1]+' · '+b.missions+' nhiệm vụ'+(next?' (còn '+(next[0]-b.missions)+' để lên '+next[1]+')':'')+'</small></div><div class="actions col">'+
     this.btn("team-up",b.teamLevel===5?"Xe tối đa":"Nâng xe · "+fmt(Math.ceil(250*b.teamLevel**1.4))+" V",{id:key,disabled:b.teamLevel===5||b.left>0})+
-    this.btn("team-hire",b.crew===3?"Đủ 3 người":"Tuyển · "+this.prestigeAmount(b.crew+1),{id:key,disabled:b.crew===3||b.left>0})+'</div></div>';
+    this.btn("team-hire",b.crew===3?"Đủ 3 người":"Tuyển · "+this.prestigeAmount(b.crew+1),{id:key,disabled:b.crew===3||b.left>0})+
+    this.btn("specialists","Kỹ năng",{id:key,disabled:b.left>0})+'</div></div>';
   }).join("");
   this.open("teams","ĐỘI PHẢN ỨNG","Quản lý đội NPC",'<p class="muted">Nâng cấp phương tiện để đến nhanh, sửa nhanh. Đội càng làm nhiều nhiệm vụ càng lên quân hàm và sửa nhanh hơn. Mỗi trụ sở có tối đa 3 nhân sự.</p>'+(rows||'<p class="empty">Hãy xây một trụ sở dịch vụ (Trạm Điện lực, Tháp Nước, Trạm Cứu hỏa…) để có đội điều phối.</p>'));
+ },
+ specialists(b){
+  const s=this.sim,key=coord(b.x,b.y);
+  const rows=Object.entries(CONFIG.specialist.skills).map(([id,name])=>{
+   const {level,goal,materials,prestige,block}=s.crisis.skillState(b,id);
+   return '<div class="row"><div class="grow"><b>'+name+' · '+level+'/3</b><small>'+(id==="routing"?"+8% tốc độ di chuyển mỗi cấp":"+10% tốc độ khắc phục mỗi cấp")+'</small>'+
+    (goal?'<small>'+b.missions+'/'+goal+' ca · '+prestige+' Uy tín · '+this.materialCost(materials)+'</small>':"")+
+    (block?'<small>'+htm(block)+'</small>':"")+'</div>'+
+    this.btn("train-specialist","Đào tạo",{id:key,arg:id,cls:"primary",disabled:!!block})+'</div>';
+  }).join("");
+  this.open("specialists","ĐỘI PHẢN ỨNG","Kỹ năng chuyên viên",'<p class="muted">'+CONFIG.buildings[b.id].name+' · Kỹ năng áp dụng từ lần điều phối tiếp theo.</p>'+rows+this.btn("teams","Về danh sách đội"));
  },
  policies(){
   const w=this.sim.world;
@@ -123,9 +135,10 @@ const UIDialogs = {
  research(){
   const s=this.sim,R=CONTENT.research;
   const cols=R.branches.map(branch=>'<div class="branch"><h4 style="color:'+branch.color+'">'+branch.name+'</h4>'+branch.techs.map((t,i)=>{
-   const tech=R.all.find(x=>x.id===t.id),level=s.tech(t.id),block=s.researchBlock(tech),max=level>=R.maxLevel,locked=tech.prev&&!s.tech(tech.prev);
-   return (i?'<div class="link'+(locked?"":" on")+'"></div>':"")+'<div class="tech'+(locked?" locked":"")+(max?" max":"")+'"><div class="pips">'+[0,1,2].map(k=>'<i class="'+(k<level?"on":"")+'" style="--c:'+branch.color+'"></i>').join("")+'</div><b>'+t.name+'</b><small>'+t.desc+'</small>'+
+   const tech=R.all.find(x=>x.id===t.id),level=s.tech(t.id),block=s.researchBlock(tech),max=level>=R.maxLevel,locked=tech.prev&&!s.tech(tech.prev),advanced=R.advanced[level-3];
+   return (i?'<div class="link'+(locked?"":" on")+'"></div>':"")+'<div class="tech'+(locked?" locked":"")+(max?" max":"")+'"><div class="pips">'+Array.from({length:R.maxLevel},(_,k)=>'<i class="'+(k<level?"on":"")+'" style="--c:'+branch.color+'"></i>').join("")+'</div><b>'+t.name+'</b><small>'+t.desc+'</small>'+
     (level?'<small class="mint">Đang có: '+t.unit.replace(/\d+/,n=>n*level)+'</small>':"")+
+    (advanced?'<small>Cấp '+(level+1)+' · Thị trưởng '+advanced.mayor+' · '+this.materialCost(advanced.materials)+'</small>'+(block?'<small>'+htm(block)+'</small>':""):"")+
     this.btn("study",max?"Tối đa":locked?"🔒 Chưa mở":"Nghiên cứu · "+fmt(R.cost(tech,level))+" ✦",{id:t.id,cls:block?"":"primary",disabled:!!block,title:block})+'</div>';
   }).join("")+'</div>').join("");
   this.open("research","VIỆN QUY HOẠCH","Cây nghiên cứu",'<p class="muted">Tri thức hiện có: <b class="teal">'+fmt(Math.floor(s.profile.knowledge))+' ✦</b> · sinh ra <b class="teal">+'+fmt(s.metrics.know*60,1)+'/phút</b>. Xây Trường học, Đại học, Bảo tàng hoặc thu túi ✦ trên bản đồ để có thêm.</p><div class="tree">'+cols+'</div>',true);
@@ -186,7 +199,7 @@ const UIDialogs = {
   let body=this.tabbar("profile",[["me","Hồ sơ"],["skin","Skin"],["inventory","Vật liệu"],["account","Tài khoản"],["settings","Cài đặt"]]);
   if(tab==="me"){
    const hours=Math.floor(st.playTime/3600),minutes=Math.floor(st.playTime/60)%60;
-   const cells=[["Điểm đô thị",fmt(m.score)],["Thu nhập cao nhất",fmt(st.peakIncome,1)+" V/s"],["Dân số cao nhất",fmt(st.peakPop)],["Sự cố đã xử lý",fmt(st.crisesSolved)],["Chuỗi tốt nhất","×"+st.bestCombo],["Công trình đã xây",fmt(st.buildingsBuilt)],["Lượt nâng cấp",fmt(st.upgrades)],["Túi thuế đã thu",fmt(st.bubbles)],["Cấp nghiên cứu",st.research+" / 36"],["Lượt chi viện",fmt(p.helpsGiven)],["Ngày điểm danh",fmt(st.loginDays)],["Thời gian chơi",hours+" giờ "+minutes+" phút"]];
+   const cells=[["Điểm đô thị",fmt(m.score)],["Thu nhập cao nhất",fmt(st.peakIncome,1)+" V/s"],["Dân số cao nhất",fmt(st.peakPop)],["Sự cố đã xử lý",fmt(st.crisesSolved)],["Chuỗi tốt nhất","×"+st.bestCombo],["Công trình đã xây",fmt(st.buildingsBuilt)],["Lượt nâng cấp",fmt(st.upgrades)],["Túi thuế đã thu",fmt(st.bubbles)],["Cấp nghiên cứu",st.research+" / "+(CONTENT.research.all.length*CONFIG.researchMax)],["Lượt chi viện",fmt(p.helpsGiven)],["Ngày điểm danh",fmt(st.loginDays)],["Thời gian chơi",hours+" giờ "+minutes+" phút"]];
    body+='<div class="hero">'+this.face(p.avatar,p.level)+'<div class="grow"><h3>'+htm(p.mayorName)+'</h3><small>'+rank.name+' '+htm(p.cityName)+' · Mã '+p.mayorId+'</small>'+
     (rank.next?this.bar(m.score/rank.next[0])+'<small>Còn '+fmt(Math.max(0,rank.next[0]-m.score))+' điểm đô thị để thành «'+rank.next[1]+'»</small>':'<small class="mint">Danh hiệu cao nhất!</small>')+'</div></div>'+
     '<div class="inline"><input id="mayor-name" maxlength="40" value="'+htm(p.mayorName)+'" aria-label="Tên Thị trưởng"><input id="city-name" maxlength="24" value="'+htm(p.cityName)+'" aria-label="Tên thành phố">'+this.btn("save-name","Lưu tên",{cls:"primary"})+'</div>'+
@@ -236,7 +249,23 @@ const UIDialogs = {
    '<h4>Sản xuất trong thành phố</h4><p class="muted">Thu một lô mỗi ngày (giờ Việt Nam), kể cả khi chơi ngoại tuyến. Cứ 4 cấp nâng cấp, mỗi cơ sở sản xuất thêm 1 vật liệu.</p>'+
    Object.entries(CONFIG.supplySources).map(([key,[id,,max]])=>'<div class="row"><div class="grow"><b>'+CONFIG.buildings[id].name+'</b><small>'+CONFIG.materials[key]+' · Tối đa '+max+'/ngày</small></div>'+
     '<b>+'+yields[key]+'</b></div>').join("")+
-   '<div class="row"><div class="grow"><small>'+status+'</small></div>'+this.btn("collect-supplies","Thu vật liệu",{cls:"primary",disabled:!ready})+'</div>';
+   '<div class="row"><div class="grow"><small>'+status+'</small></div>'+this.btn("collect-supplies","Thu vật liệu",{cls:"primary",disabled:!ready})+'</div>'+
+   '<div class="actions">'+this.btn("land","Mở rộng địa giới")+this.btn("wonder","Dự án Kỳ quan")+'</div>';
+ },
+ materialCost(cost){return Object.entries(cost).map(([id,n])=>fmt(n)+" "+CONFIG.materials[id]).join(" · ")},
+ landDialog(){
+  const {size,plan,block}=this.sim.landState();
+  this.open("land","QUY HOẠCH","Mở rộng địa giới",'<p>Bản đồ hiện tại: <b>'+size+' × '+size+' ô</b>. Đất mua thêm nằm ở rìa đông và nam; công trình cũ giữ nguyên vị trí.</p>'+
+   (plan?'<div class="card"><b>Mở địa giới '+(size+2)+' × '+(size+2)+' ô</b><small>Thị trưởng cấp '+plan.mayor+' · '+fmt(plan.coins)+' Vàng · '+this.materialCost(plan.materials)+'</small>'+
+    (block?'<small>'+htm(block)+'</small>':"")+'</div><div class="actions">'+this.btn("buy-land","Mua địa giới",{cls:"primary",disabled:!!block})+'</div>':'<p class="mint">'+block+'</p>'));
+ },
+ wonderDialog(){
+  const {stage,readyAt,block}=this.sim.wonderState();
+  this.wonderShownStage=stage;
+  this.open("wonder","DI SẢN ĐÔ THỊ","Dự án Kỳ quan",'<p class="muted">Mỗi giai đoạn cộng thêm 6 điểm phần trăm vào thưởng thu nhập khi có Kỳ quan đang hoạt động. Chỉ triển khai một dự án cho cả thành phố.</p>'+
+   CONFIG.wonderPhases.map((p,i)=>'<div class="row"><div class="grow"><b>'+(i+1)+'. '+p.name+'</b><small>Thị trưởng '+p.mayor+' · Kỳ quan cấp '+p.level+' · '+fmt(p.coins)+' Vàng</small><small>'+this.materialCost(p.materials)+' · '+timer(p.seconds)+'</small>'+
+    (i===stage&&readyAt?'<small class="mint">Đang thi công · còn '+timer((readyAt-Date.now())/1000)+'</small>':i===stage&&block?'<small>'+htm(block)+'</small>':"")+'</div>'+
+    (i<stage?'<b class="mint">Đã xong</b>':i===stage&&!readyAt?this.btn("start-wonder","Khởi công",{cls:"primary",disabled:!!block}):"")+'</div>').join(""));
  },
  async auth(kind){
   const cloud=this.sim.cloud,feedback=document.getElementById("auth-message"),value=id=>document.getElementById(id)?.value||"";
@@ -340,6 +369,7 @@ const UIDialogs = {
    (level===CONFIG.utilityXP.level?'<p class="mint">Giữ đủ điện và nước để kiếm thêm '+CONFIG.utilityXP.perSecond*60+' XP/phút khi chơi, đến cấp 5.</p>':"")+
    (grew?'<div class="row"><div class="grow"><b>Mở rộng địa giới</b><small>Bản đồ nới thêm một vòng đất: '+CONFIG.radius(level)*2+' × '+CONFIG.radius(level)*2+' ô.</small></div></div>':"")+
    (gate>0?'<div class="row"><div class="grow"><b>Bậc tiến hóa mới</b><small>Mở bậc '+CONFIG.tierNamesRoman[gate]+' (công trình cấp '+CONFIG.tierMin[gate]+'–'+((CONFIG.tierMin[gate+1]||CONFIG.maxLevel+1)-1)+').</small></div></div>':"")+
+   (CONFIG.landPlans.some(plan=>plan.mayor===level)?'<div class="row"><div class="grow"><b>Mở rộng địa giới</b><small>Có thể mua thêm đất trong Kho vật liệu.</small></div></div>':"")+
    (fresh.length?'<h4>Bản vẽ mới</h4><div class="unlocks">'+fresh.map(d=>'<div><img src="'+this.thumbs[d.id]+'" alt=""><b>'+d.name+'</b><small>'+d.desc+'</small></div>').join("")+'</div>':"")+
    '<div class="actions">'+this.btn("welcome","Tiếp tục xây dựng",{cls:"primary"})+'</div>');
  },

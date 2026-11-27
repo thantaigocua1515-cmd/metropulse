@@ -81,6 +81,7 @@ class CrisisAndNPCManager {
   routes.sort((a,b)=>a.route.cost-b.route.cost||distance(a.home,c)-distance(b.home,c));
   const {home,route}=routes[0],source=friend?free.sort((a,b)=>b.teamLevel-a.teamLevel)[0]:home;
   w.npcs.push({type:d.hq,assist:!!friend,source:{x:source.x,y:source.y},home:{x:home.x,y:home.y},level:source.teamLevel,target:c.uid,boost:source.spec==="a"?1.25:1,rank:CONFIG.rank(source.missions)[2],
+   routing:source.skills?.routing||0,fieldwork:source.skills?.fieldwork||0,
    phase:"out",path:route.path,segment:0,part:0,x:home.x,y:home.y,repair:0});
   if(friend)s.profile.dailyHelpsLeft--;
   s.storage.save();return route.offroad?"Đã điều phối · Thiếu đường nối, đội di chuyển chậm.":"Đã điều phối "+d.npc+".";
@@ -97,6 +98,18 @@ class CrisisAndNPCManager {
    const cost=250*b.teamLevel**1.4;if(s.profile.coins<Math.ceil(cost))return "Không đủ Vàng.";
    s.profile.coins-=Math.ceil(cost);b.teamLevel++;s.stats.npcLevel=Math.max(s.stats.npcLevel,b.teamLevel);
   }if(what==="hire")s.stats.hires++;s.audio.play("level");s.storage.save();return "";
+ }
+ skillState(b,id){
+  const s=this.sim,{mayor,missions}=CONFIG.specialist,level=b.skills?.[id]||0,goal=missions[level],materials={chip:level+1},prestige=4+level*3;
+  const block=!CONFIG.npcs[b.id]||b.left>0?"Trụ sở chưa hoạt động.":!goal?"Đã đạt cấp tối đa.":s.profile.level<mayor?"Cần Thị trưởng cấp "+mayor+".":b.missions<goal?"Cần hoàn thành "+goal+" ca điều phối.":s.profile.prestige<prestige?"Không đủ Uy tín.":!s.hasMaterials(materials)?"Không đủ vật liệu.":"";
+  return {level,goal,materials,prestige,block};
+ }
+ train(b,id){
+  if(!Object.hasOwn(CONFIG.specialist.skills,id))return "Không tìm thấy kỹ năng.";
+  const {level,materials,prestige,block}=this.skillState(b,id);if(block)return block;
+  const s=this.sim,skills=b.skills??={};
+  skills[id]=level+1;s.profile.prestige-=prestige;s.spendMaterials(materials);
+  s.audio.play("level");s.storage.save();return "";
  }
  resolve(c,w,friend,n=null){
   const s=this.sim,p=s.profile,d=CONFIG.crises[c.id],hero=1+.15*s.tech("heroes");
@@ -141,7 +154,7 @@ class CrisisAndNPCManager {
    }
    n.blocked=false;
    const jam=w.crises.some(z=>z.id==="traffic_jam"&&distance(z,b)===0&&n.target!==z.uid);
-   const s=this.sim,speed=CONFIG.vehicles[n.level-1].speed*(tile&&(tile.id==="road"||end)?1:.3+.12*s.tech("smartroad"))*(jam?.4:1)*(s.world.speedBuff>0?1.25:1)*(n.boost||1)*(1+.1*s.tech("logistics"))*s.buff("npc");
+   const s=this.sim,speed=CONFIG.vehicles[n.level-1].speed*(tile&&(tile.id==="road"||end)?1:.3+.12*s.tech("smartroad"))*(jam?.4:1)*(s.world.speedBuff>0?1.25:1)*(n.boost||1)*(1+.1*s.tech("logistics"))*(1+.08*(n.routing||0))*s.buff("npc");
    const used=Math.min(budget,(1-n.part)/speed);budget-=used;n.part+=used*speed;
    n.x=a.x+(b.x-a.x)*n.part;n.y=a.y+(b.y-a.y)*n.part;
    if(n.part>=1-1e-6){n.segment++;n.part=0;n.x=b.x;n.y=b.y}
@@ -164,7 +177,7 @@ class CrisisAndNPCManager {
     this.advance(n,w,dt,c);
     if(n.segment===n.path.length-1)n.phase="repair";
    }else if(n.phase==="repair"&&c){
-    n.repair+=dt;c.progress=clamp(n.repair/(CONFIG.vehicles[n.level-1].repair*(n.rank||1)/(n.boost||1)),0,1);
+    n.repair+=dt*(1+.1*(n.fieldwork||0));c.progress=clamp(n.repair/(CONFIG.vehicles[n.level-1].repair*(n.rank||1)/(n.boost||1)),0,1);
     if(c.progress>=1){
      n.phase="return";const route=Pathfinding.route(w,c,n.home);n.path=route?.path||[{x:c.x,y:c.y}];n.segment=0;n.part=0;
      this.resolve(c,w,friend,n);

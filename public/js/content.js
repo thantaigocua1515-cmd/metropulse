@@ -99,10 +99,11 @@ const CONTENT = (() => {
     ["hanh","Chuyện thành phố thì chưa bao giờ hết. Mai lại có việc mới thôi — nhưng hôm nay cứ ăn mừng cái đã!"]],
    reward:{coins:60000,prestige:30,know:200}}
  ];
- // Cây nghiên cứu: 3 nhánh × 4 công nghệ × 3 cấp. Công nghệ sau cần công nghệ trước đạt cấp 1.
+ // Công nghệ sau cần công nghệ trước đạt cấp 1.
  const T=(id,name,desc,unit)=>({id,name,desc,unit});
  const research = {
-  costs:[15,40,90,180],levelFactor:[1,2.2,4],maxLevel:3,
+  costs:[15,40,90,180],levelFactor:[1,2.2,4,12,32],maxLevel:CONFIG.researchMax,
+  advanced:CONFIG.researchAdvanced,
   branches:[
    {id:"eco",name:"Kinh tế",color:"#ffce77",techs:[
     T("tax","Thuế thông minh","+8% tổng thu nhập mỗi cấp","+8% thu nhập"),

@@ -14,20 +14,35 @@ const cleanName=(v,max)=>typeof v==="string"?v.replace(/[\u0000-\u001f<>]/g,"").
 function inspectSave(data){
  if(!data||typeof data!=="object")return {error:"Bản lưu không hợp lệ."};
  const p=data.profile,w=data.world;
- if(!p||!w||!Array.isArray(w.buildings)||w.buildings.length>256)return {error:"Bản lưu thiếu dữ liệu thành phố."};
+ if(!p||!w||!Array.isArray(w.buildings))return {error:"Bản lưu thiếu dữ liệu thành phố."};
  if(!int(p.level,1,Number.MAX_SAFE_INTEGER)||!num(p.coins,0,1e15)||!num(p.xp,0,Math.max(1e12,CONFIG.xpNext(p.level)))||!num(p.prestige??0,0,1e9)||!num(p.knowledge??0,0,1e12))return {error:"Hồ sơ Thị trưởng không hợp lệ."};
  if(p.materials!==undefined&&(!p.materials||typeof p.materials!=="object"||Array.isArray(p.materials)||
   Object.entries(p.materials).some(([key,value])=>!Object.hasOwn(CONFIG.materials,key)||!int(value,0,CONFIG.materialMax))))return {error:"Kho vật liệu không hợp lệ."};
- const radius=CONFIG.radius(p.level),used=new Set(),city=[];
+ const land=w.land??0;
+ if(!CONFIG.validLand(land,p.level))return {error:"Địa giới thành phố không hợp lệ."};
+ const wonder=data.progress?.wonder;
+ if(wonder!==undefined){
+  const stage=wonder?.stage,plan=CONFIG.wonderPhases[stage];
+  if(!int(stage,0,CONFIG.wonderPhases.length)||stage>0&&p.level<CONFIG.wonderPhases[stage-1].mayor||
+   wonder.readyAt!==undefined&&(!plan||p.level<plan.mayor||!int(wonder.readyAt,1,Date.now()+plan.seconds*1000+60000)))
+   return {error:"Dự án Kỳ quan không hợp lệ."};
+ }
+ if(Object.values(data.progress?.research||{}).some(n=>!int(n,0,CONFIG.researchMax)||n>=4&&p.level<CONFIG.researchAdvanced[n-4].mayor))
+  return {error:"Cấp nghiên cứu không hợp lệ."};
+ const size=CONFIG.landSize(land),radius=CONFIG.radius(p.level),used=new Set(),city=[];
+ if(w.buildings.length>size**2)return {error:"Số công trình không hợp lệ."};
  let assets=p.coins,levels=0,pop=0;
  for(const b of w.buildings){
   const d=b&&CONFIG.buildings[b.id];
-  if(!d||!Object.hasOwn(CONFIG.buildings,b.id)||!int(b.x,0,15)||!int(b.y,0,15)||!int(b.level,1,CONFIG.maxLevel))return {error:"Công trình không hợp lệ."};
+  if(!d||!Object.hasOwn(CONFIG.buildings,b.id)||!int(b.x,0,size-1)||!int(b.y,0,size-1)||!int(b.level,1,CONFIG.maxLevel))return {error:"Công trình không hợp lệ."};
   if(b.id==="road"&&b.level!==1||b.level>CONFIG.legacyMaxLevel&&p.level<CONFIG.tierGate(b.level-1))return {error:"Cấp công trình không hợp lệ."};
+  if(b.skills!==undefined&&(!b.skills||typeof b.skills!=="object"||Array.isArray(b.skills)||!CONFIG.npcs[b.id]||p.level<CONFIG.specialist.mayor||
+    Object.entries(b.skills).some(([id,n])=>!Object.hasOwn(CONFIG.specialist.skills,id)||!int(n,1,CONFIG.specialist.missions.length)||!(b.missions>=CONFIG.specialist.missions[n-1]))))
+   return {error:"Kỹ năng chuyên viên không hợp lệ."};
   if(b.upgradeReadyAt!==undefined&&(b.id==="road"||b.left>0||b.level<CONFIG.legacyMaxLevel||b.level>=CONFIG.maxLevel||
    p.level<CONFIG.tierGate(b.level)||!int(b.upgradeReadyAt,1,Date.now()+CONFIG.upgradeSeconds(b.level)*1000+60000)))return {error:"Tiến độ nâng cấp không hợp lệ."};
-  if(d.unlock>p.level||b.x<8-radius||b.x>=8+radius||b.y<8-radius||b.y>=8+radius)return {error:"Công trình nằm ngoài phạm vi cho phép của cấp hiện tại."};
-  const key=b.y*16+b.x;if(used.has(key))return {error:"Hai công trình trùng một ô đất."};used.add(key);
+  if(d.unlock>p.level||!land&&(b.x<8-radius||b.x>=8+radius||b.y<8-radius||b.y>=8+radius))return {error:"Công trình nằm ngoài phạm vi cho phép của cấp hiện tại."};
+  const key=b.y*size+b.x;if(used.has(key))return {error:"Hai công trình trùng một ô đất."};used.add(key);
   let value=d.price;for(let i=1;i<b.level;i++)value+=d.price*1.6**i;
   assets+=value;
   if(b.id!=="road"&&!(b.left>0)){levels+=b.level;pop+=d.pop*(1+.15*(b.level-1))}
@@ -36,6 +51,7 @@ function inspectSave(data){
  const happiness=Math.round(Math.min(150,Math.max(20,Number(p.happiness)||100)));
  const income=num(data.progress?.stats?.peakIncome,0,1e9)?data.progress.stats.peakIncome:0;
  const summary={
+  ...(land?{land}:{}),
   level:p.level,assets:Math.floor(assets),happiness,helpsGiven:int(p.helpsGiven,0,1e9)?p.helpsGiven:0,
   avatar:CONFIG.avatars.pick.includes(p.avatar)?p.avatar:CONFIG.avatars.fallback,
   pop:Math.round(pop),score:Math.round(pop*2+Math.min(income,1e7)*4+levels*10)
@@ -44,6 +60,9 @@ function inspectSave(data){
 }
 
 // Bộ dữ liệu thành phố công khai, cùng định dạng với mã Base64 của trò chơi.
-const publicCity=player=>[1,player.code,player.name,player.summary?.level||1,Math.max(0,Math.floor(player.coins||0)),player.summary?.happiness||100,player.summary?.helpsGiven||0,player.city||[]];
+const publicCity=player=>{
+ const land=player.summary?.land;
+ return [land?2:1,player.code,player.name,player.summary?.level||1,Math.max(0,Math.floor(player.coins||0)),player.summary?.happiness||100,player.summary?.helpsGiven||0,player.city||[],...(land?[land]:[])];
+};
 
 module.exports={CONFIG,inspectSave,publicCity,cleanName};

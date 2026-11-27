@@ -239,7 +239,7 @@ class UIController {
  }
  action(button){
   const s=this.sim,r=this.renderer,act=button.dataset.act,id=button.dataset.id,arg=button.dataset.arg;
-  const tile=()=>{const k=Number(id);return lookup(s.world,k%16,k>>4)};
+  const tile=()=>{const {x,y}=tileCoords(Number(id));return lookup(s.world,x,y)};
   const say=text=>{if(text)this.toast(text)};
   switch(act){
    case "rail-toggle":this.setCommands(!this.commandsOpen);return;
@@ -259,6 +259,10 @@ class UIController {
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
    case "collect-supplies":this.toast(s.collectSupplies());this.profileDialog();break;
+   case "land":this.landDialog();break;
+   case "buy-land":{const error=s.buyLand();if(error)this.toast(error);else r.center();this.landDialog();break}
+   case "wonder":this.wonderDialog();break;
+   case "start-wonder":this.toast(s.startWonder());this.wonderDialog();break;
    case "skin-preview":this.skinPreview=id;this.profileDialog();break;
    case "skin-equip":
     if(s.cloud?.ownsSkin(id)){s.profile.skin=id;this.skinPreview=id;s.storage.save();s.cloud.flush();this.profileDialog()}
@@ -293,6 +297,8 @@ class UIController {
    case "remove":if(tile())this.confirmDemolish(tile());break;
    case "do-demolish":if(tile()){this.close();this.toast(s.demolish(tile())||"Đã phá dỡ công trình.");this.inspect=null}break;
    case "teams":this.teams();break;
+   case "specialists":if(tile())this.specialists(tile());break;
+   case "train-specialist":if(tile()){this.toast(s.crisis.train(tile(),arg));this.specialists(tile())}break;
    case "team-up":case "team-hire":if(tile()){const error=s.crisis.teamAction(tile(),act==="team-hire"?"hire":"upgrade");this.teams();if(error){this.close();this.toast(error)}}break;
    case "policies":this.policies();break;
    case "policy":{const error=s.activate(id);if(error){this.close();this.toast(error)}else this.policies();break}
@@ -371,7 +377,8 @@ class UIController {
   this.nodes.sound.title=s.audio.enabled?"Tắt hiệu ứng âm thanh":"Bật hiệu ứng âm thanh";
   this.nodes.sound.setAttribute("aria-label",this.nodes.sound.title);
   this.refreshCloud();
-  this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+(w.unlockedRadius*2)+' × '+(w.unlockedRadius*2)+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
+  const landSize=w.land?w.gridSize:w.unlockedRadius*2;
+  this.html("maplabel",'<small>'+(own?rank.name:"Thành phố bạn bè")+' · '+landSize+' × '+landSize+' ô đất</small><h1>'+(own?htm(p.cityName):htm(friend.name))+'</h1>');
   this.eventBanner(own);
   this.nodes.visit.hidden=own;
   if(friend)this.html("visit",this.avatar(friend.avatar)+'<b>Đang thăm thành phố của '+htm(friend.name)+'</b>'+this.btn("return","Về thành phố của tôi"));
@@ -425,6 +432,7 @@ class UIController {
    this.dialogFrame=Math.floor(s.elapsed);
    if(this.dialogType==="policies")this.policies();
    if(this.dialogType==="research"&&!this.nodes["dialog-body"].matches(":hover"))this.research();
+   if(this.dialogType==="wonder"&&this.wonderShownStage!==(s.progress.wonder?.stage||0))this.wonderDialog();
    if(this.dialogType==="event")this.eventDialog();
    if(this.dialogType==="incident")this.incidentDetails(this.incidentDetailId,true);
   }
@@ -483,7 +491,8 @@ class UIController {
      actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary"+(this.upgradeGuide===b&&b.level<CONFIG.maxLevel?this.missionHighlight():""),disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
     }
    }
-   actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
+   actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+
+    (b.id==="metro_wonder"&&b.left<=0?this.btn("wonder","Dự án Kỳ quan"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
   const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+CONFIG.tierMin.map((min,i)=>{
    const max=CONFIG.tierMin[i+1]||CONFIG.maxLevel+1;

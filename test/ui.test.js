@@ -7,6 +7,7 @@ const vm = require("node:vm");
 const script = name => fs.readFileSync(path.join(__dirname, "../public/js", name + ".js"), "utf8");
 const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui", "ui-dialogs"].map(script).concat("UIController").join("\n"), globals);
 const UIController = loadUI({});
+const gridKey=vm.runInNewContext(["config","core"].map(script).concat("coord").join("\n"));
 
 test("all nine skin cards use the same house preview style as the default",()=>{
   const ui=Object.create(UIController.prototype);
@@ -20,7 +21,7 @@ test("all nine skin cards use the same house preview style as the default",()=>{
 
 test("incidents keep a dispatch control before assignment and only a progress portrait afterward", () => {
   const ui = Object.create(UIController.prototype);
-  const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[],index:new Map([[117,{id:"office_tower",level:1}]])};
+  const w = {crises:[{uid:"fire1",id:"fire",x:5,y:7,age:3,progress:0}],npcs:[],index:new Map([[gridKey(5,7),{id:"office_tower",level:1}]])};
   const status = {}, properties = new Map(), attributes = {};
   const child = {style: properties,setAttribute: (key,value) => { attributes[key]=value; }};
   properties.getPropertyValue = properties.get;

@@ -24,8 +24,11 @@ class StorageManager {
  static normalize(val){
   const fallback=this.fresh();
   try{
-   if(!val||!val.profile||!Number.isFinite(val.profile.coins)||!Number.isFinite(val.profile.xp)||!Number.isSafeInteger(val.profile.level)||val.profile.level<1||
-      !Array.isArray(val.world?.buildings)||val.world.buildings.length>256||val.world.buildings.some(b=>!Object.hasOwn(CONFIG.buildings,b?.id)||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!inside(b.x,b.y)))return null;
+   if(!val||!val.profile||!Number.isFinite(val.profile.coins)||!Number.isFinite(val.profile.xp)||!Number.isSafeInteger(val.profile.level)||val.profile.level<1)return null;
+   const land=val.world?.land??0;
+   if(!CONFIG.validLand(land,val.profile.level))return null;
+   const size=CONFIG.landSize(land);
+   if(!Array.isArray(val.world?.buildings)||val.world.buildings.length>size**2||val.world.buildings.some(b=>!Object.hasOwn(CONFIG.buildings,b?.id)||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!inside(b.x,b.y,size)))return null;
    const base=fallback.progress,legacy=val.milestones,source=val.progress||{};
    const progress={...base,...source,
     stats:{...base.stats,...legacy?.stats,...source.stats},story:{...base.story,...source.story},tutorial:{...base.tutorial,...source.tutorial},
