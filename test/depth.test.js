@@ -128,6 +128,7 @@ test("event quest and tier claims are one-time; rollover preserves cosmetics; de
   assert.equal(e.points, 60);
   assert.equal(e.claimTier(2), true);
   assert.equal(e.claimTier(2), false);
+  assert.equal(s.profile.materials.steel,6);
   assert.equal(e.skin, "tet");
   const save = StorageManager.normalize(s.storage.serialize());
   assert.equal(save.progress.events.skins.tet, true);
@@ -141,6 +142,7 @@ test("event quest and tier claims are one-time; rollover preserves cosmetics; de
   for (let i = 0; i < 6; i++) assert.equal(preview.claimQuest(i), true);
   assert.equal(preview.claimTier(2), true);
   assert.equal(s.profile.coins, balance);
+  assert.equal(s.profile.materials.steel,6);
   assert.equal(s.progress.events.skins["trung-thu"], undefined);
 });
 

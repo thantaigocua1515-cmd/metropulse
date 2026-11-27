@@ -92,8 +92,9 @@ const CONFIG = (() => {
  const tierNamesRoman=["I","II","III","IV","V","VI"],tierMin=[1,4,7,11,16,21],tierMayors=[1,5,10,16,21,26];
  const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
  const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
- return {assetVersion:"4.7.0",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+ return {assetVersion:"4.7.1",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
   tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
+  supplyLevel:16,supplySources:{steel:["construction_hq",3,24],glass:["waste_plant",2,18],chip:["tech_tower",1,12]},
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
   xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25*Math.max(1,level/16)**.65),
   mayorReward:level=>({coins:150*level,prestige:level>=20&&level%5===0?15:5,

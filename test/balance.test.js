@@ -121,3 +121,24 @@ test("cloud saves accept tier VI at level 26, but reject impossible levels and m
  data.profile.materials={steel:-1};
  assert.match(inspectSave(data).error,/Kho vật liệu/);
 });
+
+test("finished supply producers yield a daily lot without missions, mail or a network",()=>{
+ const raw=StorageManager.fresh();
+ raw.world.buildings.push({...raw.world.buildings[0],id:"construction_hq",x:6,y:5,level:5,left:0},
+  {...raw.world.buildings[0],id:"waste_plant",x:7,y:5,level:1,left:0},
+  {...raw.world.buildings[0],id:"tech_tower",x:9,y:5,level:1,left:3});
+ const data=StorageManager.normalize(JSON.parse(JSON.stringify(raw)));
+ const s=new SimulationEngine(data,{play(){}});
+ s.storage={save(){}};
+ assert.equal(s.collectSupplies(),"");
+ s.profile.level=16;
+ assert.equal(s.supplyState().yields.chip,0);
+ data.world.buildings.find(b=>b.id==="tech_tower").left=0;
+ assert.match(s.collectSupplies(),/\+4 Thép · \+2 Kính · \+1 Chip/);
+ assert.equal(s.collectSupplies(),"");
+ assert.equal(s.profile.materials.steel,4);
+ const saved=StorageManager.normalize(JSON.parse(JSON.stringify(data)));
+ assert.equal(new SimulationEngine(saved,{play(){}}).supplyState().claimed,true);
+ saved.progress.supplyDay="2000-01-01";
+ assert.equal(new SimulationEngine(saved,{play(){}}).supplyState().ready,true);
+});

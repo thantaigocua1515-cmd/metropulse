@@ -183,7 +183,7 @@ const UIDialogs = {
  },
  profileDialog(){
   const s=this.sim,p=s.profile,st=s.stats,m=s.metrics,cloud=s.cloud,tab=this.tabs.profile,rank=CONFIG.cityRank(m.score,p.level);
-  let body=this.tabbar("profile",[["me","Hồ sơ"],["skin","Skin"],["account","Tài khoản"],["settings","Cài đặt"]]);
+  let body=this.tabbar("profile",[["me","Hồ sơ"],["skin","Skin"],["inventory","Vật liệu"],["account","Tài khoản"],["settings","Cài đặt"]]);
   if(tab==="me"){
    const hours=Math.floor(st.playTime/3600),minutes=Math.floor(st.playTime/60)%60;
    const cells=[["Điểm đô thị",fmt(m.score)],["Thu nhập cao nhất",fmt(st.peakIncome,1)+" V/s"],["Dân số cao nhất",fmt(st.peakPop)],["Sự cố đã xử lý",fmt(st.crisesSolved)],["Chuỗi tốt nhất","×"+st.bestCombo],["Công trình đã xây",fmt(st.buildingsBuilt)],["Lượt nâng cấp",fmt(st.upgrades)],["Túi thuế đã thu",fmt(st.bubbles)],["Cấp nghiên cứu",st.research+" / 36"],["Lượt chi viện",fmt(p.helpsGiven)],["Ngày điểm danh",fmt(st.loginDays)],["Thời gian chơi",hours+" giờ "+minutes+" phút"]];
@@ -193,6 +193,7 @@ const UIDialogs = {
     '<h4>Chân dung Thị trưởng</h4><div class="avatar-grid">'+CONFIG.avatars.pick.map(n=>'<button type="button" data-act="avatar" data-id="'+n+'" title="'+CONFIG.avatars.roles[n-1]+'" aria-label="'+CONFIG.avatars.roles[n-1]+'" aria-pressed="'+(p.avatar===n)+'"'+(p.avatar===n?' class="active"':"")+'>'+this.avatar(n)+'</button>').join("")+'</div>'+
     '<div class="statgrid">'+cells.map(([k,v])=>'<div><small>'+k+'</small><b>'+v+'</b></div>').join("")+'</div>';
   }else if(tab==="skin")body+=this.skinPanel();
+  else if(tab==="inventory")body+=this.inventoryPanel();
   else if(tab==="account"){
    if(!cloud?.enabled)body+='<p class="empty">Bạn đang mở trò chơi trực tiếp từ tệp. Tiến độ được lưu trong trình duyệt. Chạy máy chủ (npm start) để dùng lưu đám mây, bảng xếp hạng toàn cầu và kết bạn trực tuyến.</p>';
    else if(cloud.status==="expired")body+='<p class="empty">Phiên đăng nhập đã hết hạn (có thể do đổi mật khẩu ở thiết bị khác). Thành phố vẫn được lưu trên trình duyệt này.</p><div class="actions">'+this.btn("auth","Đăng nhập lại",{id:"relogin",cls:"primary"})+'</div>';
@@ -226,6 +227,16 @@ const UIDialogs = {
     '<div class="row"><div class="grow"><b>Chơi lại từ đầu</b><small>Xóa toàn bộ tiến độ.</small></div>'+this.btn("reset","Xóa bản lưu",{cls:"danger"})+'</div>';
   }
   this.open("profile","THỊ TRƯỞNG","Hồ sơ & Cài đặt",body,true);
+ },
+ inventoryPanel(){
+  const s=this.sim,{unlocked,claimed,yields,ready}=s.supplyState();
+  const status=!unlocked?"Mở sản xuất ở cấp Thị trưởng "+CONFIG.supplyLevel:claimed?"Đã thu lô hôm nay":ready?"Lô hôm nay đã sẵn sàng":"Cần hoàn thành ít nhất một công trình sản xuất";
+  return '<h3>Kho vật liệu</h3><p class="muted">Nâng cấp công trình từ cấp 11 cần vật liệu. Bạn cũng có thể nhận từ nhiệm vụ ngày, sự kiện và thư quà.</p>'+
+   '<div class="statgrid">'+Object.entries(CONFIG.materials).map(([key,name])=>'<div><small>'+name+'</small><b>'+fmt(s.profile.materials?.[key]||0)+'</b></div>').join("")+'</div>'+
+   '<h4>Sản xuất trong thành phố</h4><p class="muted">Thu một lô mỗi ngày (giờ Việt Nam), kể cả khi chơi ngoại tuyến. Cứ 4 cấp nâng cấp, mỗi cơ sở sản xuất thêm 1 vật liệu.</p>'+
+   Object.entries(CONFIG.supplySources).map(([key,[id,,max]])=>'<div class="row"><div class="grow"><b>'+CONFIG.buildings[id].name+'</b><small>'+CONFIG.materials[key]+' · Tối đa '+max+'/ngày</small></div>'+
+    '<b>+'+yields[key]+'</b></div>').join("")+
+   '<div class="row"><div class="grow"><small>'+status+'</small></div>'+this.btn("collect-supplies","Thu vật liệu",{cls:"primary",disabled:!ready})+'</div>';
  },
  async auth(kind){
   const cloud=this.sim.cloud,feedback=document.getElementById("auth-message"),value=id=>document.getElementById(id)?.value||"";
@@ -293,7 +304,7 @@ const UIDialogs = {
  mailDialog(){
   const gifts=this.mail.map(g=>'<div class="row"><div class="grow"><b>'+htm(g.fromName)+' đã chi viện thành phố của bạn</b><small>'+new Date(g.createdAt).toLocaleString("vi-VN")+'</small></div><b class="gold">+'+fmt(g.coins)+' V</b></div>').join("");
   const rows=this.letters.map(({id,title,body,createdAt,claimedAt,rewards:r})=>{
-   const prize=[this.reward({coins:r.coins,prestige:r.prestige,know:r.knowledge}),r.skin&&"Skin "+MAYOR_SKINS[r.skin]?.[0]].filter(Boolean).join(" · ");
+   const prize=[this.reward({coins:r.coins,prestige:r.prestige,know:r.knowledge,materials:r.materials}),r.skin&&"Skin "+MAYOR_SKINS[r.skin]?.[0]].filter(Boolean).join(" · ");
    return '<article class="mail-letter"><div><b>'+htm(title)+'</b><small>'+new Date(createdAt).toLocaleString("vi-VN")+'</small></div><p class="message-body">'+htm(body)+'</p>'+
     (prize?'<p>'+prize+'</p>':"")+this.btn("letter-claim",claimedAt?"Đã xem":prize?"Nhận quà":"Đánh dấu đã xem",{id,cls:"primary",disabled:!!claimedAt||this.receivingLetter===id})+'</article>';
   }).join("");

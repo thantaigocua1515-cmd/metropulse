@@ -258,6 +258,7 @@ class UIController {
    case "reduce-effects":s.reduceEffects=!s.reduceEffects;s.fx.length=0;s.storage.save();this.profileDialog();break;
    case "tab":this.tabs[id]=arg;this.reopen();break;
    case "profile":this.tabs.profile=id||"me";this.profileDialog();break;
+   case "collect-supplies":this.toast(s.collectSupplies());this.profileDialog();break;
    case "skin-preview":this.skinPreview=id;this.profileDialog();break;
    case "skin-equip":
     if(s.cloud?.ownsSkin(id)){s.profile.skin=id;this.skinPreview=id;s.storage.save();s.cloud.flush();this.profileDialog()}
@@ -476,7 +477,8 @@ class UIController {
       const supplies=Object.entries(CONFIG.upgradeMaterials(b.level)).filter(([,cost])=>cost).map(([id,cost])=>
        '<span class="chip '+((stock?.[id]||0)<cost?"bad":"good")+'">'+CONFIG.materials[id]+' '+fmt(stock?.[id]||0)+'/'+cost+'</span>').join("");
       extra+='<div class="upgrade-plan"><small>Lên cấp '+(b.level+1)+' · Thị trưởng cấp '+gate+' · '+timer(CONFIG.upgradeSeconds(b.level))+
-       '</small><div class="chips">'+supplies+'</div>'+(block?'<small class="muted">'+htm(block)+'</small>':"")+'</div>';
+       '</small><div class="chips">'+supplies+'</div>'+(block?'<small class="muted">'+htm(block)+'</small>':"")+
+       this.btn("profile","Mở kho vật liệu",{id:"inventory",cls:"ghost"})+'</div>';
      }
      actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary"+(this.upgradeGuide===b&&b.level<CONFIG.maxLevel?this.missionHighlight():""),disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
     }

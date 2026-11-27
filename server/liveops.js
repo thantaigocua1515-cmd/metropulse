@@ -1,7 +1,7 @@
 "use strict";
 const {ObjectId}=require("mongodb");
 const {dayOf}=require("./analytics");
-const {inspectSave}=require("./game");
+const {CONFIG,inspectSave}=require("./game");
 
 const PACKS=["tet","noel","cyberpunk","sakura","desert","jungle","ocean","steampunk"],DEFAULT="default",LOGIN_DAYS=7;
 const LIMITS={coins:1e15,prestige:1e9,knowledge:1e12};
@@ -83,11 +83,16 @@ async function claim(db,player,tokenHash,rawId){
   const claims=db.collection("serverMailClaims"),key=claimId(current,login?"login-reward":mailId);
   if(await claims.findOne({_id:key},{session}))throw fail(409,"Thư đã được nhận.");
   const {rewards}=row,resources=Object.keys(LIMITS).filter(k=>rewards[k]>0);
-  const save=resources.length?await saves.findOne({_id:current._id},{session}):null;
-  if(resources.length&&!save)throw fail(409,"Cần lưu thành phố lên đám mây trước khi nhận tài nguyên.");
+  const needsSave=resources.length||rewards.materials;
+  const save=needsSave?await saves.findOne({_id:current._id},{session}):null;
+  if(needsSave&&!save)throw fail(409,"Cần lưu thành phố lên đám mây trước khi nhận tài nguyên.");
   let revision=null;
   if(save){
    for(const key of resources)save.data.profile[key]=(save.data.profile[key]??0)+rewards[key];
+   if(rewards.materials){
+    const stock=save.data.profile.materials??={};
+    for(const [key,value] of Object.entries(rewards.materials))stock[key]=(stock[key]??0)+value;
+   }
    const check=inspectSave(save.data);
    if(check.error)throw fail(409,"Tài nguyên vượt giới hạn của bản lưu. Hãy sử dụng bớt rồi nhận lại.");
    revision=save.rev+1;save.data.lastSavedAt=+now;
@@ -145,13 +150,21 @@ function adminRoutes(router,{audit,wrap}){
   const toCode=target==="player"?trim(req.body?.code,12).toUpperCase():null,expiresAt=dateOf(req.body?.expiresAt),now=new Date(),rewards={};
   const raw=req.body?.rewards;
   if(!title||!body||!["all","player"].includes(target)||expiresAt===false||expiresAt&&(target==="all"||expiresAt<=now)||
-    !raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).some(k=>!Object.hasOwn(LIMITS,k)&&k!=="skin"))
+    !raw||typeof raw!=="object"||Array.isArray(raw)||Object.keys(raw).some(k=>!Object.hasOwn(LIMITS,k)&&k!=="skin"&&k!=="materials"))
    throw fail(400,"Thư không hợp lệ. Kiểm tra nội dung, người nhận và hạn nhận.");
   for(const [key,limit] of Object.entries(LIMITS))if(raw[key]!==undefined){
    if(!Number.isSafeInteger(raw[key])||raw[key]<0||raw[key]>limit)throw fail(400,"Số tài nguyên không hợp lệ.");
    if(raw[key])rewards[key]=raw[key];
   }
   if(raw.skin){if(!PACKS.includes(raw.skin))throw fail(400,"Skin không hợp lệ.");rewards.skin=raw.skin}
+  if(raw.materials!==undefined){
+   const stock=raw.materials;
+   if(!stock||typeof stock!=="object"||Array.isArray(stock)||Object.entries(stock).some(([key,value])=>
+    !Object.hasOwn(CONFIG.materials,key)||!Number.isSafeInteger(value)||value<0||value>CONFIG.materialMax))
+    throw fail(400,"Số vật liệu không hợp lệ.");
+   const items=Object.entries(stock).filter(([,value])=>value>0);
+   if(items.length)rewards.materials=Object.fromEntries(items);
+  }
   if(!Object.keys(rewards).length)throw fail(400,"Hãy đính kèm ít nhất một phần thưởng.");
   const recipient=toCode&&await collection(req,"players").findOne({code:toCode},{projection:{_id:1}});
   if(target==="player"&&!recipient)throw fail(404,"Không tìm thấy người chơi.");

@@ -12,6 +12,7 @@ const templates={
 };
 const flash=["rush-hour","weekend-market"];
 const fields={coins:"Vàng",prestige:"Uy tín",knowledge:"Tri thức",level:"Cấp Thị trưởng"};
+const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
 const skins={tet:"Tết",noel:"Noel",cyberpunk:"Cyberpunk",sakura:"Sakura",desert:"Sa Mạc",jungle:"Rừng Xanh",ocean:"Đại Dương",steampunk:"Steampunk"};
 const localTime=value=>value?new Date(Date.parse(value)+7*3600000).toISOString().slice(0,16):"";
 const utcTime=value=>value?new Date(value+"+07:00").toISOString():null;
@@ -187,7 +188,8 @@ function announcementPage(rows){
   '<button class="primary">Lưu thông báo</button>'+(row?btn("announcement-delete","Xóa",row._id,"danger"):"")+'</div></form></section></div>';
 }
 function mailPage({rows,page,more}){
- const rewardText=r=>[...["coins","prestige","knowledge"].filter(key=>r[key]).map(key=>num(r[key])+" "+fields[key]),r.skin&&"Skin "+skins[r.skin]].filter(Boolean).join(" · ");
+ const rewardText=r=>[...["coins","prestige","knowledge"].filter(key=>r[key]).map(key=>num(r[key])+" "+fields[key]),
+  ...Object.keys(materials).filter(key=>r.materials?.[key]).map(key=>num(r.materials[key])+" "+materials[key]),r.skin&&"Skin "+skins[r.skin]].filter(Boolean).join(" · ");
  return heading("Giao tiếp","Gửi thư quà","Gửi cho một người chơi hoặc toàn máy chủ, kể cả tài khoản tạo sau.")+
   '<div class="split"><section class="card"><h2 class="section-title">Lịch sử gửi</h2>'+table(["Thư","Người nhận","Đã nhận"],rows.map(r=>
    '<tr><td><b>'+e(r.title)+'</b><span class="sub">'+e(rewardText(r.rewards))+'</span><span class="sub">'+date(r.createdAt)+(r.expiresAt?" · Hết hạn "+date(r.expiresAt):"")+'</span></td>'+
@@ -199,6 +201,7 @@ function mailPage({rows,page,more}){
   '<button type="button" data-action="mail-find">Tìm người chơi</button><datalist id="mail-recipients"></datalist><div class="controls" data-mail-results></div></div>'+
   '<div data-mail-expiry>'+field("expiresAt","Hạn nhận theo giờ Việt Nam (tùy chọn)",{type:"datetime-local"})+'</div><div class="grid-form">'+
   ["coins","prestige","knowledge"].map(key=>field(key,fields[key],{type:"number",value:0,extra:"min=0 step=1"})).join("")+
+  Object.entries(materials).map(([key,label])=>field(key,label,{type:"number",value:0,extra:"min=0 max=1000000000 step=1"})).join("")+
   '<label>Skin<select name="skin"><option value="">Không đính kèm</option>'+Object.entries(skins).map(([id,name])=>'<option value="'+id+'">'+name+'</option>').join("")+
   '</select></label></div><div><button class="primary">Gửi thư</button></div></form></section></div>';
 }
@@ -314,7 +317,8 @@ app.addEventListener("submit",async event=>{
    case "mail":{
     if(!await confirmDialog("Gửi thư quà?",data.target==="all"?"Thư không hết hạn và sẽ đến cả tài khoản tạo sau.":"Thư sẽ gửi đến mã "+data.code+"."))return;
     await api("/mail","POST",{title:data.title,body:data.body,target:data.target,code:data.code,expiresAt:data.target==="all"?null:utcTime(data.expiresAt),
-     rewards:{coins:Number(data.coins),prestige:Number(data.prestige),knowledge:Number(data.knowledge),skin:data.skin}});
+     rewards:{coins:Number(data.coins),prestige:Number(data.prestige),knowledge:Number(data.knowledge),skin:data.skin,
+      materials:Object.fromEntries(Object.keys(materials).map(key=>[key,Number(data[key])]))}});
     page=1;show("Đã gửi thư.");break;
    }
    case "password":

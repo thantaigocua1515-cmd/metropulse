@@ -115,7 +115,11 @@ class SeasonalEvents {
  get data(){return this.force?this.preview:(this.sim.progress[this.flash?"flash":"events"]??={})}
  get tiers(){
   const tiers=this.flash?SeasonalEvents.flashTiers:SeasonalEvents.tiers;
-  return this.override?tiers.map((t,i)=>({...t,reward:{...t.reward,coins:Math.round(this.override.rewards[i]*this.override.multiplier)}})):tiers;
+  if(!this.override&&!(this.sim.profile?.level>=CONFIG.supplyLevel))return tiers;
+  return tiers.map((t,i)=>({...t,reward:{...t.reward,
+   ...(this.override?{coins:Math.round(this.override.rewards[i]*this.override.multiplier)}:{}),
+   ...(this.sim.profile?.level>=CONFIG.supplyLevel?{materials:this.flash?{steel:i+1,glass:i+1,chip:i}:{steel:2*(i+1),glass:2+i,chip:i+1}}:{})
+  }}));
  }
  refresh(reset=false){
   const now=Date.now(),day=EventCalendar.civil(now);

@@ -190,6 +190,20 @@ class SimulationEngine {
   for(const key of Object.keys(CONFIG.materials))if(rewards[key]>0)
    stock[key]=Math.min(CONFIG.materialMax,(stock[key]||0)+rewards[key]);
  }
+ supplyState(){
+  const day=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Ho_Chi_Minh"});
+  const unlocked=this.profile.level>=CONFIG.supplyLevel,claimed=this.progress.supplyDay>=day;
+  const yields=Object.fromEntries(Object.entries(CONFIG.supplySources).map(([key,[id,base,cap]])=>[
+   key,Math.min(cap,this.world.buildings.reduce((sum,b)=>sum+(b.id===id&&b.left<=0?base+Math.floor((b.level-1)/4):0),0))
+  ]));
+  return {day,unlocked,claimed,yields,ready:unlocked&&!claimed&&Object.values(yields).some(Boolean)};
+ }
+ collectSupplies(){
+  const {day,ready,yields}=this.supplyState();
+  if(!ready)return "";
+  this.progress.supplyDay=day;
+  const reward=this.grant({materials:yields});this.storage.save();return reward;
+ }
  gainXP(amount,withResearch=true){
   const p=this.profile;amount=withResearch?Math.round(amount*(1+.1*this.tech("education"))):amount;p.xp+=amount;
   while(p.level<Number.MAX_SAFE_INTEGER&&p.xp>=CONFIG.xpNext(p.level)){

@@ -244,6 +244,23 @@ test("each new skin is locked until a player claims it from admin mail",async()=
  }
 });
 
+test("materials-only mail validates the attachment and updates the save once",async()=>{
+ const send=materials=>admin("/mail",{method:"POST",body:{title:"Vật liệu",body:"Quà thử",target:"all",rewards:{materials}}});
+ for(const bad of [{steel:-1},{chip:1.5},{glass:1e9+1},{gold:4},[]])
+  assert.equal((await send(bad)).status,400);
+ const sent=await send({steel:7,glass:4,chip:3});
+ assert.equal(sent.status,201);
+ const {token}=(await request("/auth/guest",{method:"POST",body:{}})).data;
+ const claim=()=>request("/mailbox/"+sent.data.row.id+"/claim",{token,method:"POST",body:{}});
+ assert.equal((await claim()).status,409);
+ assert.equal((await request("/save",{token,method:"PUT",body:{rev:0,data:initialCity}})).status,200);
+ const results=await Promise.all([claim(),claim()]);
+ assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const save=(await request("/save",{token})).data;
+ assert.equal(save.adminRev,2);
+ assert.deepEqual(save.data.profile.materials,{steel:7,glass:4,chip:3});
+});
+
 test("Cyberpunk is granted once after seven distinct Vietnam login days, even for guests",async()=>{
  const {data:{account,token}}=await request("/auth/guest",{method:"POST",body:{}});
  const players=db.collection("players"),player=await players.findOne({code:account.code});

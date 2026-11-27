@@ -157,9 +157,9 @@ const CONTENT = (() => {
   ["d_help","Chi viện bạn bè {n} lượt","helps",()=>2],
   ["d_research","Nghiên cứu {n} cấp công nghệ","research",()=>1]
  ];
- const dailyReward = level=>({coins:150*level+200,xp:30+8*level,know:6+level});
+ const dailyReward = level=>({coins:150*level+200,xp:30+8*level,know:6+level,materials:level>=CONFIG.supplyLevel?{steel:2,glass:1,chip:1}:null});
  const dailyBonus = level=>({coins:500*level+500,prestige:3,know:15+2*level,
-  materials:level>=16?{steel:5,glass:3,chip:2}:null});
+  materials:level>=CONFIG.supplyLevel?{steel:5,glass:3,chip:2}:null});
  // Điểm danh 7 ngày (Vàng nhân với cấp Thị trưởng).
  const login = [
   {coins:300,label:"Ngân sách khởi động"},{know:20,label:"Tài liệu quy hoạch"},{prestige:3,label:"Thư khen của tỉnh"},

@@ -149,7 +149,7 @@ class CloudClient {
  async claimMail(){return this.api("/mailbox/claim",{method:"POST",body:{}})}
  async claimLetter(letter){
   const resources=["coins","prestige","knowledge"].filter(key=>letter.rewards[key]);
-  if(resources.length&&!await this.flush(true))throw Error("Chưa lưu được thành phố. Hãy thử nhận lại.");
+  if((resources.length||letter.rewards.materials)&&!await this.flush(true))throw Error("Chưa lưu được thành phố. Hãy thử nhận lại.");
   if(this.busy)throw Error("Đang đồng bộ thành phố. Hãy thử lại.");
   this.busy=true;
   try{
@@ -158,6 +158,7 @@ class CloudClient {
    if(r.rev!=null){
     if(this.rev!==r.previousRev){this.swap(await this.api("/save"));return r}
     for(const key of resources)this.sim.profile[key]=(this.sim.profile[key]??0)+r.rewards[key];
+    if(r.rewards.materials)this.sim.addMaterials(r.rewards.materials);
     this.rev=r.rev;
     if(this.sim.storage.save())this.rememberAdminRevision(r.adminRev);
    }
