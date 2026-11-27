@@ -158,7 +158,12 @@ const CONTENT = (() => {
   ["d_help","Chi viện bạn bè {n} lượt","helps",()=>2],
   ["d_research","Nghiên cứu {n} cấp công nghệ","research",()=>1]
  ];
- const dailyReward = level=>({coins:150*level+200,xp:30+8*level,know:6+level,materials:level>=CONFIG.supplyLevel?{steel:2,glass:1,chip:1}:null});
+ const operationLevel=8,operations=[
+  dailyPool.find(([id])=>id==="d_bubble"),dailyPool.find(([id])=>id==="d_decide"),
+  ["d_manage","Vận hành thành phố trong {n} phút","playTime",()=>25]
+ ];
+ const dailyReward = level=>({coins:150*level+200,xp:30+8*level+(level>=operationLevel?Math.floor(CONFIG.xpNext(level)*.1):0),
+  know:6+level,materials:level>=CONFIG.supplyLevel?{steel:2,glass:1,chip:1}:null});
  const dailyBonus = level=>({coins:500*level+500,prestige:3,know:15+2*level,
   materials:level>=CONFIG.supplyLevel?{steel:5,glass:3,chip:2}:null});
  // Điểm danh 7 ngày (Vàng nhân với cấp Thị trưởng).
@@ -201,5 +206,5 @@ const CONTENT = (() => {
    {label:"Tôn vinh các đội",hint:"Đội NPC nhanh hơn 30% trong 4 phút",buff:["Tinh thần quyết thắng",240,1,0,1,1,1.3]},
    {label:"Xin tài trợ thiết bị",hint:"+Tri thức",know:18})
  ];
- return {cast,chapters,research,achievements,achievementReward,dailyPool,dailyReward,dailyBonus,login,decisions};
+ return {cast,chapters,research,achievements,achievementReward,dailyPool,operationLevel,operations,dailyReward,dailyBonus,login,decisions};
 })();

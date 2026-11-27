@@ -49,11 +49,13 @@ class ProgressionManager {
   const d=this.p.daily,date=today();if(d.date===date&&d.quests.length)return;
   const level=this.sim.profile.level,pool=CONTENT.dailyPool.filter(([id])=>!(id==="d_research"&&level<4)&&!(id==="d_decide"&&level<2)&&!(id==="d_fast"&&level<2));
   let seed=[...date].reduce((a,c)=>a*31+c.charCodeAt(0)>>>0,7);const picks=[];
-  while(picks.length<3&&pool.length){seed=seed*1103515245+12345>>>0;picks.push(pool.splice(seed%pool.length,1)[0])}
-  d.date=date;d.bonus=false;d.quests=picks.map(([id,,key,goal])=>({id,base:this.sim.stats[key]||0,goal:goal(level),claimed:false}));
+  if(level>=CONTENT.operationLevel)picks.push(...CONTENT.operations);
+  else while(picks.length<3&&pool.length){seed=seed*1103515245+12345>>>0;picks.push(pool.splice(seed%pool.length,1)[0])}
+  d.date=date;d.bonus=false;d.quests=picks.map(([id,,key,goal])=>({id,base:this.dailyValue(key),goal:goal(level),claimed:false}));
  }
+ dailyValue(key){return key==="playTime"?Math.floor(this.sim.stats.playTime/60):this.sim.stats[key]||0}
  dailyState(item){
-  const [id,text,key]=CONTENT.dailyPool.find(q=>q[0]===item.id),cur=clamp((this.sim.stats[key]||0)-item.base,0,item.goal);
+  const [id,text,key]=CONTENT.dailyPool.find(q=>q[0]===item.id)||CONTENT.operations.find(q=>q[0]===item.id),cur=clamp(this.dailyValue(key)-item.base,0,item.goal);
   return {id,text:text.replace("{n}",item.goal),cur,goal:item.goal,done:cur>=item.goal,claimed:item.claimed};
  }
  claimDaily(id){

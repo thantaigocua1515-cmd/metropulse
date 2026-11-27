@@ -93,7 +93,7 @@ const CONFIG = (() => {
  const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
  const baseSize=16,landPlans=[{mayor:17,coins:250000,materials:{steel:8,glass:5}},{mayor:23,coins:2000000,materials:{steel:20,glass:14,chip:6}}];
  const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
- return {assetVersion:"4.7.2",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+ return {assetVersion:"4.7.3",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
   tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
   supplyLevel:16,supplySources:{steel:["construction_hq",3,24],glass:["waste_plant",2,18],chip:["tech_tower",1,12]},
   landPlans,landSize:land=>baseSize+2*land,validLand:(land,level)=>Number.isInteger(land)&&land>=0&&land<=landPlans.length&&(!land||level>=landPlans[land-1].mayor),
@@ -109,7 +109,7 @@ const CONFIG = (() => {
   mayorReward:level=>({coins:150*level,prestige:level>=20&&level%5===0?15:5,
    materials:level>=20&&level%5===0?{steel:12,glass:8,chip:4}:null}),
   utilityXP:{level:4,perSecond:2},
-  upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**b.level),
+  upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**Math.min(b.level,10)*1.25**Math.max(0,b.level-10)),
   upgradeSeconds:level=>level<10?0:Math.round(1200*1.26**(level-10)),
   upgradeMaterials:level=>level<10?{}:{steel:3+level-10,glass:2+Math.floor((level-10)*.75),chip:Math.floor((level-9)/3)},
   tier,tierGate:level=>tierMayors[tier(level+1)],

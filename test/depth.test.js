@@ -9,12 +9,33 @@ class TestClock extends Date {
   static now() { return now; }
 }
 const {inspectSave,publicCity}=require("../server/game");
-const { CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager } = vm.runInNewContext(
+const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager } = vm.runInNewContext(
   ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager })",
+  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager })",
   { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
+
+test("post-tutorial operation quests remain achievable in a full city and award scaled XP once",()=>{
+ const s=setup([],20),prog=new ProgressionManager(s);
+ assert.equal(s.progress.daily.quests.map(q=>q.id).join(","),"d_bubble,d_decide,d_manage");
+ assert.equal(prog.claimDaily("d_manage"),"");
+ s.stats.playTime=25*60-1;
+ assert.equal(prog.claimDaily("d_manage"),"");
+ s.stats.playTime++;
+ prog.claimDaily("d_manage");
+ assert.equal(s.profile.xp,CONTENT.dailyReward(20).xp);
+ assert.ok(s.profile.xp>=Math.floor(CONFIG.xpNext(20)*.1));
+ assert.equal(prog.claimDaily("d_manage"),"");
+ assert.equal(CONTENT.dailyReward(7).xp,86);
+});
+
+test("late upgrade prices taper without changing early upgrade prices",()=>{
+ const price=level=>CONFIG.upgradeBase({id:"airport",level});
+ assert.equal(price(10),Math.ceil(CONFIG.buildings.airport.price*1.6**10));
+ assert.ok(price(24)>price(23));
+ assert.ok(price(24)<Math.ceil(CONFIG.buildings.airport.price*1.6**24)/20);
+});
 
 test("land purchase keeps old tiles, extends routes, and round trips through public cities",()=>{
  const s=setup([makeBuilding("road",15,5)],17);

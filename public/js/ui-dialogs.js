@@ -106,6 +106,7 @@ const UIDialogs = {
     return '<div class="day '+state+'"><small>Ngày '+(i+1)+'</small><b>'+(i===6?"🎁":r.coins?"V":r.know?"✦":this.icon("prestige"))+'</b><small>'+this.reward(prog.loginReward(i)).replaceAll(" · ","<br>")+'</small></div>';
    }).join("")+'</div>'+this.btn("claim-login",login.available?"Điểm danh hôm nay":"Đã điểm danh · quay lại ngày mai",{cls:"primary block",disabled:!login.available})+
    '<h4>Nhiệm vụ hôm nay <small class="muted">làm mới sau '+s.social.resetTime()+'</small></h4>'+
+   (level>=CONTENT.operationLevel?'<p class="muted">Nhiệm vụ vận hành cho thêm XP theo cấp Thị trưởng, không cần xây hay phá công trình.</p>':"")+
    this.orderedProgress(s.progress.daily.quests,item=>prog.dailyState(item)).map(({st})=>{
     return '<div class="row'+(st.claimed?" dim":"")+'"><div class="grow"><b>'+st.text+'</b>'+this.bar(st.cur/st.goal,st.done?"":"blue")+'<small>'+st.cur+' / '+st.goal+' · '+this.reward(CONTENT.dailyReward(level))+'</small></div>'+
      this.btn("claim-daily",st.claimed?"Đã nhận":st.done?"Nhận thưởng":"Đang làm",{id:st.id,cls:st.done&&!st.claimed?"primary":"",disabled:!st.done||st.claimed})+'</div>';
