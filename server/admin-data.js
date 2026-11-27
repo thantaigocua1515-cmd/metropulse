@@ -53,7 +53,7 @@ module.exports=function adminData(router,{audit,wrap,fail}){
   const before=Object.fromEntries(keys.map(key=>[key,save.data.profile[key]??0]));
   Object.assign(save.data.profile,changes);
   if(keys.includes("level")){
-   if(!Number.isSafeInteger(changes.level)||changes.level<1||changes.level>500)throw fail(400,"Cấp Thị trưởng không hợp lệ.");
+   if(!Number.isSafeInteger(changes.level)||changes.level<1)throw fail(400,"Cấp Thị trưởng không hợp lệ.");
    save.data.profile.xp=Math.min(save.data.profile.xp,CONFIG.xpNext(changes.level)-1);
    save.data.world.unlockedRadius=CONFIG.radius(changes.level);
   }

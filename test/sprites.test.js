@@ -101,11 +101,15 @@ test("building art is anchored to a single tile at any zoom", () => {
     assert.ok(meta.ax > 0 && meta.ay > 0 && meta.w > meta.ax && meta.h > meta.ay, id);
     assert.ok(meta.ax <= CONFIG.tileW/2 && meta.w-meta.ax <= CONFIG.tileW/2, id);
     assert.ok(meta.h-meta.ay <= CONFIG.tileH/2+1, id);
-    assert.ok(meta.tops.flat().every(top => top <= meta.ay), id);
+    assert.ok(meta.tops.every((row,i)=>row.every(top=>top<=(i<CONFIG.legacyMaxLevel?meta:meta.late).ay)),id);
     const box = r.drawSprite(art,meta,8,9);
     assert.deepEqual(calls.pop(),[art,box.x,box.y,box.w,box.h],id);
     assert.equal(box.x+meta.ax*r.camera.zoom,85,id);
     assert.equal(box.y+meta.ay*r.camera.zoom,95,id);
+    const late=r.drawSprite(art,meta.late,8,9);
+    assert.equal(late.x+meta.late.ax*r.camera.zoom,85,id);
+    assert.equal(late.y+meta.late.ay*r.camera.zoom,95,id);
+    assert.ok(meta.late.ax<=CONFIG.tileW/2&&meta.late.w-meta.late.ax<=CONFIG.tileW/2&&meta.late.h-meta.late.ay<=CONFIG.tileH/2+1,id);
   }
 });
 
@@ -118,7 +122,8 @@ test("each skin covers every building level and facing and fits the same single 
       assert.deepEqual(fs.readdirSync(path.join(root,"img/skins",pack,id)).sort(),fs.readdirSync(path.join(root,"img/bld",id)).sort());
       assert.ok(meta.ax<=CONFIG.tileW/2&&meta.w-meta.ax<=CONFIG.tileW/2&&meta.h-meta.ay<=CONFIG.tileH/2+1);
       assert.equal(meta.tops.length,CONFIG.maxLevel);
-      assert.ok(meta.tops.every(row=>row.length===4&&row.every(top=>top>0&&top<=meta.ay)));
+      assert.ok(meta.tops.every((row,i)=>row.length===4&&row.every(top=>top>0&&top<=(i<CONFIG.legacyMaxLevel?meta:meta.late).ay)),id);
+      assert.ok(meta.late.ax<=CONFIG.tileW/2&&meta.late.w-meta.late.ax<=CONFIG.tileW/2&&meta.late.h-meta.late.ay<=CONFIG.tileH/2+1,id);
     }
   }
 });

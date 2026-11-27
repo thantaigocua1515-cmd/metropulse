@@ -126,19 +126,20 @@ def write_metadata(metadata):
     )
 
 
-def cloud_frames(archive, asset, directions):
+def cloud_frames(archive, asset, directions, first=1, last=LEVELS):
     info = json.loads(archive.read(asset["frames"]))
     with Image.open(io.BytesIO(archive.read(asset["sheet"]))) as sheet:
-        if sheet.mode != "RGBA" or sheet.size != (768, 1920):
-            raise ValueError(f"{asset['id']}: expected a 768 × 1920 RGBA sheet")
+        height = (last - first + 1) * 192
+        if sheet.mode != "RGBA" or sheet.size != (768, height):
+            raise ValueError(f"{asset['id']}: expected a 768 × {height} RGBA sheet")
         frames = {}
-        for level in range(1, LEVELS + 1):
+        for level in range(first, last + 1):
             for rotation, direction in enumerate(directions):
                 key = f"L{level:02d}_{direction}"
                 entry = info["frames"][key]
                 x, y, w, h = (entry["frame"][name] for name in ("x", "y", "w", "h"))
                 pivot = entry["pivot"]
-                if ((x, y, w, h) != (("SE", "SW", "NW", "NE").index(direction) * 192, (level - 1) * 192, 192, 192)
+                if ((x, y, w, h) != (("SE", "SW", "NW", "NE").index(direction) * 192, (level - first) * 192, 192, 192)
                     or entry["rotated"] or entry["trimmed"] or (pivot["x"] * w, pivot["y"] * h) != (96, 137)):
                     raise ValueError(f"{asset['id']} {key}: unexpected cell geometry")
                 frame = sheet.crop((x, y, x + w, y + h))
@@ -155,24 +156,31 @@ def convert_cloud(source, contact_dir, badge=None):
         contact_dir.mkdir(parents=True, exist_ok=True)
     with ZipFile(source) as archive:
         manifest = json.loads(archive.read("manifest.json"))
+        level_range = manifest.get("levelRange", {"min": 1, "max": LEVELS})
+        first, last = level_range["min"], level_range["max"]
+        if (first, last) not in ((1, LEVELS), (LEVELS + 1, 25)):
+            raise ValueError(f"Unsupported Cloud City level range: {first}–{last}")
+        extended = first > 1
         skin = manifest.get("skin", {}).get("id")
+        if extended and skin == "default":
+            skin = None
         if skin not in (*SKINS, None) or (not skin and badge):
             raise ValueError("Unsupported Cloud City skin archive")
-        if skin and badge is None:
+        if skin and badge is None and not extended:
             icon = manifest["skin"].get("icon")
             if not icon:
                 raise ValueError(f"{skin}: archive has no icon; supply --skin-badge")
             badge = io.BytesIO(archive.read(icon))
         assets = {entry["id"]: entry for entry in manifest["assets"]}
-        if len(assets) != len(manifest["assets"]) or (not skin and set(assets) != {*IDS, "road"}):
+        if len(assets) != len(manifest["assets"]) or ((not skin or extended) and set(assets) != {*IDS, "road"}):
             raise ValueError("Missing, extra or duplicate building IDs in the Cloud City manifest")
         ids = [gid for gid in IDS if gid in assets]
-        if skin:
-            print(f"{skin}: {len(ids)}/{len(IDS)} building families; missing: {sorted(set(IDS) - assets.keys())}; "
+        if skin or extended:
+            print(f"{skin or 'default'} L{first}–{last}: {len(ids)}/{len(IDS)} building families; missing: {sorted(set(IDS) - assets.keys())}; "
                   f"unused: {sorted(assets.keys() - set(IDS))}")
         # Cloud City labels the viewpoint, whereas MetroPulse indexes the direction of the entrance.
-        frames = {gid: cloud_frames(archive, assets[gid], CLOUD_ROADS if gid == "road" else CLOUD_FACING)
-                  for gid in (ids if skin else [*ids, "road"])}
+        frames = {gid: cloud_frames(archive, assets[gid], CLOUD_ROADS if gid == "road" else CLOUD_FACING, first, last)
+                  for gid in (ids if skin or extended else [*ids, "road"])}
     folder = PUBLIC / "img" / ("skins/" + skin if skin else "bld")
     metadata = {}
     for gid in ids:
@@ -189,7 +197,7 @@ def convert_cloud(source, contact_dir, badge=None):
         meta = metadata[gid] = {"w": round(w / RESOLUTION, 3), "h": round(h / RESOLUTION, 3),
                                 "ax": round((96 - x0) * mx, 3), "ay": round((137 - y0) * my, 3)}
         meta["tops"] = [[round((137 - cells[level, rot][1][1]) * my) for rot in range(4)]
-                        for level in range(1, LEVELS + 1)]
+                        for level in range(first, last + 1)]
         out = folder / gid
         out.mkdir(parents=True, exist_ok=True)
         contact = []
@@ -201,15 +209,17 @@ def convert_cloud(source, contact_dir, badge=None):
             if contact_dir:
                 contact.append((f"Lv {level:02d} / {CLOUD_FACING[rot]}", image))
         if contact_dir:
-            contact_sheet(contact_dir / f"{gid}.png", contact, LEVELS, 4, meta, gid)
+            contact_sheet(contact_dir / f"{gid}.png", contact, last - first + 1, 4, meta, gid)
         print(f"{gid}: {len(cells)} frames")
+    if extended:
+        return skin or "default", metadata, True
     if skin:
         with Image.open(badge) as source_badge:
             logo = source_badge.convert("RGBA")
             logo = logo.crop(logo.getchannel("A").getbbox())
             logo.thumbnail((256, 256), Image.Resampling.LANCZOS)
             logo.save(folder / "badge.webp", quality=88, method=4)
-        return skin, metadata
+        return skin, metadata, False
     road_dir = folder / "road"
     # The map renders roads procedurally. Only the straight previews have a matching new sprite.
     for rot in range(4):
@@ -240,16 +250,32 @@ def main():
                 with ZipFile(source) as archive:
                     if not json.loads(archive.read("manifest.json")).get("skin", {}).get("id"):
                         parser.error("Provide one base asset source, or one or more skin archives")
-        packs = {}
+        dest = PUBLIC / "js" / "skin-sprites.js"
+        packs = json.loads(dest.read_text(encoding="utf-8").split("const SKIN_SPRITES = ", 1)[1].rstrip(";\n")) if dest.exists() else {}
+        skins_changed = False
         for source, badge in zip(args.source, args.skin_badge or [None] * len(args.source)):
             contact = args.contact_dir / source.stem if args.contact_dir and len(args.source) > 1 else args.contact_dir
             pack = convert_cloud(source, contact, badge)
             if pack:
-                packs[pack[0]] = pack[1]
-        if packs:
-            dest = PUBLIC / "js" / "skin-sprites.js"
-            existing = json.loads(dest.read_text(encoding="utf-8").split("const SKIN_SPRITES = ", 1)[1].rstrip(";\n")) if dest.exists() else {}
-            dest.write_text('"use strict";\nconst SKIN_SPRITES = ' + json.dumps(existing | packs, separators=(",", ":")) + ";\n",
+                skin, art, extended = pack
+                if extended:
+                    if skin == "default":
+                        base = (PUBLIC / "js" / "sprites.js").read_text(encoding="utf-8")
+                        metadata = json.loads(base.split("const SPRITES = ", 1)[1].rstrip(";\n"))
+                    else:
+                        metadata = packs[skin]
+                    for gid, higher in art.items():
+                        base = metadata[gid]
+                        base["tops"] = base["tops"][:LEVELS] + higher.pop("tops")
+                        base["late"] = higher
+                    if skin == "default":
+                        write_metadata(metadata)
+                        continue
+                else:
+                    packs[skin] = art
+                skins_changed = True
+        if skins_changed:
+            dest.write_text('"use strict";\nconst SKIN_SPRITES = ' + json.dumps(packs, separators=(",", ":")) + ";\n",
                             encoding="utf-8")
         return
     if args.skin_badge:

@@ -24,7 +24,7 @@ class StorageManager {
  static normalize(val){
   const fallback=this.fresh();
   try{
-   if(!val||!val.profile||!Number.isFinite(val.profile.coins)||!Number.isFinite(val.profile.xp)||!Number.isSafeInteger(val.profile.level)||val.profile.level<1||val.profile.level>100000||
+   if(!val||!val.profile||!Number.isFinite(val.profile.coins)||!Number.isFinite(val.profile.xp)||!Number.isSafeInteger(val.profile.level)||val.profile.level<1||
       !Array.isArray(val.world?.buildings)||val.world.buildings.length>256||val.world.buildings.some(b=>!Object.hasOwn(CONFIG.buildings,b?.id)||!Number.isInteger(b.x)||!Number.isInteger(b.y)||!inside(b.x,b.y)))return null;
    const base=fallback.progress,legacy=val.milestones,source=val.progress||{};
    const progress={...base,...source,
@@ -39,6 +39,8 @@ class StorageManager {
    const world=makeWorld(val.world.buildings,val.profile.level,val.world);
    for(const key of ["buffs","bubbles","npcs","crises"])if(!Array.isArray(world[key]))world[key]=[];
    const profile={...fallback.profile,...val.profile};
+   if(profile.materials)profile.materials=Object.fromEntries(Object.keys(CONFIG.materials).map(key=>[key,
+    Number.isSafeInteger(profile.materials[key])?clamp(profile.materials[key],0,CONFIG.materialMax):0]));
    if(!Number.isFinite(profile.knowledge))profile.knowledge=0;
    if(!CONFIG.avatars.pick.includes(profile.avatar))profile.avatar=CONFIG.avatars.fallback;
    return {...fallback,...val,version:2,profile,world,progress,friends:Array.isArray(val.friends)?val.friends:[],milestones:undefined};

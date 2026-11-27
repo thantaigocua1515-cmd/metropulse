@@ -158,7 +158,8 @@ const CONTENT = (() => {
   ["d_research","Nghiên cứu {n} cấp công nghệ","research",()=>1]
  ];
  const dailyReward = level=>({coins:150*level+200,xp:30+8*level,know:6+level});
- const dailyBonus = level=>({coins:500*level+500,prestige:3,know:15+2*level});
+ const dailyBonus = level=>({coins:500*level+500,prestige:3,know:15+2*level,
+  materials:level>=16?{steel:5,glass:3,chip:2}:null});
  // Điểm danh 7 ngày (Vàng nhân với cấp Thị trưởng).
  const login = [
   {coins:300,label:"Ngân sách khởi động"},{know:20,label:"Tài liệu quy hoạch"},{prestige:3,label:"Thư khen của tỉnh"},

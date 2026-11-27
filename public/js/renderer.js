@@ -267,7 +267,7 @@ class IsoRenderer {
   let meta=SPRITES[b.id],art=false;
   const rot=meta&&b.left<=0?this.facing(b,w):null;
   if(rot!==null){
-   const frame=this.buildingFrame(b,rot),skinMeta=SKIN_SPRITES[skin]?.[b.id];
+   const frame=this.buildingFrame(b,rot),skinMeta=this.skinSpriteMeta(b,skin);
    const themed=skinMeta&&this.sprite(b.id,frame,dark,skin);
    if(themed){art=themed;meta=skinMeta}
    else art=this.sprite(b.id,frame,dark);
@@ -279,6 +279,7 @@ class IsoRenderer {
   }
   if(art!==false){
    height=meta.tops[b.level-1][rot];
+   if(b.level>CONFIG.legacyMaxLevel)meta=meta.late;
    if(art){
     sprite=this.drawSprite(art,meta,x,y,this.sim.social.world===this.sim.world?this.effects.bounce(b):1);
     if(!dark)this.effects.lightBuilding(sprite,meta,height,b.id,night);
@@ -417,6 +418,10 @@ class IsoRenderer {
   return w===sim?.world&&sim?.cloud?.ownsSkin?.(skin)&&Object.hasOwn(SKIN_SPRITES,skin)?skin:"default";
  }
  spritePath(id,frame,skin="default"){return asset("img/"+(skin==="default"?"bld":"skins/"+skin)+"/"+id+"/"+frame+".webp")}
+ skinSpriteMeta(b,skin){
+  const meta=SKIN_SPRITES[skin]?.[b.id];
+  return meta?.tops[b.level-1]?meta:null;
+ }
  buildingFrame(b,rot){return String(b.level).padStart(2,"0")+"_"+rot}
  cityFrame(b,w){
   if(!SPRITES[b.id]||b.left>0)return null;
@@ -426,7 +431,7 @@ class IsoRenderer {
   const frame=this.cityFrame(b,w);
   if(!frame)return null;
   const skin=this.activeSkin(w);
-  return this.spritePath(b.id,frame,SKIN_SPRITES[skin]?.[b.id]&&this.requestSprite(b.id,frame,skin).state===1?skin:"default");
+  return this.spritePath(b.id,frame,this.skinSpriteMeta(b,skin)&&this.requestSprite(b.id,frame,skin).state===1?skin:"default");
  }
  preloadCity(w){
   const urls=new Set(),skin=this.activeSkin(w);
@@ -434,7 +439,7 @@ class IsoRenderer {
    if(b.id==="road")continue;
    const frame=this.cityFrame(b,w);
    if(!frame)continue;
-   const pack=SKIN_SPRITES[skin]?.[b.id]?skin:"default";
+   const pack=this.skinSpriteMeta(b,skin)?skin:"default";
    const url=this.spritePath(b.id,frame,pack);
    if(urls.has(url))continue;
    urls.add(url);this.requestSprite(b.id,frame,pack);

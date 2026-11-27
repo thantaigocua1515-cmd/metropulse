@@ -89,19 +89,28 @@ const CONFIG = (() => {
  const avatars = {count:36,fallback:10,pick:[10,1,6,11,12,14,15,16,17,18,19,20,21,22,24,25,26,27,29,32,33,35],
   roles:["Ông lão đeo kính","Cô gái trẻ","Bác sĩ","Công nhân xây dựng","Kỹ sư","Học sinh","Bà lão","Công an","Lính cứu hỏa","Thị trưởng","Nông dân","Cô giáo","Nhà khoa học","Đầu bếp","Họa sĩ","Ngư dân","Bác sĩ trẻ","Doanh nhân","Thợ cắt tóc","Y tá","Shipper","Tiểu thương","Kiến trúc sư","Dược sĩ","Phi công","Nhạc sĩ","Vận động viên","Thợ điện","Thủ thư","Lập trình viên","Thầy giáo","Cô bán hoa","Tài xế xe buýt","Nhiếp ảnh gia","Chủ quán cà phê","Cô làm vườn"]};
  const mayorXP = [170,900,2000,5900,6000,9000,14000,18500,23000];
- return {assetVersion:"4.6.3",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:10,specLevel:5,
+ const tierNamesRoman=["I","II","III","IV","V","VI"],tierMin=[1,4,7,11,16,21],tierMayors=[1,5,10,16,21,26];
+ const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
+ const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
+ return {assetVersion:"4.7.0",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:16,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+  tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
   crisisInterval:24,bubbleInterval:22,decisionInterval:210,key:"metropulse_save_v2",legacyKey:"metropulse_save_v1",
-  xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25),
+  xpNext:level=>mayorXP[level-1]??Math.floor(23000*(level/9)**1.25*Math.max(1,level/16)**.65),
+  mayorReward:level=>({coins:150*level,prestige:level>=20&&level%5===0?15:5,
+   materials:level>=20&&level%5===0?{steel:12,glass:8,chip:4}:null}),
   utilityXP:{level:4,perSecond:2},
   upgradeBase:b=>Math.ceil(buildings[b.id].price*1.6**b.level),
-  // Bậc tiến hóa: cấp 1–3 bậc I, 4–6 bậc II, 7–10 bậc III; bậc II cần Thị trưởng cấp 5, bậc III cần cấp 10.
-  tier:level=>level>=7?2:level>=4?1:0,tierGate:level=>level>=6?10:level>=3?5:1,
-  buildingName:b=>buildings[b.id].tiers[level2tier(b.level)],
+  upgradeSeconds:level=>level<10?0:Math.round(1200*1.26**(level-10)),
+  upgradeMaterials:level=>level<10?{}:{steel:3+level-10,glass:2+Math.floor((level-10)*.75),chip:Math.floor((level-9)/3)},
+  tier,tierGate:level=>tierMayors[tier(level+1)],
+  buildingName:b=>{
+   const d=buildings[b.id],grade=tier(b.level);
+   return grade<3?d.tiers[grade]:d.tiers[2]+" "+tierNamesRoman[grade];
+  },
   scale:level=>1+.35*(level-1),radius:level=>Math.min(8,4+Math.floor((level-1)/2)),
   rank:missions=>{let r=ranks[0];for(const x of ranks)if(missions>=x[0])r=x;return r},
   cityRank:(score,level=0)=>{const tiers=level>=16?cityRanks.concat(heritageRanks):cityRanks;let i=0;tiers.forEach((r,k)=>{if(score>=r[0])i=k});return {index:i,name:tiers[i][1],next:tiers[i+1]||null}},
   groups:{all:"Tất cả",infra:"Hạ tầng",res:"Dân cư",com:"Thương mại",svc:"Dịch vụ/NPC",special:"Đặc biệt"},
   weather:{sunny:["☀","Nắng đẹp"],heat:["◉","Nắng gắt"],storm:["☂","Mưa bão"]}
  };
- function level2tier(level){return level>=7?2:level>=4?1:0}
 })();

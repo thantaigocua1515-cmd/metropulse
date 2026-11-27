@@ -56,3 +56,68 @@ test("an existing city's money, mayor XP and upgraded buildings survive the new 
  assert.equal(s.profile.xp,0);
  assert.equal(s.world.unlockedRadius,CONFIG.radius(11));
 });
+
+test("mayor progression continues past the former cloud limit and awards five-level milestones",()=>{
+ const data=StorageManager.fresh(),s=new SimulationEngine(data,{play(){}});
+ Object.assign(s.profile,{level:499,xp:0});
+ const prestige=s.profile.prestige;
+ s.gainXP(CONFIG.xpNext(499),false);
+ assert.equal(s.profile.level,500);
+ assert.equal(s.profile.prestige,prestige+15);
+ assert.equal(s.profile.materials.steel,12);
+ s.gainXP(CONFIG.xpNext(500),false);
+ assert.equal(s.profile.level,501);
+ assert.ok(CONFIG.xpNext(501)>CONFIG.xpNext(500));
+ const saved=JSON.parse(JSON.stringify(data));
+ assert.equal(StorageManager.normalize(saved).profile.level,501);
+ assert.equal(inspectSave(saved).error,undefined);
+ assert.equal(CONFIG.mayorReward(505).materials.chip,4);
+});
+
+test("advanced upgrades reserve supplies, survive a reload and finish at the scheduled time",()=>{
+ const data=StorageManager.fresh(),s=new SimulationEngine(data,{play(){}});
+ s.storage={save(){}};
+ const b=s.world.buildings.find(b=>b.id==="water_tower");
+ Object.assign(s.profile,{level:15,coins:1e12});
+ b.level=10;b.left=0;
+ assert.match(s.upgrade(b),/cấp 16/);
+ s.profile.level=16;
+ assert.match(s.upgrade(b),/Thiếu vật liệu/);
+ s.addMaterials({steel:10,glass:10,chip:10});
+ assert.equal(s.upgrade(b),"");
+ assert.equal(b.level,10);
+ assert.ok(b.upgradeReadyAt>Date.now());
+ assert.equal(s.profile.materials.steel,7);
+ assert.match(s.upgrade(b),/đang được nâng cấp/);
+ const raw=JSON.parse(JSON.stringify(data));
+ assert.equal(inspectSave(raw).error,undefined);
+ const restored=StorageManager.normalize(raw),resumed=new SimulationEngine(restored,{play(){}});
+ const next=restored.world.buildings.find(b=>b.id==="water_tower");
+ assert.equal(next.upgradeReadyAt,b.upgradeReadyAt);
+ next.upgradeReadyAt=Date.now()-1;
+ resumed.social={tick(){}};
+ resumed.crisis={tickOwn(){}};
+ resumed.tick(.05);
+ assert.equal(next.level,11);
+ assert.equal(next.upgradeReadyAt,undefined);
+ assert.equal(resumed.stats.upgrades,1);
+ assert.equal(CONFIG.tier(next.level),3);
+ assert.equal(CONFIG.tierGate(15),21);
+ assert.equal(CONFIG.tierGate(20),26);
+ assert.ok(CONFIG.upgradeSeconds(24)>CONFIG.upgradeSeconds(10));
+});
+
+test("cloud saves accept tier VI at level 26, but reject impossible levels and malformed inventory",()=>{
+ const data=StorageManager.fresh();
+ const b=data.world.buildings.find(b=>b.id==="water_tower");
+ b.level=25;
+ data.profile.level=25;
+ assert.match(inspectSave(data).error,/Cấp công trình/);
+ data.profile.level=26;
+ assert.equal(inspectSave(data).error,undefined);
+ b.level++;
+ assert.match(inspectSave(data).error,/Công trình/);
+ b.level=25;
+ data.profile.materials={steel:-1};
+ assert.match(inspectSave(data).error,/Kho vật liệu/);
+});

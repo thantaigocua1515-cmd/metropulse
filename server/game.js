@@ -15,12 +15,17 @@ function inspectSave(data){
  if(!data||typeof data!=="object")return {error:"Bản lưu không hợp lệ."};
  const p=data.profile,w=data.world;
  if(!p||!w||!Array.isArray(w.buildings)||w.buildings.length>256)return {error:"Bản lưu thiếu dữ liệu thành phố."};
- if(!int(p.level,1,500)||!num(p.coins,0,1e15)||!num(p.xp,0,1e12)||!num(p.prestige??0,0,1e9)||!num(p.knowledge??0,0,1e12))return {error:"Hồ sơ Thị trưởng không hợp lệ."};
+ if(!int(p.level,1,Number.MAX_SAFE_INTEGER)||!num(p.coins,0,1e15)||!num(p.xp,0,Math.max(1e12,CONFIG.xpNext(p.level)))||!num(p.prestige??0,0,1e9)||!num(p.knowledge??0,0,1e12))return {error:"Hồ sơ Thị trưởng không hợp lệ."};
+ if(p.materials!==undefined&&(!p.materials||typeof p.materials!=="object"||Array.isArray(p.materials)||
+  Object.entries(p.materials).some(([key,value])=>!Object.hasOwn(CONFIG.materials,key)||!int(value,0,CONFIG.materialMax))))return {error:"Kho vật liệu không hợp lệ."};
  const radius=CONFIG.radius(p.level),used=new Set(),city=[];
  let assets=p.coins,levels=0,pop=0;
  for(const b of w.buildings){
   const d=b&&CONFIG.buildings[b.id];
   if(!d||!Object.hasOwn(CONFIG.buildings,b.id)||!int(b.x,0,15)||!int(b.y,0,15)||!int(b.level,1,CONFIG.maxLevel))return {error:"Công trình không hợp lệ."};
+  if(b.id==="road"&&b.level!==1||b.level>CONFIG.legacyMaxLevel&&p.level<CONFIG.tierGate(b.level-1))return {error:"Cấp công trình không hợp lệ."};
+  if(b.upgradeReadyAt!==undefined&&(b.id==="road"||b.left>0||b.level<CONFIG.legacyMaxLevel||b.level>=CONFIG.maxLevel||
+   p.level<CONFIG.tierGate(b.level)||!int(b.upgradeReadyAt,1,Date.now()+CONFIG.upgradeSeconds(b.level)*1000+60000)))return {error:"Tiến độ nâng cấp không hợp lệ."};
   if(d.unlock>p.level||b.x<8-radius||b.x>=8+radius||b.y<8-radius||b.y>=8+radius)return {error:"Công trình nằm ngoài phạm vi cho phép của cấp hiện tại."};
   const key=b.y*16+b.x;if(used.has(key))return {error:"Hai công trình trùng một ô đất."};used.add(key);
   let value=d.price;for(let i=1;i<b.level;i++)value+=d.price*1.6**i;

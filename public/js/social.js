@@ -82,7 +82,7 @@ class SocialManager {
   if(!Array.isArray(data)||data.length!==8)throw Error("Định dạng mã thành phố không được hỗ trợ.");
   const [ver,id,name,level,coins,happiness,helpsGiven,layout]=data;
   if(ver!==1||typeof id!=="string"||!/^MP-[A-Z0-9]{4,8}$/.test(id)||typeof name!=="string"||!name.trim()||name.length>40||
-     !within(level,1,100000)||!within(coins,0,Number.MAX_SAFE_INTEGER)||!within(happiness,20,150)||
+     !within(level,1,Number.MAX_SAFE_INTEGER)||!within(coins,0,Number.MAX_SAFE_INTEGER)||!within(happiness,20,150)||
      !within(helpsGiven,0,Number.MAX_SAFE_INTEGER)||!Array.isArray(layout)||layout.length>256)throw Error("Hồ sơ thành phố không hợp lệ.");
   if(id===this.sim.profile.mayorId)throw Error("Đây là mã thành phố của bạn.");
   const grid={unlockedRadius:CONFIG.radius(level)},used=new Set(),buildings=[];

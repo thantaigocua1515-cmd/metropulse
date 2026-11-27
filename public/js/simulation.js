@@ -185,10 +185,18 @@ class SimulationEngine {
   if(amount>0)this.effect("reward",{resource,amount,x,y,world,lift},1.05);
  }
  earn(coins){this.profile.coins+=coins;if(coins>0)this.stats.coinsEarned+=coins}
+ addMaterials(rewards){
+  const stock=this.profile.materials??={};
+  for(const key of Object.keys(CONFIG.materials))if(rewards[key]>0)
+   stock[key]=Math.min(CONFIG.materialMax,(stock[key]||0)+rewards[key]);
+ }
  gainXP(amount,withResearch=true){
   const p=this.profile;amount=withResearch?Math.round(amount*(1+.1*this.tech("education"))):amount;p.xp+=amount;
-  while(p.xp>=CONFIG.xpNext(p.level)){
-   p.xp-=CONFIG.xpNext(p.level);p.level++;p.coins+=150*p.level;p.prestige+=5;this.world.unlockedRadius=CONFIG.radius(p.level);
+  while(p.level<Number.MAX_SAFE_INTEGER&&p.xp>=CONFIG.xpNext(p.level)){
+   p.xp-=CONFIG.xpNext(p.level);p.level++;
+   const reward=CONFIG.mayorReward(p.level);
+   p.coins+=reward.coins;p.prestige+=reward.prestige;if(reward.materials)this.addMaterials(reward.materials);
+   this.world.unlockedRadius=CONFIG.radius(p.level);
    this.audio.play("level");this.say("Bản tin đặc biệt: "+p.mayorName+" đã đưa thành phố lên cấp "+p.level+"!");
    this.pending.push({type:"level",level:p.level});
   }
@@ -199,6 +207,10 @@ class SimulationEngine {
   if(reward.coins){this.earn(reward.coins);parts.push("+"+fmt(reward.coins)+" Vàng");this.rewardEffect("coin",reward.coins,x,y)}
   if(reward.prestige){p.prestige+=reward.prestige;parts.push("+"+reward.prestige+" Uy tín");this.rewardEffect("prestige",reward.prestige,x,y)}
   if(reward.know){p.knowledge+=reward.know;parts.push("+"+reward.know+" Tri thức");this.rewardEffect("brain",reward.know,x,y)}
+  if(reward.materials){
+   this.addMaterials(reward.materials);
+   for(const [key,name] of Object.entries(CONFIG.materials))if(reward.materials[key])parts.push("+"+reward.materials[key]+" "+name);
+  }
   if(reward.xp)parts.push("+"+this.gainXP(reward.xp)+" XP");
   if(x!==null)this.float(x,y,parts[0]||"","#ffe08f");
   return parts.join(" · ");
@@ -229,25 +241,39 @@ class SimulationEngine {
  }
  upgradeCost(b){return Math.ceil(CONFIG.upgradeBase(b)*(1-.06*this.tech("invest")))}
  upgradeBlock(b){
+  if(b.upgradeReadyAt)return "Công trình đang được nâng cấp.";
   if(b.left>0)return "Hãy chờ xây xong.";
   if(b.id==="road")return "Đường nhựa không cần nâng cấp.";
   if(b.level>=CONFIG.maxLevel)return "Công trình đã đạt cấp tối đa.";
   const gate=CONFIG.tierGate(b.level);
-  if(this.profile.level<gate)return "Cần Thị trưởng cấp "+gate+" để tiến hóa lên bậc "+(gate===5?"II":"III")+".";
+  if(this.profile.level<gate)return "Cần Thị trưởng cấp "+gate+" để tiến hóa lên bậc "+CONFIG.tierNamesRoman[CONFIG.tier(b.level+1)]+".";
+  if(b.level>=CONFIG.legacyMaxLevel){
+   const missing=Object.entries(CONFIG.upgradeMaterials(b.level)).filter(([key,cost])=>(this.profile.materials?.[key]||0)<cost);
+   if(missing.length)return "Thiếu vật liệu: "+missing.map(([key,cost])=>(cost-(this.profile.materials?.[key]||0))+" "+CONFIG.materials[key]).join(" · ")+".";
+  }
   return "";
  }
  upgrade(b){
   const block=this.upgradeBlock(b);if(block)return block;
   const price=this.upgradeCost(b);if(this.profile.coins<price)return "Không đủ Vàng.";
+  this.profile.coins-=price;
+  const seconds=CONFIG.upgradeSeconds(b.level);
+  if(seconds){
+   for(const [key,cost] of Object.entries(CONFIG.upgradeMaterials(b.level)))if(cost)this.profile.materials[key]-=cost;
+   b.upgradeReadyAt=Date.now()+seconds*1000;
+  }else this.finishUpgrade(b);
+  this.storage.save();return "";
+ }
+ finishUpgrade(b){
   const before=CONFIG.tier(b.level);
-  this.profile.coins-=price;b.level++;this.stats.upgrades++;this.stats.maxBuildingLevel=Math.max(this.stats.maxBuildingLevel,b.level);
+  delete b.upgradeReadyAt;
+  b.level++;this.stats.upgrades++;this.stats.maxBuildingLevel=Math.max(this.stats.maxBuildingLevel,b.level);
   this.legacy?.recordBuilding(b);
   if(!(CONFIG.buildings[b.id].group==="res"&&this.world.crises.some(c=>c.id==="trash_pile")))this.gainXP(20*b.level);
   if(CONFIG.tier(b.level)!==before){this.say("Tiến hóa! "+CONFIG.buildings[b.id].name+" nay đã trở thành "+CONFIG.buildingName(b)+".");this.float(b.x,b.y,"★ "+CONFIG.buildingName(b),"#ffe08f")}
   else this.float(b.x,b.y,"Cấp "+b.level);
   this.effect("upgrade",{x:b.x,y:b.y,level:b.level},.85);
   this.audio.play("upgrade");
-  this.storage.save();return "";
  }
  specialize(b,choice){
   if(b.left>0||b.level<CONFIG.specLevel)return "Cần công trình đạt cấp "+CONFIG.specLevel+".";
@@ -333,7 +359,9 @@ class SimulationEngine {
   w.speedBuff=Math.max(0,w.speedBuff-dt);w.immunity=Math.max(0,w.immunity-dt);
   if(!w.crises.some(c=>c.id==="water_leak"))w.happyDelta-=Math.sign(w.happyDelta)*Math.min(Math.abs(w.happyDelta),dt*.035);
   const speed=(this.count("construction_hq")?.9:1)*(w.activePolicy?.id==="overtime"?.65:1)*(1-.1*this.tech("construct"))*this.buff("build");
+  const now=Date.now();
   for(const b of w.buildings){
+   if(b.upgradeReadyAt&&b.upgradeReadyAt<=now)this.finishUpgrade(b);
    if(b.left<=0){b.age+=dt;continue}
    if(w.crises.some(c=>c.id==="collapse"&&distance(c,b)===0))continue;
    b.left-=dt/speed;if(b.left<=0)this.finish(b);

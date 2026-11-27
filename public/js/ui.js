@@ -129,7 +129,8 @@ class UIController {
   return items.map(item=>({item,st:read(item)})).sort((a,b)=>rank(a.st)-rank(b.st));
  }
  reward(r){
-  return [r.coins&&'<span class="gold">+'+fmt(r.coins)+' Vàng</span>',r.xp&&'<span>+'+r.xp+' XP</span>',r.prestige&&'<span class="mint">'+this.prestigeAmount("+"+r.prestige)+'</span>',r.know&&'<span class="teal">+'+r.know+' Tri thức</span>'].filter(Boolean).join(" · ");
+  return [r.coins&&'<span class="gold">+'+fmt(r.coins)+' Vàng</span>',r.xp&&'<span>+'+r.xp+' XP</span>',r.prestige&&'<span class="mint">'+this.prestigeAmount("+"+r.prestige)+'</span>',r.know&&'<span class="teal">+'+r.know+' Tri thức</span>',
+   ...Object.entries(r.materials||{}).filter(([id,value])=>Object.hasOwn(CONFIG.materials,id)&&value>0).map(([id,value])=>'<span>+'+fmt(value)+' '+CONFIG.materials[id]+'</span>')].filter(Boolean).join(" · ");
  }
  toast(message){
   if(!message)return;this.text("toast",message);this.nodes.toast.hidden=false;clearTimeout(this.toastTimer);
@@ -349,7 +350,8 @@ class UIController {
   if(!this.inspect&&this.tool!=="build")this.renderer.closeDown();
   const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score,p.level);
   const xpNext=CONFIG.xpNext(p.level);
-  this.html("profile",this.icon("star")+'<strong>'+fmt(p.level)+'</strong>'+this.bar(p.xp/xpNext));
+  const levelLabel=p.level<10000?String(p.level):p.level.toExponential(0);
+  this.html("profile",this.icon("star")+'<strong'+(levelLabel.length>=3?' class="level-compact"':"")+'>'+levelLabel+'</strong>'+this.bar(p.xp/xpNext));
   this.nodes.profile.title="Hồ sơ · "+p.mayorName+" · Cấp "+p.level+" · "+fmt(p.xp)+" / "+fmt(xpNext)+" XP";
   this.nodes.profile.setAttribute("aria-label",this.nodes.profile.title);
   this.updateResource("coin",fmt(Math.floor(p.coins)),"+"+fmt(m.income,1)+"/s");
@@ -464,13 +466,28 @@ class UIController {
   if(own){
    if(b.left>0)actions=this.btn("accelerate","Tăng tốc · "+this.prestigeAmount(1),{id:key,cls:"primary"});
    else if(b.id!=="road"){
-    const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=!block&&CONFIG.tier(b.level+1)!==tier;
-    actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":block?"Cần Thị trưởng cấp "+CONFIG.tierGate(b.level):(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary"+(this.upgradeGuide===b&&b.level<CONFIG.maxLevel?this.missionHighlight():""),disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
+    if(b.upgradeReadyAt){
+     const left=(b.upgradeReadyAt-Date.now())/1000,total=CONFIG.upgradeSeconds(b.level);
+     extra+='<div class="upgrade-plan"><small>Đang nâng lên cấp '+(b.level+1)+' · còn '+timer(left)+'</small>'+this.bar(1-left/total)+'</div>';
+    }else{
+     const block=s.upgradeBlock(b),cost=s.upgradeCost(b),evolve=CONFIG.tier(b.level+1)!==tier,gate=CONFIG.tierGate(b.level);
+     if(b.level>=CONFIG.legacyMaxLevel&&b.level<CONFIG.maxLevel){
+      const stock=s.profile.materials;
+      const supplies=Object.entries(CONFIG.upgradeMaterials(b.level)).filter(([,cost])=>cost).map(([id,cost])=>
+       '<span class="chip '+((stock?.[id]||0)<cost?"bad":"good")+'">'+CONFIG.materials[id]+' '+fmt(stock?.[id]||0)+'/'+cost+'</span>').join("");
+      extra+='<div class="upgrade-plan"><small>Lên cấp '+(b.level+1)+' · Thị trưởng cấp '+gate+' · '+timer(CONFIG.upgradeSeconds(b.level))+
+       '</small><div class="chips">'+supplies+'</div>'+(block?'<small class="muted">'+htm(block)+'</small>':"")+'</div>';
+     }
+     actions=this.btn("upgrade",b.level>=CONFIG.maxLevel?"Cấp tối đa":(evolve?"★ Tiến hóa · ":"Nâng cấp · ")+fmt(cost)+" V",{id:key,cls:"primary"+(this.upgradeGuide===b&&b.level<CONFIG.maxLevel?this.missionHighlight():""),disabled:!!block||s.profile.coins<cost,title:block||"Mỗi cấp +35% thu nhập"});
+    }
    }
    actions+=(b.id!=="road"&&SPRITES[b.id]&&b.left<=0?this.btn("rotate",this.icon("rotate")+" Xoay",{id:key,title:"Xoay công trình 90°"}):"")+(team&&b.left<=0?this.btn("teams","Quản lý đội"):"")+this.btn("remove","Phá dỡ",{id:key,cls:"danger"});
   }
-  const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+Array.from({length:CONFIG.maxLevel},(_,i)=>'<i class="'+(i<b.level?"on":"")+(i===3||i===6?" gap":"")+'"></i>').join("")+'</span>';
-  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+["I","II","III"][tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumb(b.id))+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
+  const stars=b.id==="road"?"":'<span class="stars" title="Cấp '+b.level+'/'+CONFIG.maxLevel+'">'+CONFIG.tierMin.map((min,i)=>{
+   const max=CONFIG.tierMin[i+1]||CONFIG.maxLevel+1;
+   return '<span>'+Array.from({length:max-min},(_,j)=>'<i class="'+(min+j<=b.level?"on":"")+'"></i>').join("")+'</span>';
+  }).join("")+'</span>';
+  this.html("inspect",'<header class="inspect-head frame-header"><div><div class="eyebrow">'+CONFIG.groups[d.group]+(b.id==="road"?"":' · Bậc '+CONFIG.tierNamesRoman[tier])+' · Ô '+String.fromCharCode(65+b.x)+(b.y+1)+'</div><h3>'+CONFIG.buildingName(b)+(b.id==="road"?"":' <em>Cấp '+b.level+'</em>')+'</h3></div>'+this.btn("inspect-close",this.icon("close"),{cls:"frame-close",title:"Đóng thẻ",label:"Đóng thông tin công trình"})+'</header><div class="inspect-body"><img class="inspect-thumb" src="'+(this.renderer.spritePreview(b,w)||this.thumb(b.id))+'" alt=""><div class="inspect-main">'+stars+'<p class="muted">'+d.desc+'</p>'+extra+'<div class="actions">'+actions+'</div></div></div>');
  }
  incidentPlace(w,c){
   const site=lookup(w,c.x,c.y),tile=String.fromCharCode(65+c.x)+(c.y+1);

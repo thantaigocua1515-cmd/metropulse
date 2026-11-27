@@ -145,7 +145,7 @@ function user({player:p,save:s,sessions}){
   info("Tên đăng nhập",p.username||"Khách")+info("Tham gia",date(p.createdAt))+info("Hoạt động cuối",date(p.lastSeenAt))+info("Phiên đăng nhập",sessions.length)+info("Thành phố",s?.cityName||"—")+info("Công trình / ô đường",s?num(s.buildings)+" / "+num(s.roads):"—")+
   '</dl><div class="actions">'+btn("ban",p.bannedAt?"Mở khóa":"Khóa tài khoản",p.bannedAt?"false":"true",p.bannedAt?"":"danger")+btn("revoke","Thu hồi mọi phiên")+btn("user-chat","Xem tin nhắn")+btn("delete","Xóa tài khoản","","danger")+
   '</div></section><section class="card form"><div><h2>Tài nguyên bản lưu</h2><small>'+(s?"Phiên bản "+num(s.rev)+" · "+date(s.updatedAt):"Không có bản lưu máy chủ.")+'</small></div>'+
-  (s?'<form class="form" data-form="resources"><input type="hidden" name="rev" value="'+s.rev+'"><div class="grid-form">'+Object.entries(fields).map(([key,name])=>field(key,name,{type:"number",value:s.resources[key],extra:key==="level"?'required min="1" max="500" step="1"':'required min="0" step="any"'})).join("")+'</div><div><button class="primary">Lưu tài nguyên</button></div></form>':"")+
+  (s?'<form class="form" data-form="resources"><input type="hidden" name="rev" value="'+s.rev+'"><div class="grid-form">'+Object.entries(fields).map(([key,name])=>field(key,name,{type:"number",value:s.resources[key],extra:key==="level"?'required min="1" step="1"':'required min="0" step="any"'})).join("")+'</div><div><button class="primary">Lưu tài nguyên</button></div></form>':"")+
   '</section></div><section class="card"><h2>Các lần cấp phiên</h2>'+table(["Phiên","Thời điểm"],sessions.map((s,i)=>'<tr><td>Phiên '+(i+1)+'</td><td>'+date(s.createdAt)+'</td></tr>').join(""),"Không có phiên.")+'</section>';
 }
 function eventPage(rows){
