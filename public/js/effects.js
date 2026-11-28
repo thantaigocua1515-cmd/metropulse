@@ -7,7 +7,7 @@ const SKIN_STAMPS={
 const STAMP_GLOWS={
  neon:["#c3fcff","#27ecdfa0","#159aff00"],hologram:["#e3bdff","#aa52ff99","#ac19ff00"],
  firefly:["#fcffb2","#d9ff6066","#a5ef2000"],steam:["#f8ffffd9","#cbecf28c","#b7ecff00"],
- spark:["#fff9ce","#ff9c43a0","#ff711500"]
+ spark:["#fff9ce","#ff9c43a0","#ff711500"],smoke:["#eeebe4ab","#aeb2b45c","#969da300"]
 };
 
 class CityEffects {
@@ -20,6 +20,43 @@ class CityEffects {
  }
  glow(x,y,rx,ry){
   this.r.ctx.drawImage(this.halo,x-rx,y-ry,rx*2,ry*2);
+ }
+ motion(){return !this.r.sim.reduceEffects&&!this.r.skinMotion?.matches}
+ begin(){this.ambientBudget=this.r.quality.ambientFX;this.burstBudget=this.r.quality.burstFX}
+ chimney(b,height){
+  if(!this.ambientBudget||!this.motion()||b.left>0||height<8)return;
+  const industrial=b.id==="power_plant"||b.id==="waste_plant"||b.id==="construction_hq";
+  if(!industrial&&(b.id!=="house_small"||(b.x+2*b.y)%4))return;
+  const r=this.r,g=r.ctx,z=r.camera.zoom,p=r.project(b.x+.6,b.y+.32,height*.83);
+  if(!r.inView(p,28,34))return;
+  const stamp=this.stamp("smoke"),count=Math.min(this.ambientBudget,industrial?3:2);
+  for(let i=0;i<count;i++){
+   const t=(r.elapsed*.61+(b.x*13+b.y*7)%11/11+i/count)%1,s=(6+t*12)*z;
+   g.globalAlpha=(1-t)*.64;g.drawImage(stamp,p.x+(t*t*13)*z-s/2,p.y-t*26*z-s/2,s,s*.86);
+  }
+  g.globalAlpha=1;this.ambientBudget-=count;
+ }
+ puddle(b,night){
+  const r=this.r,g=r.ctx,z=r.camera.zoom,p=r.project(b.x+.66,b.y+.39,1);
+  r.ellipse(p.x,p.y,7*z,2.2*z,"#719aad65");
+  if(night>.19){g.globalAlpha=night*.5;this.glow(p.x,p.y,10*z,2.6*z);g.globalAlpha=1}
+ }
+ beam(x,y,dx,dy,z){
+  if(!this.motion())return;
+  const g=this.r.ctx;
+  g.save();g.translate(x,y);g.rotate(Math.atan2(dx+dy,2*(dx-dy)));
+  this.glow(9*z,0,15*z,3*z);g.restore();
+ }
+ incident(c,p,t){
+  if(!this.motion()||this.burstBudget<3||!["fire","water_leak","collapse"].includes(c.id))return;
+  const r=this.r,g=r.ctx,z=r.camera.zoom;
+  const kind=c.id==="fire"?"spark":c.id==="collapse"?"smoke":"bubble",stamp=this.stamp(kind);
+  for(let i=0;i<3;i++){
+   const f=(i/3+t*.9)%1,s=(3+5*f)*z;
+   g.globalAlpha=(1-f)*.85;
+   g.drawImage(stamp,p.x+(i-1)*f*23*z-s/2,p.y-(c.id==="water_leak"?Math.sin(f*Math.PI)*28:f*38)*z-s,s,s);
+  }
+  g.globalAlpha=1;this.burstBudget-=3;
  }
  windowMask(art,meta,height,id){
   if(this.windows.has(art))return this.windows.get(art);
@@ -199,11 +236,21 @@ class CityEffects {
   for(const e of r.sim.fx){
    if((e.world||r.sim.world)!==world)continue;
    const t=e.age/e.duration;
+   if(e.kind==="levelup"){
+    const count=Math.min(this.burstBudget,18);
+    for(let i=0;i<count;i++){
+     const a=i*2.39996,x=r.width*.5+Math.cos(a)*t*r.width*.43,y=r.height*.38+Math.sin(a)*t*105;
+     g.globalAlpha=1-t;g.drawImage(this.stamp(i%3?"spark":"hologram"),x-5,y-5,10,10);
+    }
+    g.globalAlpha=1;this.burstBudget-=count;continue;
+   }
    if(e.kind==="reward"){
+    if(e.x!=null&&!r.inView(r.project(e.x+.5,e.y+.5),28,120)&&t<.8)continue;
     this.reward(e,t,heights);continue;
    }
    const dust=e.kind==="dust"||e.kind==="built",repair=e.kind==="repair";
    const p=r.project(e.x+.5,e.y+.5),height=heights.get(coord(e.x,e.y))||12;
+   if(!r.inView(p,48,120))continue;
    const top=r.project(e.x+.5,e.y+.5,height*.55);
    if(!dust){
     g.globalAlpha=(1-t)*.9;
@@ -212,7 +259,8 @@ class CityEffects {
      g.strokeStyle=repair?"#b6f3d7":"#ffdf9b";g.lineWidth=(2.8-t*2)*z;g.stroke();
     }
    }
-   for(let i=0;i<(dust?7:12);i++){
+   const count=Math.min(this.burstBudget,dust?7:12);this.burstBudget-=count;
+   for(let i=0;i<count;i++){
     const angle=i*2.399,spread=(9+t*(19+i%3*4))*z;
     const x=(dust?p.x:top.x)+Math.cos(angle)*spread,y=(dust?p.y:top.y)+Math.sin(angle)*spread*.45-19*t*z;
     g.globalAlpha=(1-t)*(dust?.55:1);

@@ -62,6 +62,20 @@ test("reduce effects is saved and restored without suppressing the actual reward
   assert.equal(restored.fx.length, 0);
 });
 
+test("visual pool recycles expired entries and bounds transient particles",()=>{
+  const {sim}=setup();
+  for(let i=0;i<30;i++)sim.effect("dust",{x:i,y:8},.5);
+  assert.equal(sim.fx.length,24);
+  const last=sim.fx.at(-1);
+  sim.visuals.tick(1,false);
+  assert.equal(sim.fx.length,0);
+  sim.effect("levelup");
+  assert.equal(sim.fx[0],last);
+  assert.equal(sim.fx[0].x,undefined);
+  sim.visuals.tick(.1,true);
+  assert.equal(sim.fx.length,0);
+});
+
 test("skin effects draw only near visible completed buildings and cap fireworks",()=>{
   const runs={flowers:0,snow:0,strokes:0};
   const ctx={save(){},restore(){},drawImage(){runs.flowers++},fillRect(){runs.snow++},

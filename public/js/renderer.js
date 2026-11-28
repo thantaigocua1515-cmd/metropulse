@@ -3,9 +3,9 @@ const CREW_ART={power_plant:"electric",water_tower:"water",fire_station:"fire",p
  construction_hq:"construction",waste_plant:"waste",hospital:"medical",cyber_hub:"cyber"};
 const CREW_TRANSPORT=["foot","bicycle","scooter","truck","van"];
 const GRAPHICS={
- battery:{label:"Tiết kiệm pin",fps:20,idle:15,dpr:1,agents:5,rain:36,flakes:1,skinStamps:28,skinLayers:1},
- balanced:{label:"Cân bằng",fps:30,idle:24,dpr:1.25,agents:9,rain:76,flakes:2,skinStamps:64,skinLayers:2},
- high:{label:"Cao",fps:60,idle:60,dpr:2,agents:14,rain:165,flakes:2,skinStamps:128,skinLayers:3}
+ battery:{label:"Tiết kiệm pin",fps:20,idle:15,dpr:1,agents:5,rain:28,flakes:1,skinStamps:28,skinLayers:1,ambientFX:8,burstFX:12},
+ balanced:{label:"Cân bằng",fps:30,idle:24,dpr:1.25,agents:9,rain:48,flakes:2,skinStamps:64,skinLayers:2,ambientFX:12,burstFX:32},
+ high:{label:"Cao",fps:60,idle:60,dpr:2,agents:14,rain:136,flakes:2,skinStamps:128,skinLayers:3,ambientFX:38,burstFX:96}
 };
 const ROAD_DIRECTIONS=[[1,0],[0,-1],[-1,0],[0,1]];
 const ROAD_PROFILES=[[STREET.sidewalk,.10,"#c9c5ae"],[STREET.curb,.085,"#ddd7c5"],[.255,.06,"#7d8388"]].map(([half,round,color])=>({
@@ -188,7 +188,12 @@ class IsoRenderer {
  groundLayer(w,background){
   const {canvas,ctx,camera:c,dpr}=this,key=[canvas.width,canvas.height,dpr,c.x,c.y,c.zoom,w.gridSize,w.unlockedRadius,...Array.from(w.index,([k,b])=>b.id==="road"?k+"r":k),
    GameArt.ready("terrain-grass"),GameArt.ready("terrain-props"),GameArt.ready("terrain-edge"),background&&background.join(":")].join("|");
-  const paint=()=>{if(background)this.ambient(background[0],background[1],w);this.ground(w)};
+  const paint=()=>{
+   if(background)this.ambient(background[0],background[1],w);
+   this.ground(w);
+   if(background?.[1]==="storm")for(const b of w.buildings)
+    if(b.id==="road"&&(b.x+b.y*2)%3===0&&this.inView(this.project(b.x+.5,b.y+.5),24,12))this.effects.puddle(b,background[0]);
+  };
   if(this.groundKey!==key){
    this.groundKey=key;this.groundReady=false;paint();return;
   }
@@ -473,7 +478,10 @@ class IsoRenderer {
   const g=this.ctx,z=this.camera.zoom;g.fillStyle="#142420e9";g.fillRect(x-15*z,y-3*z,30*z,6*z);g.fillStyle=color;g.fillRect(x-14*z,y-2*z,28*z*value,4*z);
  }
  crisis(c,height){
-  const d=CONFIG.crises[c.id],z=this.camera.zoom,g=this.ctx,t=this.elapsed,p=this.project(c.x+.5,c.y+.5,height+2),s=this.project(c.x+.5,c.y+.5,height+29+Math.sin(t*4)*2);
+  const d=CONFIG.crises[c.id],z=this.camera.zoom,g=this.ctx,t=this.effects.motion()?this.elapsed:1,p=this.project(c.x+.5,c.y+.5,height+2);
+  if(!this.inView(p,48,85,88))return;
+  const s=this.project(c.x+.5,c.y+.5,height+29+Math.sin(t*4)*2);
+  this.effects.incident(c,p,t);
   const puff=(i,col,speed=1)=>{const f=(t*speed+i*.36)%1;this.ellipse(p.x+Math.sin(i*3+t)*f*12*z,p.y-f*36*z,(3+f*6)*z,(2+f*4.5)*z,col)};
   const flash=.8+.18*Math.sin(t*6),fx=(key,x,y,w,h)=>GameArt.draw(g,"vfx-incidents-weather",key,x,y,w*z,h*z);
   if(c.id==="fire"&&fx("flame",p.x,p.y-5*z,24*flash,25*flash)){
@@ -615,8 +623,11 @@ class IsoRenderer {
   if(GameArt.image("background-map-water"))this.groundLayer(w,[night>.5?1:0,own.weather]);
   else{this.ambient(night,own.weather,w);this.groundLayer(w)}
   this.hits=[];
-  if(night>.18)for(const b of w.buildings)if(b.id==="road"&&this.inView(this.project(b.x+.5,b.y+.5),30,14))
-   this.effects.street(b,night,w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1));
+  this.effects.begin();
+  if(night>.18)for(const b of w.buildings)if(b.id==="road"&&(b.x+b.y*2)%3===0&&this.inView(this.project(b.x+.5,b.y+.5),30,14)){
+   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
+   this.effects.street(b,night,dark);
+  }
   EventMap.draw(this,w,this.sim.events);
   const {jobs,heights}=this;jobs.length=0;heights.clear();
   for(let x=0;x<w.gridSize;x++)for(let y=0;y<w.gridSize;y++){
@@ -638,7 +649,10 @@ class IsoRenderer {
   jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);
   for(const job of jobs){
    const {x,y}=job;
-   if(job.building)heights.set(coord(x,y),this.building(job.building,w,night,skin));
+   if(job.building){
+    const height=this.building(job.building,w,night,skin);
+    heights.set(coord(x,y),height);this.effects.chimney(job.building,height);
+   }
    else if(job.agent)this.life.draw(job.agent,night);
    else if(job.npc)this.npc(job.npc,job.pose);
    else this.tree(x+.53,y+.57,job.tree%3,.62+job.tree%5*.1);
@@ -663,20 +677,22 @@ class IsoRenderer {
   if(w===own)for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
   for(const p of this.sim.particles)if((p.world||own)===w){
    const a=this.project(p.x+.5,p.y+.5,(heights.get(coord(p.x|0,p.y|0))||7)+15+p.life*24);
+   if(!this.inView(a,90,20))continue;
    g.globalAlpha=Math.min(1,(1.45-p.life)*2);this.text(p.text,a.x+1,a.y+1,Math.max(12,13*z),"#18372d");this.text(p.text,a.x,a.y,Math.max(12,13*z),p.color);g.globalAlpha=1;
   }
   if(own.weather==="storm"){
    g.fillStyle="#293f571b";g.fillRect(0,0,this.width,this.height);g.beginPath();
-   for(let i=0;i<this.quality.rain;i++){
+   const drops=this.effects.motion()?this.quality.rain:0;
+   for(let i=0;i<drops;i++){
     const h=this.height+40,a=(i*164.53+this.elapsed*101)%(this.width+30)-15,b=(i*89.167+this.elapsed*(380+(i%4)*33))%h-20;
     if(this.qualityId==="high"&&i%6===0&&GameArt.draw(g,"vfx-incidents-weather","rain",a+3,b+8,8,17))continue;
     g.moveTo(a,b);g.lineTo(a+6,b+13+(i%3)*3);
    }
    g.strokeStyle="#b7def05e";g.lineWidth=.82;g.stroke();
-   const f=this.elapsed%12;if(!this.sim.reduceEffects&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
+   const f=this.elapsed%12;if(this.effects.motion()&&(f<.13||(f>.23&&f<.31))){g.fillStyle="#bdd9ff32";g.fillRect(0,0,this.width,this.height)}
   }
-  if(!this.sim.reduceEffects){
-   if(!this.skinMotion.matches)this.effects.skin(skin,w,heights,night);
+  if(this.effects.motion()){
+   this.effects.skin(skin,w,heights,night);
    this.effects.render(w,heights);
   }
  }

@@ -74,10 +74,34 @@ class Districts {
  }
 }
 
+class CityEffectPool {
+ constructor(){this.events=[];this.labels=[];this.free=[]}
+ add(list,fields){
+  if(list.length>=24)this.release(list.shift());
+  list.push(Object.assign(this.free.pop()||{},fields));
+ }
+ release(item){
+  for(const key of Object.keys(item))delete item[key];
+  this.free.push(item);
+ }
+ tick(dt,reduced){
+  this.advance(this.events,"age",dt,reduced);
+  this.advance(this.labels,"life",dt,false);
+ }
+ advance(list,clock,dt,reduced){
+  let n=0;
+  for(const item of list){
+   if(reduced||(item[clock]+=dt)>=item.duration)this.release(item);
+   else list[n++]=item;
+  }
+  list.length=n;
+ }
+}
+
 class SimulationEngine {
  constructor(data,audio){
   this.audio=audio;this.profile=data.profile;this.world=makeWorld(data.world.buildings,this.profile.level,data.world);
-  this.progress=data.progress;this.stats=this.progress.stats;this.particles=[];this.fx=[];this.reduceEffects=data.reduceEffects===true;this.news=[];this.pending=[];this.elapsed=0;this.storage=null;
+  this.progress=data.progress;this.stats=this.progress.stats;this.visuals=new CityEffectPool();this.particles=this.visuals.labels;this.fx=this.visuals.events;this.reduceEffects=data.reduceEffects===true;this.news=[];this.pending=[];this.elapsed=0;this.storage=null;
   this.utilityXP=0;
   this.metrics=this.measure(this.world);
  }
@@ -176,11 +200,10 @@ class SimulationEngine {
   return value;
  }
  say(message){this.news.unshift(message);this.news.length=Math.min(12,this.news.length)}
- float(x,y,text,color="#d1fb8b"){this.particles.push({x,y,text,color,life:0})}
+ float(x,y,text,color="#d1fb8b"){this.visuals.add(this.particles,{x,y,text,color,life:0,duration:1.45})}
  effect(kind,details={},duration=.9){
   if(this.reduceEffects)return;
-  if(this.fx.length>=24)this.fx.shift();
-  this.fx.push({kind,...details,age:0,duration});
+  this.visuals.add(this.fx,{kind,...details,age:0,duration});
  }
  rewardEffect(resource,amount,x,y,world=this.world,lift=0){
   if(amount>0)this.effect("reward",{resource,amount,x,y,world,lift},1.05);
@@ -247,6 +270,7 @@ class SimulationEngine {
    p.coins+=reward.coins;p.prestige+=reward.prestige;if(reward.materials)this.addMaterials(reward.materials);
    this.world.unlockedRadius=CONFIG.radius(p.level);
    this.audio.play("level");this.say("Bản tin đặc biệt: "+p.mayorName+" đã đưa thành phố lên cấp "+p.level+"!");
+   this.effect("levelup",{},1.2);
    this.pending.push({type:"level",level:p.level});
   }
   return amount;
@@ -439,8 +463,7 @@ class SimulationEngine {
    this.progress.decision={id:event.id};this.say("Thư mới gửi Thị trưởng: "+event.title+".");this.audio.play("mail");
   }
   this.crisis.tickOwn(dt);this.social.tick(dt);
-  this.particles=this.particles.filter(q=>(q.life+=dt)<1.45);
-  if(this.fx.length)this.fx=this.reduceEffects?[]:this.fx.filter(q=>(q.age+=dt)<q.duration);
+  if(this.particles.length||this.fx.length)this.visuals.tick(dt,this.reduceEffects);
  }
  start(renderer,ui){
   let request=null,last=0,step=0,renderTime=0,nextRender=0,hud=1,save=0,mission=1;

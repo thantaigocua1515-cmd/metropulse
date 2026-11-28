@@ -312,6 +312,7 @@ class CityLife {
   if(night>.22&&!r.sim.social.world.crises.some(c=>c.id==="blackout"&&Math.abs(c.x-a.x)+Math.abs(c.y-a.y)<=1)){
    const far=k==="bike"?.14:k==="car"||k==="taxi"?.21:.28;
    const q=r.project(a.x+.5+dx*far,a.y+.5+dy*far,2.6);
+   r.effects.beam(q.x,q.y,dx,dy,z);
    r.effects.glow(q.x,q.y,7*z,4*z);
    for(const side of k==="bike"?[0]:[-1,1])r.ellipse(q.x+side*(dx+dy)*2.2*z,q.y+side*(dy-dx)*1.1*z,1.2*z,.85*z,"#fff5c4");
   }
