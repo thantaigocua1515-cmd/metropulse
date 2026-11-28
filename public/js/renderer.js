@@ -268,7 +268,7 @@ class IsoRenderer {
  }
  building(b,w,night,skin=this.activeSkin(w)){
   const d=CONFIG.buildings[b.id],z=this.camera.zoom,x=b.x,y=b.y,polys=[];
-  const deck=this.plate(x+.035,y+.035,x+.965,y+.965),color=d.color;
+  const color=d.color;
   const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
   let meta=SPRITES[b.id],art=false;
   const rot=meta&&b.left<=0?this.facing(b,w):null;
@@ -278,6 +278,7 @@ class IsoRenderer {
    if(themed){art=themed;meta=skinMeta}
    else art=this.sprite(b.id,frame,dark);
   }
+  const deck=art?null:this.plate(x+.035,y+.035,x+.965,y+.965);
   let height=0,sprite=null;
   if(art===false){
    this.poly(deck,"#c1c4a3","#637f637d",.7);this.poly(this.plate(x+.11,y+.11,x+.89,y+.89),"#9aa98f");
@@ -407,11 +408,23 @@ class IsoRenderer {
    }
   }
   if(b.left<=0){
-   const tier=CONFIG.tier(b.level),t=this.project(x+.5,y+.5,height+8);
-   for(let k=0;k<tier;k++){const cx=t.x+(k-(tier-1)/2)*9*z;this.poly([{x:cx,y:t.y-4*z},{x:cx+3.4*z,y:t.y},{x:cx,y:t.y+4*z},{x:cx-3.4*z,y:t.y}],"#ffd36e","#7a5a1c",.8*z)}
-   if(b.spec)this.ellipse(t.x,t.y-(tier?8:0)*z,2.6*z,2.6*z,b.spec==="a"?"#ffb38a":"#9ae4cb");
+   const tier=CONFIG.tier(b.level);
+   if(tier||b.spec){
+    const t=this.project(x+.5,y+.5,height+8);
+    if(tier)this.tierDiamonds(t,tier,z);
+    if(b.spec)this.ellipse(t.x,t.y-(tier?8:0)*z,2.6*z,2.6*z,b.spec==="a"?"#ffb38a":"#9ae4cb");
+   }
   }
   this.hits.push({building:b,polys:sprite?polys:[deck,...polys],sprite});return height;
+ }
+ tierDiamonds({x,y},tier,z){
+  const g=this.ctx,top=y-4*z,bottom=y+4*z,half=3.4*z;
+  g.beginPath();
+  for(let k=0;k<tier;k++){
+   const cx=x+(k-(tier-1)/2)*9*z;
+   g.moveTo(cx,top);g.lineTo(cx+half,y);g.lineTo(cx,bottom);g.lineTo(cx-half,y);g.closePath();
+  }
+  g.fillStyle="#ffd36e";g.fill();g.strokeStyle="#7a5a1c";g.lineWidth=.8*z;g.stroke();
  }
  drawSprite(art,meta,x,y,scale=1){
   const c=this.project(x+.5,y+.5),z=this.camera.zoom*scale;
@@ -616,16 +629,16 @@ class IsoRenderer {
    c.x+=(t.x-c.x)*blend;c.y+=(t.y-c.y)*blend;if(t.zoom)c.zoom+=(t.zoom-c.zoom)*blend;
    if(Math.hypot(c.x-t.x,c.y-t.y)<.4&&(!t.zoom||Math.abs(c.zoom-t.zoom)<.003)){c.x=t.x;c.y=t.y;if(t.zoom)c.zoom=t.zoom;this.target=null}
   }
-  const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom,skin=this.activeSkin(w),c=this.camera;
+  const w=this.sim.social.world,own=this.sim.world,g=this.ctx,z=this.camera.zoom,c=this.camera;
   this.lastView={x:c.x,y:c.y,zoom:z,hover:this.hover};
-  const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
   g.setTransform(this.dpr,0,0,this.dpr,0,0);
   if(this.xray&&w===own){
    this.hits.length=0;this.sim.underground.draw(this,w);return;
   }
+  const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1),skin=this.activeSkin(w);
   if(GameArt.image("background-map-water"))this.groundLayer(w,[night>.5?1:0,own.weather]);
   else{this.ambient(night,own.weather,w);this.groundLayer(w)}
-  this.hits=[];
+  this.hits.length=0;
   this.effects.begin();
   if(night>.18)for(const b of w.buildings)if(b.id==="road"&&(b.x+b.y*2)%3===0&&this.inView(this.project(b.x+.5,b.y+.5),30,14)){
    const dark=w.crises.some(c=>c.id==="blackout"&&distance(c,b)<=1);
@@ -633,16 +646,7 @@ class IsoRenderer {
   }
   EventMap.draw(this,w,this.sim.events);
   const {jobs,heights}=this;jobs.length=0;heights.clear();
-  for(let x=0;x<w.gridSize;x++)for(let y=0;y<w.gridSize;y++){
-   const b=lookup(w,x,y);
-   if(b&&b.id!=="road"){
-    if(this.inView(this.project(x+.5,y+.5),66,220,100))jobs.push({x,y,building:b});
-   }
-   else if(!b){
-    const hash=(x*31+y*43+x*y*13)%113;
-    if((unlocked(w,x,y)?hash%17===3:hash%7<2)&&this.inView(this.project(x+.5,y+.5),24,36))jobs.push({x,y,tree:hash});
-   }
-  }
+  jobs.push(...this.visibleSites(w));
   this.life.update(w,dt);
   for(const a of this.life.agents)if(this.inView(this.project(a.x+.5,a.y+.5),24,24))jobs.push({x:a.x+.05,y:a.y+.05,agent:a});
   for(const n of w.npcs){
@@ -652,9 +656,9 @@ class IsoRenderer {
   jobs.sort((a,b)=>a.x+a.y-b.x-b.y||a.x-b.x);
   for(const job of jobs){
    const {x,y}=job;
-   if(job.building){
-    const height=this.building(job.building,w,night,skin);
-    heights.set(coord(x,y),height);this.effects.chimney(job.building,height);
+   if(job.site){
+    const building=lookup(w,x,y),height=this.building(building,w,night,skin);
+    heights.set(coord(x,y),height);this.effects.chimney(building,height);
    }
    else if(job.agent)this.life.draw(job.agent,night);
    else if(job.npc)this.npc(job.npc,job.pose);
@@ -678,8 +682,8 @@ class IsoRenderer {
   this.life.overlay();
   for(const c of w.crises)this.crisis(c,heights.get(coord(c.x,c.y))||0);
   if(w===own){
-   this.sim.shadow?.draw(this,w);
-   this.sim.elections?.draw(this);
+   if(this.sim.progress.shadow?.market)this.sim.shadow?.draw(this,w);
+   if(this.sim.progress.elections?.protest)this.sim.elections?.draw(this);
    for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
   }
   for(const p of this.sim.particles)if((p.world||own)===w){
@@ -702,6 +706,21 @@ class IsoRenderer {
    this.effects.skin(skin,w,heights,night);
    this.effects.render(w,heights);
   }
+ }
+ visibleSites(w){
+  if(this.siteView?.world===w&&this.siteView.key===this.groundKey)return this.siteView.jobs;
+  const jobs=[];
+  for(let x=0;x<w.gridSize;x++)for(let y=0;y<w.gridSize;y++){
+   const b=lookup(w,x,y);
+   if(b&&b.id!=="road"){
+    if(this.inView(this.project(x+.5,y+.5),66,220,100))jobs.push({x,y,site:true});
+   }else if(!b){
+    const hash=(x*31+y*43+x*y*13)%113;
+    if((unlocked(w,x,y)?hash%17===3:hash%7<2)&&this.inView(this.project(x+.5,y+.5),24,36))jobs.push({x,y,tree:hash});
+   }
+  }
+  this.siteView={world:w,key:this.groundKey,jobs};
+  return jobs;
  }
  thumbnail(id){
   if(SPRITES[id])return this.spritePath(id,"thumb");

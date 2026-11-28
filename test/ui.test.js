@@ -331,4 +331,16 @@ test("touch jitter taps, but dragging, holding, pinch and cancellation do not", 
   assert.deepEqual(zooms, [[1.5, 35, 30]]);
   assert.deepEqual(picked, [[20, 30]]);
   assert.equal(ui.pointers.size, 0);
+  ui.renderer.xray = true;
+  send("pointerdown", 45, 55);
+  send("pointerup", 47, 55);
+  assert.deepEqual(picked, [[20, 30]]);
+  send("click", 47, 55);
+  send("click", 47, 55);
+  assert.deepEqual(picked, [[20, 30], [45, 55]]);
+  send("pointerdown", 45, 55);
+  send("pointermove", 60, 55);
+  send("pointerup", 60, 55);
+  send("click", 60, 55);
+  assert.deepEqual(picked, [[20, 30], [45, 55]]);
 });

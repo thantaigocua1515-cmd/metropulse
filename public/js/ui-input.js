@@ -4,12 +4,14 @@
 const UIInput = {
  wireCanvas(){
   const canvas=this.canvas,r=this.renderer;
+  let xrayTap=null;
   const pinchFrame=()=>{
    const [a,b]=this.pointers.values();
    return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,dist:Math.hypot(a.x-b.x,a.y-b.y)};
   };
   canvas.addEventListener("wheel",e=>{e.preventDefault();const p=r.local(e);r.zoom(Math.exp(-clamp(e.deltaY,-260,260)*.0016),p.x,p.y)},{passive:false});
   canvas.addEventListener("pointerdown",e=>{
+   xrayTap=null;
    if(e.button>2)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);
    const p=r.local(e);this.pointers.set(e.pointerId,p);
    if(e.pointerType==="touch"&&(this.tool==="build"||this.tool==="move"))r.hover=IsoMath.screenToGrid(p.x,p.y,r.camera);
@@ -57,9 +59,15 @@ const UIInput = {
    if(e.type!=="pointerup"||e.button!==0||!action||action.pinch||action.dragged)return;
    if(action.touch&&e.timeStamp-action.startedAt>=450)return;
    const p=r.local(e);
-   if(Math.hypot(p.x-action.start.x,p.y-action.start.y)<=action.threshold)this.pick(action.touch?action.start:p);
+   if(Math.hypot(p.x-action.start.x,p.y-action.start.y)>action.threshold)return;
+   if(action.touch&&r.xray)xrayTap=action.start;
+   else this.pick(action.touch?action.start:p);
   };
   canvas.addEventListener("pointerup",release);canvas.addEventListener("pointercancel",release);canvas.addEventListener("lostpointercapture",release);
   canvas.addEventListener("pointerleave",()=>r.hover=null);
+  canvas.addEventListener("click",()=>{
+   const tap=xrayTap;xrayTap=null;
+   if(tap&&r.xray)this.pick(tap);
+  });
  }
 };

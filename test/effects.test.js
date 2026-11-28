@@ -4,11 +4,26 @@ const path = require("node:path");
 const { test } = require("node:test");
 const vm = require("node:vm");
 
-const { CONFIG, CityEffects, CrisisAndNPCManager, SimulationEngine, StorageManager } = vm.runInNewContext(
-  ["config", "content", "core", "simulation", "crisis", "storage", "effects"].map(file =>
+const { CONFIG, CityEffects, CrisisAndNPCManager, SimulationEngine, StorageManager, IsoRenderer } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "crisis", "storage", "effects", "citylife", "renderer"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, CityEffects, CrisisAndNPCManager, SimulationEngine, StorageManager })"
+  "\n({ CONFIG, CityEffects, CrisisAndNPCManager, SimulationEngine, StorageManager, IsoRenderer })"
 );
+
+test("tier diamonds preserve their geometry while batching fill and stroke",()=>{
+ const r=Object.create(IsoRenderer.prototype),ops=[];
+ r.ctx=Object.fromEntries(["beginPath","moveTo","lineTo","closePath","fill","stroke"].map(name=>[name,(...args)=>ops.push([name,...args])]));
+ r.tierDiamonds({x:10,y:20},2,1);
+ assert.deepEqual(ops,[
+  ["beginPath"],
+  ["moveTo",5.5,16],["lineTo",8.9,20],["lineTo",5.5,24],["lineTo",2.1,20],["closePath"],
+  ["moveTo",14.5,16],["lineTo",17.9,20],["lineTo",14.5,24],["lineTo",11.1,20],["closePath"],
+  ["fill"],["stroke"]
+ ]);
+ assert.equal(r.ctx.fillStyle,"#ffd36e");
+ assert.equal(r.ctx.strokeStyle,"#7a5a1c");
+ assert.equal(r.ctx.lineWidth,.8);
+});
 
 function setup(data = StorageManager.fresh()) {
   const sounds = [];
