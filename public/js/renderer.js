@@ -677,7 +677,10 @@ class IsoRenderer {
   }
   this.life.overlay();
   for(const c of w.crises)this.crisis(c,heights.get(coord(c.x,c.y))||0);
-  if(w===own)for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
+  if(w===own){
+   this.sim.shadow?.draw(this,w);
+   for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
+  }
   for(const p of this.sim.particles)if((p.world||own)===w){
    const a=this.project(p.x+.5,p.y+.5,(heights.get(coord(p.x|0,p.y|0))||7)+15+p.life*24);
    if(!this.inView(a,90,20))continue;

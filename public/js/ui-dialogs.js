@@ -78,7 +78,26 @@ const UIDialogs = {
    return '<div class="row"><div class="grow"><b>'+p.name+'</b><small>'+p.desc+'</small><small>'+p.duration+' giây · hồi '+p.cooldown+' giây'+(p.cost?' · '+this.prestigeAmount(p.cost):' · miễn phí')+'</small></div>'+
     this.btn("policy",isOn?"Còn "+Math.ceil(w.activePolicy.left)+" giây":delay?"Hồi "+Math.ceil(delay)+" giây":"Ban hành",{id,cls:"primary",disabled:!!w.activePolicy||delay>0||this.sim.profile.prestige<p.cost})+'</div>';
   }).join("");
-  this.open("policies","TÒA THỊ CHÍNH","Sắc lệnh Thị trưởng",'<p class="muted">Chỉ một sắc lệnh có hiệu lực tại một thời điểm.</p>'+rows);
+  const shadow=this.sim.shadow&&this.sim.progress.tutorial.done&&!this.sim.social.current?
+   '<div class="row"><div class="grow"><b>Kinh tế ngầm</b><small>'+(this.sim.shadow.data().market?"Có chợ đen trong thành phố":"Mức thuế, an ninh và báo chí")+'</small></div>'+this.btn("shadow-open","Xem tình hình")+'</div>':"";
+  this.open("policies","TÒA THỊ CHÍNH","Sắc lệnh Thị trưởng",'<p class="muted">Chỉ một sắc lệnh có hiệu lực tại một thời điểm.</p>'+shadow+rows);
+ },
+ shadowDialog(){
+  const {shadow:sh,profile:p}=this.sim,d=sh.data(),m=d.market;
+  const market=m?'<div class="chapter"><div><div class="eyebrow">BĂNG NHÓM · Ô '+String.fromCharCode(65+m.x)+(m.y+1)+'</div><h3>Chợ đen</h3><small>'+
+   (m.tolerated?"Đang được dung túng":"Băng nhóm đang chờ quyết định của Thị trưởng")+'</small></div>'+this.btn("shadow-locate","Xem trên bản đồ")+'</div><div class="actions">'+
+   this.btn("shadow-crackdown","Trấn áp",{disabled:!sh.covered(m)})+(m.tolerated?
+   this.btn("shadow-collect","Thu tiền phế · "+fmt(sh.fee())+" Vàng",{cls:"primary",disabled:!m.ready}):
+   this.btn("shadow-tolerate","Dung túng chợ đen",{cls:"danger"}))+'</div>'+
+   (!sh.covered(m)?'<p class="muted">Để trấn áp, xây Đồn Công an hoạt động trong 3 ô quanh chợ.</p>':""):
+   '<p class="muted">'+(d.cooldown?"Khu dân cư đang được theo dõi sau khi dẹp chợ.":"Chưa có chợ đen. Thuế cao hoặc thiếu Công an có thể thu hút băng nhóm vào khu dân cư nghèo.")+'</p>';
+  const shop=Object.entries(SHADOW_BLUEPRINTS).map(([id,item])=>'<div class="row"><div class="grow"><b>'+item.name+'</b><small>'+item.desc+' · +'+item.corruption+' Tham nhũng</small></div>'+
+   this.btn("shadow-buy",d.blueprints[id]?"Đã mua":fmt(item.price)+" Vàng",{id,disabled:!m?.tolerated||!!d.blueprints[id]||p.coins<item.price})+'</div>').join("");
+  this.open("shadow","TÒA THỊ CHÍNH","Kinh tế ngầm",
+   '<div class="row"><div class="grow"><b>Thuế '+(d.tax?"cao":"chuẩn")+'</b><small>Thuế cao: +12% thu nhập nhưng tăng nguy cơ xuất hiện chợ đen.</small></div>'+
+   this.btn("shadow-tax",d.tax?"Hạ thuế":"Tăng thuế")+'</div><div class="row"><div class="grow"><b>Tham nhũng · '+d.corruption+'/100</b>'+
+   this.bar(d.corruption/100)+'<small>Nguy cơ phanh phui tại mức hiện tại: '+fmt(sh.risk()*100,1)+'% mỗi ngày dung túng. Đã bị phanh phui '+d.exposed+' lần.</small></div></div>'+
+   market+'<h4>Bản vẽ công nghệ cấm</h4>'+shop+this.btn("policies","Về Sắc lệnh"));
  },
  missions(){
   const s=this.sim,prog=s.prog,badges=prog.badges(),tab=this.tabs.missions;

@@ -38,6 +38,7 @@ function enableOffline(sprites){
  if(typeof data.reduceEffects!=="boolean")data.reduceEffects=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const sim=new SimulationEngine(data,audio);
  sim.underground=new Underground(sim);
+ sim.shadow=new ShadowEconomy(sim);
  sim.crisis=new CrisisAndNPCManager(sim);
  sim.social=new SocialManager(sim,data.friends);
  sim.storage=new StorageManager(sim,cloud.saveCode);

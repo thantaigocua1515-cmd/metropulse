@@ -7,42 +7,43 @@
 <meta name="description" content="MetroPulse — Nhịp Đập Đô Thị: game xây dựng thành phố isometric, xử lý sự cố theo thời gian thực.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23122120'/%3E%3Cpath d='M8 37h11l7-19 11 30 7-11h12' fill='none' stroke='%23d1fb8b' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>MetroPulse · Nhịp Đập Đô Thị</title>
-<meta name="mp-release" content="4.8.1">
-<link rel="preload" href="fonts/be-vietnam-pro-400-latin.woff2?v=4.8.1" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/be-vietnam-pro-400-vietnamese.woff2?v=4.8.1" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/style.css?v=4.8.1">
+<meta name="mp-release" content="4.8.2">
+<link rel="preload" href="fonts/be-vietnam-pro-400-latin.woff2?v=4.8.2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/be-vietnam-pro-400-vietnamese.woff2?v=4.8.2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css?v=4.8.2">
 <script>
 const bootHealth=location.protocol!=="file:"&&navigator.onLine?(()=>{
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  return fetch("api/health",{cache:"no-store",signal:controller.signal}).then(res=>res.ok,()=>false).finally(()=>clearTimeout(timer));
 })():null;
 </script>
-<script defer src="js/config.js?v=4.8.1"></script>
-<script defer src="js/sprites.js?v=4.8.1"></script>
-<script defer src="js/skin-sprites.js?v=4.8.1"></script>
-<script defer src="js/content.js?v=4.8.1"></script>
-<script defer src="js/audio.js?v=4.8.1"></script>
-<script defer src="js/core.js?v=4.8.1"></script>
-<script defer src="js/underground.js?v=4.8.1"></script>
-<script defer src="js/art-data.js?v=4.8.1"></script>
-<script defer src="js/art.js?v=4.8.1"></script>
-<script defer src="js/simulation.js?v=4.8.1"></script>
-<script defer src="js/crisis.js?v=4.8.1"></script>
-<script defer src="js/progression.js?v=4.8.1"></script>
-<script defer src="js/social.js?v=4.8.1"></script>
-<script defer src="js/citylife.js?v=4.8.1"></script>
-<script defer src="js/effects.js?v=4.8.1"></script>
-<script defer src="js/events.js?v=4.8.1"></script>
-<script defer src="js/renderer.js?v=4.8.1"></script>
-<script defer src="js/storage.js?v=4.8.1"></script>
-<script defer src="js/cloud.js?v=4.8.1"></script>
-<script defer src="js/auth.js?v=4.8.1"></script>
-<script defer src="js/ui-input.js?v=4.8.1"></script>
-<script defer src="js/ui.js?v=4.8.1"></script>
-<script defer src="js/ui-dialogs.js?v=4.8.1"></script>
-<script defer src="js/ui-community.js?v=4.8.1"></script>
-<script defer src="js/tutorial.js?v=4.8.1"></script>
-<script defer src="js/main.js?v=4.8.1"></script>
+<script defer src="js/config.js?v=4.8.2"></script>
+<script defer src="js/sprites.js?v=4.8.2"></script>
+<script defer src="js/skin-sprites.js?v=4.8.2"></script>
+<script defer src="js/content.js?v=4.8.2"></script>
+<script defer src="js/audio.js?v=4.8.2"></script>
+<script defer src="js/core.js?v=4.8.2"></script>
+<script defer src="js/underground.js?v=4.8.2"></script>
+<script defer src="js/shadow.js?v=4.8.2"></script>
+<script defer src="js/art-data.js?v=4.8.2"></script>
+<script defer src="js/art.js?v=4.8.2"></script>
+<script defer src="js/simulation.js?v=4.8.2"></script>
+<script defer src="js/crisis.js?v=4.8.2"></script>
+<script defer src="js/progression.js?v=4.8.2"></script>
+<script defer src="js/social.js?v=4.8.2"></script>
+<script defer src="js/citylife.js?v=4.8.2"></script>
+<script defer src="js/effects.js?v=4.8.2"></script>
+<script defer src="js/events.js?v=4.8.2"></script>
+<script defer src="js/renderer.js?v=4.8.2"></script>
+<script defer src="js/storage.js?v=4.8.2"></script>
+<script defer src="js/cloud.js?v=4.8.2"></script>
+<script defer src="js/auth.js?v=4.8.2"></script>
+<script defer src="js/ui-input.js?v=4.8.2"></script>
+<script defer src="js/ui.js?v=4.8.2"></script>
+<script defer src="js/ui-dialogs.js?v=4.8.2"></script>
+<script defer src="js/ui-community.js?v=4.8.2"></script>
+<script defer src="js/tutorial.js?v=4.8.2"></script>
+<script defer src="js/main.js?v=4.8.2"></script>
 </head>
 <body>
 <canvas id="map" aria-label="Bản đồ đẳng phối thành phố"></canvas>
@@ -68,7 +69,7 @@ const bootHealth=location.protocol!=="file:"&&navigator.onLine?(()=>{
  </nav>
  <div id="visit" class="visit interactive" hidden></div>
  <section id="side" class="side game-frame interactive" aria-label="Danh mục xây dựng" hidden>
-  <div class="side-header"><h2>Kho bản vẽ</h2><div id="filters" class="filter"></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="close"><use href="img/hud.svg?v=4.8.1#close"/></svg></button></div>
+  <div class="side-header"><h2>Kho bản vẽ</h2><div id="filters" class="filter"></div><button class="frame-close" data-act="close-build" aria-label="Đóng bản vẽ"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="close"><use href="img/hud.svg?v=4.8.2#close"/></svg></button></div>
   <div id="catalog" class="catalog"></div>
  </section>
  <aside class="alerts" aria-label="Tình hình thành phố"><div id="right" class="right"></div><div id="quest-track"></div></aside>
@@ -78,7 +79,7 @@ const bootHealth=location.protocol!=="file:"&&navigator.onLine?(()=>{
  <div class="camera">
  <aside id="incidents" class="incidents" aria-label="Sự cố đang diễn ra"></aside>
  <nav class="camera-controls" aria-label="Điều khiển bản đồ">
-  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="minus"><use href="img/hud.svg?v=4.8.1#minus"/></svg></button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="plus"><use href="img/hud.svg?v=4.8.1#plus"/></svg></button></div>
+  <div class="lens"><button class="game-btn round" data-act="zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="minus"><use href="img/hud.svg?v=4.8.2#minus"/></svg></button><output id="zoom">100%</output><button class="game-btn round" data-act="zoom-in" aria-label="Phóng to" title="Phóng to"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="plus"><use href="img/hud.svg?v=4.8.2#plus"/></svg></button></div>
   <div class="camera-main"><button class="game-btn round" data-act="xray" id="xray-toggle" aria-label="Lớp ngầm" title="Lớp ngầm" aria-pressed="false" hidden>↧</button><button class="game-btn round" data-act="look" id="look" aria-label="Chế độ quan sát" title="Chế độ quan sát"></button><button class="game-btn round" data-act="center" id="center" aria-label="Về giữa bản đồ" title="Về giữa bản đồ"></button></div>
  </nav>
  </div>
@@ -89,10 +90,10 @@ const bootHealth=location.protocol!=="file:"&&navigator.onLine?(()=>{
 </div>
 <aside id="xray-legend" class="xray-legend" hidden aria-label="Chú giải lớp ngầm"></aside>
 <div id="scene" class="scene" hidden><div id="scene-body" class="scene-body"></div></div>
-<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="close"><use href="img/hud.svg?v=4.8.1#close"/></svg></button></div><div id="dialog-body" class="dialog-body"></div></dialog>
+<dialog id="dialog" class="game-frame" aria-labelledby="dialog-title"><div class="dialog-head frame-header"><div><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2></div><button class="frame-close" data-act="close-dialog" aria-label="Đóng hộp thoại"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="close"><use href="img/hud.svg?v=4.8.2#close"/></svg></button></div><div id="dialog-body" class="dialog-body"></div></dialog>
 <div id="auth" class="auth" data-art-bg="background-login" hidden>
  <form id="auth-form" class="auth-card game-frame" novalidate>
-  <div class="auth-brand frame-header"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="pulse"><use href="img/hud.svg?v=4.8.1#pulse"/></svg><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
+  <div class="auth-brand frame-header"><svg aria-hidden="true" viewBox="0 0 64 64" data-hud-art="pulse"><use href="img/hud.svg?v=4.8.2#pulse"/></svg><div><b>MetroPulse</b><small>Nhịp Đập Đô Thị</small></div></div>
   <div class="auth-fields">
   <img class="portrait auth-face" alt="" width="76" height="76">
   <p class="auth-lead">Đăng nhập để chơi tiếp thành phố của bạn trên mọi thiết bị.</p>

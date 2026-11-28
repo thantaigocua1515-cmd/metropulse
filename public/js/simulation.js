@@ -177,12 +177,14 @@ class SimulationEngine {
    m.commerce+=d.group==="com"?1:0;m.levels+=b.level;m.banks+=b.id==="bank"?1:0;
    earnings+=this.production(b,w,synergies.mult);wonder||=b.id==="metro_wonder";
   }
-  m.ps=Math.round(m.ps);m.ws=Math.round(m.ws);m.pop=Math.round(pop);m.waste=Math.round(m.waste);
+  const shadow=mine?this.progress.shadow:null;
+  m.ps=Math.round(m.ps*(shadow?.blueprints?.grid?1.10:1));m.ws=Math.round(m.ws);m.pop=Math.round(pop);m.waste=Math.round(m.waste);
   const mood=m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0)-(m.ps<m.pd?6:0)-(m.ws<m.wd?6:0)+3*T("community")+(mine?this.buff("happy",w):0);
   m.happiness=clamp(mood*(policy==="green"?1.2:1),20,150);
   const globalPenalty=Math.max(.1,w.crises.reduce((f,c)=>f*(c.id==="flu_outbreak"?.75:1),1));
   const wonderBonus=mine?.06*(this.progress.wonder?.stage||0):0;
   m.income=(CONFIG.baseIncome+earnings)*m.happiness/100*globalPenalty*(policy==="festival"?1.5:1)*(wonder?1.2+wonderBonus:1)*(1+.08*T("tax"))*(mine?this.buff("income",w):1);
+  if(shadow)m.income*=(shadow.tax?1.12:1)*(shadow.blueprints?.trade?1.08:1);
   m.know=mine?CONFIG.baseKnowledge+m.know:0;
   m.score=Math.round(m.pop*2+m.income*4+m.levels*10);
   return m;
@@ -454,6 +456,7 @@ class SimulationEngine {
   this.stats.peakIncome=Math.max(this.stats.peakIncome,m.income);this.stats.peakPop=Math.max(this.stats.peakPop,m.pop);
   if(!this.stats.news500&&m.income>=500){this.stats.news500=true;this.say(p.mayorName+" vừa vượt mốc 500 Vàng/giây!")}
   const guided=this.progress.tutorial.done;
+  if(guided)this.shadow?.tick(dt,m);
   if(guided&&p.level===CONFIG.utilityXP.level&&m.ps>=m.pd&&m.ws>=m.wd){
    this.utilityXP+=dt*CONFIG.utilityXP.perSecond;
    const earned=Math.floor(this.utilityXP);

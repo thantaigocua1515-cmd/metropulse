@@ -9,10 +9,10 @@ class TestClock extends Date {
   static now() { return now; }
 }
 const {inspectSave,publicCity}=require("../server/game");
-const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground } = vm.runInNewContext(
-  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis", "underground"].map(file =>
+const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis", "underground", "shadow"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground })",
+  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy })",
   { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
 
@@ -133,6 +133,39 @@ test("underground surveys persist, prevent subsidence, and excavation unlocks a 
  assert.equal(restored.known(prepared.x,prepared.y),true);
  assert.equal(restored.tile(relic.x,relic.y),"relic");
  assert.equal(restored.lines(loaded.world).power.has(2),true);
+});
+
+test("poor districts can spawn a market, collect one payment per day, buy blueprints or face a press exposé",()=>{
+ const homes=[makeBuilding("house_small",7,7),makeBuilding("house_small",8,7)];
+ const s=setup([...homes,makeBuilding("police_station",7,6),makeBuilding("power_plant",6,7)],16);
+ const sh=s.shadow=new ShadowEconomy(s),d=sh.data(),poor={happiness:85};
+ s.profile.coins=100000;s.profile.prestige=30;
+ sh.tick(180,poor);
+ assert.equal(d.market,null);
+ sh.setTax(true);sh.tick(180,poor);
+ assert.equal(d.market.x,7);
+ assert.match(sh.crackdown(),/giải tán/);
+ sh.tick(180,poor);sh.tick(180,poor);
+ sh.setTax(false);s.world=makeWorld(homes,16);
+ sh.tick(180,poor);
+ assert.equal(d.market.x,7);
+ assert.match(sh.crackdown(),/Cần Đồn Công an/);
+ sh.tolerate();
+ assert.match(sh.collect(),/Tiền phế/);
+ assert.equal(sh.collect(),"");
+ assert.match(sh.buy("grid"),/Hắc Kim/);
+ assert.equal(sh.buy("grid"),"");
+ sh.tick(180,poor,()=>1);
+ assert.equal(d.market.ready,true);
+ assert.equal(d.corruption>12,true);
+ sh.tick(180,poor,()=>0);
+ assert.equal(d.exposed,1);
+ assert.equal(d.market,null);
+ assert.equal(s.profile.prestige,15);
+ assert.equal(s.world.happyDelta,-24);
+ const save=s.storage.serialize();
+ assert.equal(inspectSave(save).error,undefined);
+ assert.equal(StorageManager.normalize(save).progress.shadow.blueprints.grid,true);
 });
 
 test("flash windows use Vietnam time and leave the seasonal track independent", () => {

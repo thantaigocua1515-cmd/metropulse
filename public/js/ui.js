@@ -322,6 +322,17 @@ class UIController {
    case "train-specialist":if(tile()){this.toast(s.crisis.train(tile(),arg));this.specialists(tile())}break;
    case "team-up":case "team-hire":if(tile()){const error=s.crisis.teamAction(tile(),act==="team-hire"?"hire":"upgrade");this.teams();if(error){this.close();this.toast(error)}}break;
    case "policies":this.policies();break;
+   case "shadow-open":if(s.progress.tutorial.done&&!s.social.current)this.shadowDialog();break;
+   case "shadow-tax":case "shadow-tolerate":case "shadow-crackdown":case "shadow-collect":case "shadow-buy":{
+    if(this.dialogType!=="shadow"||s.social.current)return;
+    const sh=s.shadow;
+    say(act==="shadow-tax"?sh.setTax(!sh.data().tax):act==="shadow-tolerate"?sh.tolerate():act==="shadow-crackdown"?sh.crackdown():act==="shadow-collect"?sh.collect():sh.buy(id));
+    this.shadowDialog();break;
+   }
+   case "shadow-locate":{
+    const site=s.shadow.data().market;if(!site||s.social.current)return;
+    this.close();this.setTool("look");r.focus(site.x,site.y);break;
+   }
    case "policy":{const error=s.activate(id);if(error){this.close();this.toast(error)}else this.policies();break}
    case "missions":if(id)this.tabs.missions=id;this.missions();break;
    case "event-open":this.eventDialog();break;

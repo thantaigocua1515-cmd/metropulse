@@ -93,7 +93,7 @@ const CONFIG = (() => {
  const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
  const baseSize=16,landPlans=[{mayor:17,coins:250000,materials:{steel:8,glass:5}},{mayor:23,coins:2000000,materials:{steel:20,glass:14,chip:6}}];
  const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
- return {assetVersion:"4.8.1",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+ return {assetVersion:"4.8.2",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
   tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
   saveProgress:data=>{
    const p=data?.profile,s=data?.progress?.stats,b=data?.world?.buildings||[];
