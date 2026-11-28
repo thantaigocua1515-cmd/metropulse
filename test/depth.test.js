@@ -9,10 +9,10 @@ class TestClock extends Date {
   static now() { return now; }
 }
 const {inspectSave,publicCity}=require("../server/game");
-const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager } = vm.runInNewContext(
-  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis"].map(file =>
+const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis", "underground"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager })",
+  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground })",
   { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
 
@@ -101,6 +101,39 @@ function setup(buildings, level=16) {
   sim.storage.save = () => true;
   return sim;
 }
+
+test("underground surveys persist, prevent subsidence, and excavation unlocks a canonical museum variant",()=>{
+ const s=setup([makeBuilding("museum",0,0),makeBuilding("road",1,0)],16);
+ s.profile.mayorId="MP-7481";
+ const u=s.underground=new Underground(s);
+ s.crisis=new CrisisAndNPCManager(s);s.profile.coins=1e6;
+ const tiles=Array.from({length:224},(_,i)=>({x:i%16,y:2+Math.floor(i/16)}));
+ const risk=tiles.filter(({x,y})=>x>=1&&x<=12&&["gas","aquifer"].includes(u.tile(x,y)));
+ const prepared=risk[0],unprepared=risk.find(tile=>Math.abs(tile.x-prepared.x)+Math.abs(tile.y-prepared.y)>3);
+ const relic=tiles.find(({x,y})=>u.tile(x,y)==="relic"&&!(x===unprepared.x+1&&y===unprepared.y));
+ assert.match(u.survey(prepared.x,prepared.y),/Đã khảo sát/);
+ assert.match(u.survey(prepared.x,prepared.y),/không cần/);
+ assert.equal(s.build("office_tower",prepared.x,prepared.y),"");
+ assert.equal(s.world.crises.length,0);
+ const neighbor=makeBuilding("house_small",unprepared.x+1,unprepared.y);
+ s.world.buildings.push(neighbor);
+ assert.equal(s.build("office_tower",unprepared.x,unprepared.y),"");
+ assert.equal(s.world.crises[0].id,"collapse");
+ assert.equal(s.world.crises[0].x,neighbor.x);
+ assert.equal(s.build("office_tower",relic.x,relic.y),"");
+ assert.match(u.dedicate(s.world.buildings[0]),/đã mở cửa/);
+ assert.equal(CONFIG.buildingName(s.world.buildings[0]),"Bảo tàng Di sản");
+ assert.match(u.lay("water",1,0),/Đã có/);
+ assert.match(u.lay("power",2,0),/Đã đặt/);
+ const save=s.storage.serialize(),loaded=StorageManager.normalize(save);
+ assert.equal(inspectSave(save).error,undefined);
+ assert.equal(loaded.world.buildings[0].id,"museum");
+ assert.equal(loaded.world.buildings[0].relicMuseum,true);
+ const restored=new Underground(loaded);
+ assert.equal(restored.known(prepared.x,prepared.y),true);
+ assert.equal(restored.tile(relic.x,relic.y),"relic");
+ assert.equal(restored.lines(loaded.world).power.has(2),true);
+});
 
 test("flash windows use Vietnam time and leave the seasonal track independent", () => {
   const original=now;

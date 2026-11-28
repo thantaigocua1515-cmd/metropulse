@@ -620,6 +620,9 @@ class IsoRenderer {
   this.lastView={x:c.x,y:c.y,zoom:z,hover:this.hover};
   const night=clamp((Math.cos(own.timeOfDay*Math.PI*2)-.02)*1.37,0,1);
   g.setTransform(this.dpr,0,0,this.dpr,0,0);
+  if(this.xray&&w===own){
+   this.hits.length=0;this.sim.underground.draw(this,w);return;
+  }
   if(GameArt.image("background-map-water"))this.groundLayer(w,[night>.5?1:0,own.weather]);
   else{this.ambient(night,own.weather,w);this.groundLayer(w)}
   this.hits=[];

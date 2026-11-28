@@ -302,6 +302,7 @@ class SimulationEngine {
   const error=this.placement(id,x,y);if(error)return error;
   const d=CONFIG.buildings[id],b=makeBuilding(id,x,y,1,d.duration);this.profile.coins-=d.price;
   this.world.buildings.push(b);this.world.index.set(coord(x,y),b);this.audio.play("build");
+  this.underground?.excavate(b);
   if(b.left>0)this.effect("dust",{x,y},.56);
   if(b.left===0)this.finish(b);
   this.storage.save();return "";
@@ -330,6 +331,7 @@ class SimulationEngine {
   const block=this.upgradeBlock(b);if(block)return block;
   const price=this.upgradeCost(b);if(this.profile.coins<price)return "Không đủ Vàng.";
   this.profile.coins-=price;
+  this.underground?.excavate(b,b.level+1);
   const seconds=CONFIG.upgradeSeconds(b.level);
   if(seconds){
    for(const [key,cost] of Object.entries(CONFIG.upgradeMaterials(b.level)))if(cost)this.profile.materials[key]-=cost;

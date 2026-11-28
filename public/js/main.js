@@ -37,6 +37,7 @@ function enableOffline(sprites){
  audio.setMusic(data.musicEnabled,data.musicVolume);
  if(typeof data.reduceEffects!=="boolean")data.reduceEffects=matchMedia("(prefers-reduced-motion: reduce)").matches;
  const sim=new SimulationEngine(data,audio);
+ sim.underground=new Underground(sim);
  sim.crisis=new CrisisAndNPCManager(sim);
  sim.social=new SocialManager(sim,data.friends);
  sim.storage=new StorageManager(sim,cloud.saveCode);

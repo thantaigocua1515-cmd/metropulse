@@ -137,12 +137,15 @@ class UIController {
   this.toastTimer=setTimeout(()=>this.nodes.toast.hidden=true,3600);
  }
  setTool(name,id=null){
+  if(this.renderer?.xray)this.renderer.xray=false;
   this.tool=name;this.selection=id;this.moving=null;this.inspect=null;
   this.buildGuide=null;this.upgradeGuide=null;
   this.canvas.classList.toggle("build",["build","move","demo"].includes(name));
  }
  pick(point){
-  const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera),hit=this.renderer.hit(point,this.tool==="look",this.tool!=="build");
+  const s=this.sim,w=s.social.world,{x,y}=IsoMath.screenToGrid(point.x,point.y,this.renderer.camera);
+  if(this.renderer.xray){if(unlocked(w,x,y))this.xrayTile(x,y);return}
+  const hit=this.renderer.hit(point,this.tool==="look",this.tool!=="build");
   if(hit?.crisis){this.dispatch(hit.crisis.uid);return}
   if(hit?.bubble&&this.tool==="look"){this.toast(s.collect(hit.bubble.uid));this.refresh();return}
   if(hit?.citizen&&this.tool==="look"){this.renderer.life.poke(hit.citizen);s.audio.play("click");return}
@@ -243,8 +246,19 @@ class UIController {
   const say=text=>{if(text)this.toast(text)};
   switch(act){
    case "rail-toggle":this.setCommands(!this.commandsOpen);return;
+   case "xray":{
+    if(s.social.current||!s.progress.tutorial.done)return;
+    const next=!r.xray;this.setTool("look");this.catalogOpen=false;r.xray=next;break;
+   }
+   case "xray-survey":case "xray-line":case "xray-museum":{
+    if(!r.xray||s.social.current)return;
+    const {x,y}=tileCoords(Number(id));
+    if(!unlocked(s.world,x,y))return;
+    say(act==="xray-survey"?s.underground.survey(x,y):act==="xray-line"?s.underground.lay(arg,x,y):s.underground.dedicate(tile()));
+    this.xrayTile(x,y);break;
+   }
    case "look":this.setTool("look");this.catalogOpen=false;break;
-   case "build":if(s.social.current)return;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
+   case "build":if(s.social.current)return;r.xray=false;this.catalogOpen=!this.catalogOpen;if(!this.catalogOpen)this.setTool("look");break;
    case "close-build":this.catalogOpen=false;this.setTool("look");break;
    case "filter":this.category=id;this.buildGuide=null;this.nodes.catalog.scrollLeft=0;break;
    case "select":this.select(id);break;
@@ -360,9 +374,24 @@ class UIController {
   this.refresh();
  }
  reopen(){({missions:()=>this.missions(),social:()=>this.socials(),profile:()=>this.profileDialog()})[this.dialogType]?.()}
+ xrayTile(x,y){
+  const {underground:u,world:w,profile:p}=this.sim,key=coord(x,y),site=lookup(w,x,y),known=u.known(x,y),lines=u.lines(w);
+  const place=Object.entries(lines).map(([kind,cells])=>{
+   const [name,,cost,level]=BURIED[kind],exists=cells.has(key);
+   return this.btn("xray-line",name+" · "+(exists?"Đã có":fmt(cost)+" Vàng"),{id:key,arg:kind,disabled:exists||p.coins<cost||p.level<level});
+  }).join("");
+  const museum=u.data().relic&&site?.id==="museum"?this.btn("xray-museum","Mở Bảo tàng Di sản",{id:key,disabled:site.left>0||w.buildings.some(b=>b.relicMuseum===true)}):"";
+  this.open("xray","ĐỊA CHẤT · X-RAY","Ô "+String.fromCharCode(65+x)+(y+1),
+   '<p>'+(site?CONFIG.buildingName(site)+" · ":"")+(known?BURIED[u.tile(x,y)][0]:"Địa chất chưa rõ")+'</p><p class="muted">Khảo sát trước khi làm móng sâu để đề phòng sụt lún. Đặt các đoạn liền nhau để vẽ tuyến.</p><div class="actions">'+
+   this.btn("xray-survey","Khảo sát · 250 Vàng",{id:key,disabled:known||p.coins<250})+museum+place+'</div>');
+ }
  refresh(initial=false){
   if(!this.inspect&&this.tool!=="build")this.renderer.closeDown();
   const s=this.sim,p=s.profile,w=s.social.world,friend=s.social.current,m=s.metrics,own=!friend,badges=s.prog.badges(),rank=CONFIG.cityRank(m.score,p.level);
+  const xray=document.getElementById("xray-toggle"),legend=document.getElementById("xray-legend"),show=own&&this.renderer.xray;
+  xray.hidden=!own||!s.progress.tutorial.done;xray.setAttribute("aria-pressed",String(!!show));xray.classList.toggle("active",show);
+  if(show&&legend.hidden)legend.innerHTML='<strong>LỚP NGẦM · X-RAY</strong><small>Chọn một ô để khảo sát hoặc đặt tuyến.</small><div>'+Object.entries(BURIED).filter(([kind])=>kind!=="soil").map(([, [name,color]])=>'<span style="--marker:'+color+'">'+name+'</span>').join("")+'</div>';
+  legend.hidden=!show;
   const xpNext=CONFIG.xpNext(p.level);
   const levelLabel=p.level<10000?String(p.level):p.level.toExponential(0);
   this.html("profile",this.icon("star")+'<strong'+(levelLabel.length>=3?' class="level-compact"':"")+'>'+levelLabel+'</strong>'+this.bar(p.xp/xpNext));
