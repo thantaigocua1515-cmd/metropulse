@@ -93,8 +93,20 @@ const CONFIG = (() => {
  const materials={steel:"Thép",glass:"Kính",chip:"Chip"};
  const baseSize=16,landPlans=[{mayor:17,coins:250000,materials:{steel:8,glass:5}},{mayor:23,coins:2000000,materials:{steel:20,glass:14,chip:6}}];
  const tier=level=>level>=21?5:level>=16?4:level>=11?3:level>=7?2:level>=4?1:0;
- return {assetVersion:"4.7.3",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
+ return {assetVersion:"4.7.4",avatars,buildings,crises,npcs,vehicles,ranks,policies,specs,specGroup,cityRanks,heritageRanks,size:20,baseSize,tileW:64,tileH:32,starterCoins:500,baseIncome:4,baseKnowledge:.03,maxLevel:25,specLevel:5,
   tierNamesRoman,tierMin,tierMayors,materials,materialMax:1e9,legacyMaxLevel:10,
+  saveProgress:data=>{
+   const p=data?.profile,s=data?.progress?.stats,b=data?.world?.buildings||[];
+   const count=b.filter(item=>item.id!=="road").length;
+   return {level:p?.level||1,xp:p?.xp||0,buildings:count,
+    built:s?.buildingsBuilt||0,upgrades:s?.upgrades||0,land:data?.world?.land||0,
+    stage:data?.progress?.wonder?.stage||0,max:Math.max(s?.maxBuildingLevel||1,...b.map(item=>item.level||1)),
+    research:Object.values(data?.progress?.research||{}).reduce((sum,level)=>sum+(Number(level)||0),0)};
+  },
+  saveAdvanced:state=>state.level>1||state.xp>0||state.buildings>3||state.built>0||state.upgrades>0||state.max>1||state.land>0||state.stage>0||state.research>0,
+  saveRegresses:(before,after)=>before.level>after.level||before.level===after.level&&before.xp>after.xp||
+   before.built>after.built||before.upgrades>after.upgrades||before.max>after.max||before.land>after.land||before.stage>after.stage||before.research>after.research||
+   CONFIG.saveAdvanced(before)&&!CONFIG.saveAdvanced(after),
   supplyLevel:16,supplySources:{steel:["construction_hq",3,24],glass:["waste_plant",2,18],chip:["tech_tower",1,12]},
   landPlans,landSize:land=>baseSize+2*land,validLand:(land,level)=>Number.isInteger(land)&&land>=0&&land<=landPlans.length&&(!land||level>=landPlans[land-1].mayor),
   specialist:{mayor:16,missions:[5,15,30],skills:{routing:"Điều phối",fieldwork:"Tác nghiệp"}},

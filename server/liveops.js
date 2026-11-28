@@ -2,6 +2,7 @@
 const {ObjectId}=require("mongodb");
 const {dayOf}=require("./analytics");
 const {CONFIG,inspectSave}=require("./game");
+const history=require("./save-history");
 
 const PACKS=["tet","noel","cyberpunk","sakura","desert","jungle","ocean","steampunk"],DEFAULT="default",LOGIN_DAYS=7;
 const LIMITS={coins:1e15,prestige:1e9,knowledge:1e12};
@@ -85,19 +86,21 @@ async function claim(db,player,tokenHash,rawId){
   const {rewards}=row,resources=Object.keys(LIMITS).filter(k=>rewards[k]>0);
   const needsSave=resources.length||rewards.materials;
   const save=needsSave?await saves.findOne({_id:current._id},{session}):null;
-  if(needsSave&&!save)throw fail(409,"Cần lưu thành phố lên đám mây trước khi nhận tài nguyên.");
+  if(needsSave&&!save?.data)throw fail(409,"Cần lưu thành phố lên đám mây trước khi nhận tài nguyên.");
   let revision=null;
   if(save){
-   for(const key of resources)save.data.profile[key]=(save.data.profile[key]??0)+rewards[key];
+   const data=structuredClone(save.data);
+   for(const key of resources)data.profile[key]=(data.profile[key]??0)+rewards[key];
    if(rewards.materials){
-    const stock=save.data.profile.materials??={};
+    const stock=data.profile.materials??={};
     for(const [key,value] of Object.entries(rewards.materials))stock[key]=(stock[key]??0)+value;
    }
-   const check=inspectSave(save.data);
+   const check=inspectSave(data);
    if(check.error)throw fail(409,"Tài nguyên vượt giới hạn của bản lưu. Hãy sử dụng bớt rồi nhận lại.");
-   revision=save.rev+1;save.data.lastSavedAt=+now;
-   await saves.updateOne({_id:current._id,rev:save.rev},{$set:{data:save.data,rev:revision,adminRev:revision,updatedAt:now}},{session});
+   revision=save.rev+1;data.lastSavedAt=+now;
    await players.updateOne(filter,{$set:{summary:check.summary,coins:check.coins,updatedAt:now}},{session});
+   await history.archive(db,save,"mail",now,session);
+   await saves.updateOne({_id:current._id,rev:save.rev},{$set:{data,rev:revision,adminRev:revision,updatedAt:now}},{session});
   }
   if(rewards.skin){
    await players.updateOne(filter,{$addToSet:{skinPacks:rewards.skin}},{session});

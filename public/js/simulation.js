@@ -446,8 +446,10 @@ class SimulationEngine {
   let request=null,last=0,step=0,renderTime=0,nextRender=0,hud=1,save=0,mission=1;
   const frame=now=>{
    const dt=last?clamp((now-last)/1000,0,.25):0;last=now;
-   step+=dt;renderTime+=dt;
-   while(step>=.05){this.tick(.05);step-=.05}
+   renderTime+=dt;
+   if(!this.cloud?.conflict){
+    step+=dt;while(step>=.05){this.tick(.05);step-=.05}
+   }
    const interval=1000/renderer.frameRate();
    if(now+1>=nextRender||nextRender-now>interval){
     renderer.render(renderTime);renderTime=0;

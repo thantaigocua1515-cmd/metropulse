@@ -4,7 +4,12 @@
 class CloudClient {
  constructor(){
   this.enabled=location.protocol!=="file:";this.tokenKey="metropulse_token";this.token=null;
-  try{this.token=localStorage.getItem(this.tokenKey)}catch(_){}
+  this.saveCode=null;
+  try{
+   const value=localStorage.getItem(this.tokenKey);
+   if(value?.startsWith("{"))({token:this.token,code:this.saveCode}=JSON.parse(value));
+   else this.token=value;
+  }catch(_){}
   this.online=false;this.account=null;this.rev=0;this.dirty=false;this.busy=false;this.status="offline";this.lastSync=0;this.sim=null;
  }
  async api(path,{method="GET",body,timeout=9000,keepalive=false}={}){
@@ -20,8 +25,11 @@ class CloudClient {
    throw error;
   }finally{clearTimeout(timer)}
  }
- setToken(token){this.token=token;try{if(token)localStorage.setItem(this.tokenKey,token);else localStorage.removeItem(this.tokenKey)}catch(_){}}
- adopt(r){this.setToken(r.token);this.account=r.account;this.confirmOwnership(r)}
+ setToken(token,code=null){
+  this.token=token;this.saveCode=token?code:null;
+  try{if(token)localStorage.setItem(this.tokenKey,JSON.stringify({token,code}));else localStorage.removeItem(this.tokenKey)}catch(_){}
+ }
+ adopt(r){this.account=r.account;this.setToken(r.token,r.account.code);this.confirmOwnership(r)}
  confirmOwnership(r){
   if(!Array.isArray(r.skinPacks)||!this.account)return;
   this.ownership={skinPacks:r.skinPacks,loginDays:r.loginDays||0};
@@ -38,13 +46,17 @@ class CloudClient {
    if(health){if(!await health)return null}
    else await this.api("/health",{timeout:8000});
    this.online=true;
-   if(this.token)try{const r=await this.api("/me");this.account=r.account;this.confirmOwnership(r)}catch(error){if(error.status!==401)throw error;this.setToken(null)}
+   if(this.token)try{const r=await this.api("/me");this.account=r.account;this.setToken(this.token,r.account.code);this.confirmOwnership(r)}catch(error){if(error.status!==401)throw error;this.setToken(null)}
    return this.account?await this.pull():null;
   }catch(_){this.online=false;this.status="offline";return null}
  }
  // Trả về bản lưu trên máy chủ (nếu có) để so sánh với bản lưu trong trình duyệt.
  async pull(){
-  try{const r=await this.api("/save");this.rev=r.rev||0;this.status="synced";return r.data?r:null}
+  try{
+   const r=await this.api("/save");
+   if(r.data&&!StorageManager.normalize(r.data))throw Error("Không đọc được bản lưu máy chủ.");
+   this.rev=r.rev||0;this.remote=r;this.status="synced";return r;
+  }
   catch(_){this.online=false;this.status="offline";return null}
  }
  attach(sim){
@@ -53,7 +65,8 @@ class CloudClient {
    this.ownership=JSON.parse(localStorage.getItem("mp-ownership:"+sim.profile.mayorId));
   }catch(_){}
   if(!this.ownsSkin(sim.profile.skin))sim.profile.skin="default";
-  if(this.online&&this.account){sim.profile.mayorId=this.account.code;this.dirty=true}
+  if(this.saveCode)sim.profile.mayorId=this.saveCode;
+  if(this.online&&this.account)this.dirty=true;
   setInterval(()=>{if(!document.hidden)this.flush()},15000);
   if(this.enabled){
    const refresh=()=>{if(!document.hidden)this.refreshEventConfig()};
@@ -89,50 +102,129 @@ class CloudClient {
   this.lastPulse=now;
   try{await this.api("/presence",{method:"POST",body:{device:this.deviceId,session:this.playId},timeout:5000})}catch(_){}
  }
- knownAdminRevision(){
-  try{return Number(localStorage.getItem("mp-admin-rev:"+this.account?.code))||0}catch(_){return 0}
+ metaKey(suffix){return StorageManager.key(this.saveCode)+":"+suffix}
+ readMeta(suffix){try{return JSON.parse(localStorage.getItem(this.metaKey(suffix)))}catch(_){return null}}
+ writeMeta(suffix,value){
+  try{if(value==null)localStorage.removeItem(this.metaKey(suffix));else localStorage.setItem(this.metaKey(suffix),JSON.stringify(value))}catch(_){}
  }
- rememberAdminRevision(rev){
-  if(this.account&&rev)try{localStorage.setItem("mp-admin-rev:"+this.account.code,String(rev))}catch(_){}
+ selectBoot(local,remote){
+  this.baseRev=local._cloudBase;
+  const saved=this.readMeta("conflict");
+  if(!remote){if(saved?.local)this.hold(saved.local,saved.remote,false);return local}
+  const data=remote.data&&StorageManager.normalize(remote.data);
+  if((remote.adminRev||0)>(local._cloudBase||0)){
+   if(local.restored)this.writeMeta("previous-local",local);
+   this.writeMeta("conflict",null);
+   this.baseRev=remote.rev;this.writeMeta("base",remote.rev);
+   return data||StorageManager.fresh();
+  }
+  if(saved?.local){
+   this.hold(saved.local,remote,false);
+   return local;
+  }
+  if(!data){this.baseRev=remote.rev;return local}
+  const useCloud=()=>{this.baseRev=remote.rev;return data};
+  if(!local.restored)return useCloud();
+  const a=CONFIG.saveProgress(local),b=CONFIG.saveProgress(data);
+  if(CONFIG.saveAdvanced(a)!==CONFIG.saveAdvanced(b))return CONFIG.saveAdvanced(a)?local:useCloud();
+  if(CONFIG.saveAdvanced(a)){
+   if(local._cloudBase===remote.rev&&!CONFIG.saveRegresses(b,a))return local;
+   const same=JSON.stringify([local.profile,local.world.buildings,local.progress])===JSON.stringify([data.profile,data.world.buildings,data.progress]);
+   if(!same){this.hold(local,remote,false);return local}
+  }
+  return (local.lastSavedAt||0)>(data.lastSavedAt||0)?local:useCloud();
+ }
+ hold(local,remote,show=true){
+  this.conflict={local,remote};this.status="conflict";
+  this.writeMeta("conflict",this.conflict);
+  if(show)this.ui?.saveConflict();
+ }
+ async fetchConflict(local,show=true){
+  this.hold(local,null,false);
+  try{
+   const remote=await this.api("/save");
+   if((remote.adminRev||0)>this.rev){
+    this.writeMeta("previous-local",local);this.swap(remote);return;
+   }
+   if(remote.data&&!StorageManager.normalize(remote.data))throw Error("Không đọc được bản lưu máy chủ.");
+   this.hold(local,remote,show);
+  }catch(_){if(show)this.ui?.saveConflict()}
+ }
+ async resolveConflict(choice){
+  if(!this.conflict||this.busy)return;
+  this.busy=true;
+  const {local,remote}=this.conflict;
+  try{
+   if(!remote){await this.fetchConflict(local);return}
+   if(choice==="cloud"){this.writeMeta("previous-local",local);this.swap(remote);return}
+   if(choice!=="local"&&choice!=="replace")return;
+   const regression=CONFIG.saveRegresses(CONFIG.saveProgress(remote.data),CONFIG.saveProgress(local));
+   if(regression&&choice!=="replace")return;
+   const data=this.payload(local),r=await this.api("/save",{method:"PUT",body:{rev:remote.rev,data,confirmRegression:regression}});
+   this.swap({...r,data,adminRev:remote.adminRev});
+  }catch(error){
+   if(error.status===409)await this.fetchConflict(local);
+   throw error;
+  }finally{this.busy=false}
+ }
+ payload(data){
+  const {restored,_cloudBase,...payload}=data;
+  payload.friends=(data.friends||[]).filter(f=>f.cloud||!String(f.id).startsWith("MP-MAU"));
+  return payload;
  }
  queue(){this.dirty=true}
  async flush(force=false,keepalive=false){
-  if(!this.online||!this.sim||this.busy||(!this.dirty&&!force)||this.sim.storage.erasing)return false;
+  if(!this.online||!this.sim||this.busy||this.conflict||(!this.dirty&&!force)||this.sim.storage.erasing)return false;
   this.busy=true;this.dirty=false;this.status="syncing";
   try{
-   const data=this.sim.storage.serialize();data.friends=data.friends.filter(f=>f.cloud||!String(f.id).startsWith("MP-MAU"));
+   const data=this.payload(this.sim.storage.serialize());
+   if(this.remote?.data&&CONFIG.saveRegresses(CONFIG.saveProgress(this.remote.data),CONFIG.saveProgress(data))){
+    this.hold(data,this.remote);return false;
+   }
    const body={rev:this.rev,data};
    const r=await this.api("/save",{method:"PUT",body,keepalive:keepalive&&JSON.stringify(body).length<60000});
-   this.rev=r.rev;this.status="synced";this.lastSync=Date.now();return true;
+   this.rev=r.rev;this.remote={...r,data,adminRev:this.remote?.adminRev};
+   this.baseRev=r.rev;this.writeMeta("base",r.rev);
+   this.status="synced";this.lastSync=Date.now();return true;
   }catch(error){
-   if(error.status===409&&error.data?.adminEdited){
-    try{this.swap(await this.api("/save"));return false}catch(_){this.status="offline";this.dirty=true;return false}
-   }
-   // Thiết bị khác đã lưu bản mới hơn: thiết bị đang chơi sẽ ghi đè ở lần đồng bộ kế tiếp.
-   if(error.status===409&&error.data?.rev){this.rev=error.data.rev;this.status="syncing"}
+   if(error.status===409){await this.fetchConflict(this.payload(this.sim.storage.serialize()));return false}
    else if(error.status===401){this.online=false;this.status="expired"}
    else this.status=error.status===0?"offline":"error";
    this.dirty=true;return false;
   }finally{this.busy=false}
  }
- async wipe(){if(this.online)try{await this.api("/save",{method:"DELETE"})}catch(_){}}
+ async wipe(){
+  if(!this.saveCode)return;
+  if(!this.online||this.busy||this.conflict)throw Error("Cần kết nối máy chủ và xử lý xung đột trước khi đặt lại.");
+  const r=await this.api("/save",{method:"DELETE",body:{rev:this.rev,confirm:"reset"}});
+  this.writeMeta("base",r.rev);
+ }
  async register(username,password){const r=await this.api("/auth/register",{method:"POST",body:{username,password}});this.account=r.account;return r.account}
  swap(save){
   this.sim.storage.erasing=true;
-  this.rememberAdminRevision(save?.adminRev);
-  try{if(save?.data)localStorage.setItem(CONFIG.key,JSON.stringify(save.data));else localStorage.removeItem(CONFIG.key);localStorage.removeItem(CONFIG.legacyKey)}catch(_){}
+  this.writeMeta("conflict",null);
+  this.writeMeta("base",save.rev);
+  try{
+   const key=StorageManager.key(this.saveCode);
+   if(save.data)localStorage.setItem(key,JSON.stringify({...save.data,_cloudBase:save.rev}));else localStorage.removeItem(key);
+  }catch(_){}
   location.reload();
  }
  async login(username,password){
-  await this.flush(true);await this.signin(username,password);
-  this.swap(await this.api("/save"));
+  if(this.busy)throw Error("Đang đồng bộ thành phố. Hãy thử lại.");
+  this.sim.storage.save();
+  this.sim.storage.erasing=true;
+  try{await this.signin(username,password);location.reload()}
+  catch(error){this.sim.storage.erasing=false;throw error}
  }
  async password(current,password){return this.api("/auth/password",{method:"POST",body:{current,password}})}
  // Phiên hết hạn (ví dụ đổi mật khẩu ở thiết bị khác): giữ bản lưu trên máy, mở lại màn hình đăng nhập.
  relogin(){this.sim.storage.save();this.setToken(null);location.reload()}
  async logout(){
-  await this.flush(true);try{await this.api("/auth/logout",{method:"POST",body:{}})}catch(_){}
-  this.setToken(null);this.swap(null);
+  if(this.busy)throw Error("Đang đồng bộ thành phố. Hãy thử lại.");
+  this.sim.storage.save();this.sim.storage.erasing=true;
+  try{await this.api("/auth/logout",{method:"POST",body:{}})}catch(_){}
+  this.setToken(null);location.reload();
  }
  async rename(name){if(this.online)try{await this.api("/me",{method:"PATCH",body:{name}})}catch(_){}}
  async leaderboard(stat){return this.api("/leaderboard?stat="+encodeURIComponent(stat))}
@@ -156,11 +248,13 @@ class CloudClient {
    const r=await this.api("/mailbox/"+encodeURIComponent(letter.id)+"/claim",{method:"POST",body:{}});
    this.confirmOwnership(r);
    if(r.rev!=null){
-    if(this.rev!==r.previousRev){this.swap(await this.api("/save"));return r}
+    if(this.rev!==r.previousRev){await this.fetchConflict(this.sim.storage.serialize());return r}
     for(const key of resources)this.sim.profile[key]=(this.sim.profile[key]??0)+r.rewards[key];
     if(r.rewards.materials)this.sim.addMaterials(r.rewards.materials);
     this.rev=r.rev;
-    if(this.sim.storage.save())this.rememberAdminRevision(r.adminRev);
+    this.remote={rev:r.rev,data:this.sim.storage.serialize(),updatedAt:r.claimedAt,adminRev:r.adminRev};
+    this.baseRev=r.rev;this.writeMeta("base",r.rev);
+    this.sim.storage.save();
    }
    return r;
   }finally{this.busy=false}

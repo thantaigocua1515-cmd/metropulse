@@ -9,6 +9,20 @@ const loadUI = globals => vm.runInNewContext(["config", "core", "ui-input", "ui"
 const UIController = loadUI({});
 const gridKey=vm.runInNewContext(["config","core"].map(script).concat("coord").join("\n"));
 
+test("save conflict displays the two cities and offers an explicit lower-progress confirmation",()=>{
+  const ui=Object.create(UIController.prototype);
+  ui.sim={cloud:{conflict:{local:{profile:{level:2},world:{buildings:[{id:"house_small"}]},lastSavedAt:1},
+    remote:{data:{profile:{level:9},world:{buildings:[{id:"house_small"},{id:"mall"}]}},updatedAt:"2026-11-28T04:50:00Z"}}}};
+  let html;
+  ui.open=(_type,_tag,_title,body)=>{html=body};
+  ui.saveConflict();
+  assert.match(html,/Trên thiết bị này.*cấp 2 · 1 công trình/);
+  assert.match(html,/Trên máy chủ.*cấp 9 · 2 công trình/);
+  assert.match(html,/28\/11\/2026/);
+  ui.saveConflict(true);
+  assert.match(html,/Xác nhận thay bản máy chủ/);
+});
+
 test("all nine skin cards use the same house preview style as the default",()=>{
   const ui=Object.create(UIController.prototype);
   ui.sim={profile:{skin:"default"},cloud:{ownsSkin:id=>id==="default"}};

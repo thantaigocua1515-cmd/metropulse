@@ -214,7 +214,8 @@ const UIDialogs = {
    else if(!cloud.online)body+='<p class="empty">Không kết nối được máy chủ. Trò chơi vẫn tự lưu trên trình duyệt và sẽ đồng bộ lại khi tải lại trang.</p>';
    else{
     const a=cloud.account,field=(id,label,type,auto,hint="")=>'<label>'+label+'<input id="'+id+'" '+(type==="password"?'type="password" maxlength="72"':'maxlength="20" autocapitalize="none" spellcheck="false"')+' autocomplete="'+auto+'" placeholder="'+hint+'"></label>';
-    body+='<div class="row"><div class="grow"><b>'+(a.username?"Tài khoản: "+htm(a.username):"Tài khoản khách")+'</b><small>Mã thành phố: <span class="mint">'+a.code+'</span> · '+(cloud.lastSync?"đồng bộ lần cuối "+new Date(cloud.lastSync).toLocaleTimeString("vi-VN"):"chưa đồng bộ trong phiên này")+'</small></div>'+this.btn("sync","Đồng bộ ngay",{cls:"primary"})+'</div>';
+    body+='<div class="row"><div class="grow"><b>'+(a.username?"Tài khoản: "+htm(a.username):"Tài khoản khách")+'</b><small>Mã thành phố: <span class="mint">'+a.code+'</span> · '+(cloud.lastSync?"đồng bộ lần cuối "+new Date(cloud.lastSync).toLocaleTimeString("vi-VN"):"chưa đồng bộ trong phiên này")+'</small></div>'+
+     (cloud.conflict?this.btn("save-conflict","So sánh bản lưu",{cls:"primary"}):this.btn("sync","Đồng bộ ngay",{cls:"primary"}))+'</div>';
     if(a.username){
      body+='<p class="muted">Đăng nhập tên này trên thiết bị khác để chơi tiếp thành phố của bạn.</p><h4>Đổi mật khẩu</h4><form class="authbox" data-auth="password">'+
       field("auth-current","Mật khẩu hiện tại","password","current-password")+field("auth-pass","Mật khẩu mới","password","new-password","Từ 6 ký tự")+field("auth-again","Nhập lại mật khẩu mới","password","new-password")+
@@ -226,7 +227,7 @@ const UIDialogs = {
       '<form class="authbox" data-auth="'+mode+'">'+field("auth-user","Tên đăng nhập","text","username","3–20 ký tự: chữ, số, dấu chấm, gạch dưới")+field("auth-pass","Mật khẩu","password",mode==="register"?"new-password":"current-password","Từ 6 ký tự")+
       (mode==="register"?field("auth-again","Nhập lại mật khẩu","password","new-password"):"")+
       '<div class="actions"><button type="submit" class="primary">'+(mode==="register"?"Tạo tài khoản & giữ thành phố này":"Đăng nhập")+'</button></div>'+
-      '<small>'+(mode==="register"?"Thành phố hiện tại sẽ được gắn vào tài khoản mới.":"Thành phố của tài khoản sẽ thay cho thành phố khách đang chơi trên trình duyệt này.")+'</small><p id="auth-message" role="status"></p></form>';
+      '<small>'+(mode==="register"?"Thành phố hiện tại sẽ được gắn vào tài khoản mới.":"Bản lưu khách vẫn được giữ riêng trên thiết bị này.")+'</small><p id="auth-message" role="status"></p></form>';
     }
    }
   }else{
@@ -240,7 +241,24 @@ const UIDialogs = {
     '<div class="row"><div class="grow"><b>Cẩm nang Thị trưởng</b><small>Giải thích mọi hệ thống trong trò chơi.</small></div>'+this.btn("help","Mở cẩm nang")+'</div>'+
     '<div class="row"><div class="grow"><b>Chơi lại từ đầu</b><small>Xóa toàn bộ tiến độ.</small></div>'+this.btn("reset","Xóa bản lưu",{cls:"danger"})+'</div>';
   }
+  if(tab==="account"&&!cloud?.online&&cloud?.conflict)body+=this.btn("save-conflict","So sánh bản lưu",{cls:"primary"});
   this.open("profile","THỊ TRƯỞNG","Hồ sơ & Cài đặt",body,true);
+ },
+ saveConflict(confirm=false){
+  const pending=this.sim.cloud.conflict;if(!pending)return;
+  const {local,remote}=pending;
+  const card=(name,data,updatedAt)=>{
+   const p=CONFIG.saveProgress(data),at=updatedAt||data?.lastSavedAt;
+   return '<div class="card"><b>'+name+'</b><small>'+(data?'Thị trưởng cấp '+p.level+' · '+p.buildings+' công trình':'Không có thành phố')+
+    '</small><small>'+htm(at?new Date(at).toLocaleString("vi-VN"):"Không rõ thời gian lưu")+'</small></div>';
+  };
+  this.open("save-conflict","ĐỒNG BỘ THÀNH PHỐ",confirm?"Thay bản lưu có nhiều tiến độ hơn?":"Chọn bản lưu để chơi tiếp",
+   '<p class="muted">'+(confirm?"Dùng bản trên thiết bị sẽ thay thế thành phố đã tiến xa hơn trên máy chủ. Chỉ xác nhận nếu bạn muốn bỏ phần tiến độ chênh lệch.":
+    "Đồng bộ đã tạm dừng. Game sẽ không tự ghi đè. Hãy so sánh hai bản trước khi chọn.")+'</p>'+
+   card("Trên thiết bị này",local)+(remote?card("Trên máy chủ",remote.data,remote.updatedAt):'<p class="warn">Chưa tải được bản trên máy chủ.</p>')+
+   '<div class="actions">'+(confirm?this.btn("save-conflict-choose","Xác nhận thay bản máy chủ",{id:"replace",cls:"danger"})+this.btn("save-conflict","Quay lại"):
+    remote?this.btn("save-conflict-choose","Dùng bản máy chủ",{id:"cloud",cls:"primary"})+this.btn("save-conflict-choose","Dùng bản thiết bị",{id:"local"}):
+    this.btn("save-conflict-choose","Thử tải lại",{id:"retry",cls:"primary"}))+'</div>');
  },
  inventoryPanel(){
   const s=this.sim,{unlocked,claimed,yields,ready}=s.supplyState();

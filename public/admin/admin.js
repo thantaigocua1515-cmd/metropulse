@@ -17,7 +17,7 @@ const skins={tet:"Tết",noel:"Noel",cyberpunk:"Cyberpunk",sakura:"Sakura",deser
 const localTime=value=>value?new Date(Date.parse(value)+7*3600000).toISOString().slice(0,16):"";
 const utcTime=value=>value?new Date(value+"+07:00").toISOString():null;
 const actions={"admin.setup":"Thiết lập quản trị","admin.login":"Đăng nhập","admin.login.failed":"Đăng nhập thất bại","admin.logout":"Đăng xuất","admin.logout-all":"Đăng xuất mọi phiên","admin.password":"Đổi mật khẩu","admin.totp.reset":"Đặt lại 2FA",
- "user.ban":"Khóa tài khoản","user.unban":"Mở khóa","user.revoke":"Thu hồi phiên","user.delete":"Xóa tài khoản","user.resources":"Sửa tài nguyên","chat.visibility":"Đổi hiển thị","event.update":"Lưu sự kiện","event.reset":"Xóa cấu hình",
+ "user.ban":"Khóa tài khoản","user.unban":"Mở khóa","user.revoke":"Thu hồi phiên","user.delete":"Xóa tài khoản","user.resources":"Sửa tài nguyên","user.save.restore":"Khôi phục bản lưu","chat.visibility":"Đổi hiển thị","event.update":"Lưu sự kiện","event.reset":"Xóa cấu hình",
  "announcement.create":"Tạo thông báo","announcement.update":"Sửa thông báo","announcement.delete":"Xóa thông báo","mail.send":"Gửi thư quà"};
 const e=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=value=>new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(value??0);
@@ -139,7 +139,7 @@ function users(d){
   '<small>'+num(d.total)+' người chơi</small>'+
   table(["Thị trưởng","Mã","Cấp","Hoạt động","Trạng thái",""],d.rows.map(p=>'<tr><td><b>'+e(p.name)+'</b><span class="sub">'+e(p.username||"Tài khoản khách")+'</span></td><td>'+e(p.code)+'</td><td>'+num(p.summary?.level)+'</td><td>'+date(p.lastSeenAt)+'</td><td>'+tag(p.bannedAt?"Đã khóa":"Hoạt động",!!p.bannedAt)+'</td><td>'+btn("user","Chi tiết",p.code)+'</td></tr>').join(""),"Không tìm thấy người chơi.")+nextPage(d,d.page*d.size<d.total)+'</section>';
 }
-function user({player:p,save:s,sessions}){
+function user({player:p,save:s,sessions,rev,revisions}){
  const info=(k,v)=>'<div><dt>'+e(k)+'</dt><dd>'+e(v)+'</dd></div>';
  return heading("Hồ sơ người chơi",p.name,p.code,btn("back","‹ Danh sách"))+
   '<div class="split"><section class="card"><div class="row"><h2>Thông tin tài khoản</h2>'+tag(p.bannedAt?"Đã khóa":"Hoạt động",!!p.bannedAt)+'</div><dl class="details">'+
@@ -147,7 +147,10 @@ function user({player:p,save:s,sessions}){
   '</dl><div class="actions">'+btn("ban",p.bannedAt?"Mở khóa":"Khóa tài khoản",p.bannedAt?"false":"true",p.bannedAt?"":"danger")+btn("revoke","Thu hồi mọi phiên")+btn("user-chat","Xem tin nhắn")+btn("delete","Xóa tài khoản","","danger")+
   '</div></section><section class="card form"><div><h2>Tài nguyên bản lưu</h2><small>'+(s?"Phiên bản "+num(s.rev)+" · "+date(s.updatedAt):"Không có bản lưu máy chủ.")+'</small></div>'+
   (s?'<form class="form" data-form="resources"><input type="hidden" name="rev" value="'+s.rev+'"><div class="grid-form">'+Object.entries(fields).map(([key,name])=>field(key,name,{type:"number",value:s.resources[key],extra:key==="level"?'required min="1" step="1"':'required min="0" step="any"'})).join("")+'</div><div><button class="primary">Lưu tài nguyên</button></div></form>':"")+
-  '</section></div><section class="card"><h2>Các lần cấp phiên</h2>'+table(["Phiên","Thời điểm"],sessions.map((s,i)=>'<tr><td>Phiên '+(i+1)+'</td><td>'+date(s.createdAt)+'</td></tr>').join(""),"Không có phiên.")+'</section>';
+  '</section></div><section class="card"><h2>Lịch sử bản lưu</h2><small>Tối đa 10 bản trước đó, lưu trong 30 ngày.</small>'+
+  table(["Phiên bản","Thời điểm lưu","Cấp thị trưởng","Công trình",""],revisions.map(row=>'<tr><td>'+num(row.rev)+'</td><td>'+date(row.updatedAt)+'</td><td>'+num(row.level)+'</td><td>'+num(row.buildings)+'</td><td>'+
+   btn("save-restore","Khôi phục",row.rev+":"+rev)+'</td></tr>').join(""),"Chưa có bản lưu lịch sử.")+
+  '</section><section class="card"><h2>Các lần cấp phiên</h2>'+table(["Phiên","Thời điểm"],sessions.map((s,i)=>'<tr><td>Phiên '+(i+1)+'</td><td>'+date(s.createdAt)+'</td></tr>').join(""),"Không có phiên.")+'</section>';
 }
 function eventPage(rows){
  const id=selected||"tet",custom=id==="new"||!Object.hasOwn(templates,id);
@@ -272,8 +275,12 @@ app.addEventListener("click",async event=>{
   }else if(action==="revoke"){
    if(!await confirmDialog("Thu hồi phiên?","Người chơi sẽ phải đăng nhập lại trên mọi thiết bị."))return;
    await api(base+"/revoke","POST",{});show("Đã thu hồi các phiên.");
+  }else if(action==="save-restore"){
+   const [source,rev]=id.split(":").map(Number);
+   if(!await confirmDialog("Khôi phục phiên bản "+source+"?","Bản lưu này sẽ thay thế thành phố hiện tại. Thành phố hiện tại sẽ được giữ trong lịch sử."))return;
+   await api(base+"/save-history/"+source+"/restore","POST",{rev});show("Đã khôi phục bản lưu.");
   }else if(action==="delete"){
-   const confirm=await confirmDialog("Xóa vĩnh viễn?","Tài khoản và bản lưu đám mây sẽ bị xóa.",selected);
+   const confirm=await confirmDialog("Xóa tài khoản?","Tài khoản và bản lưu đám mây hiện tại sẽ bị xóa. Các phiên bản được giữ tối đa 30 ngày.",selected);
    if(!confirm)return;
    await api(base,"DELETE",{confirm});selected="";show("Đã xóa tài khoản.");
   }else if(action==="hide"||action==="unhide"){

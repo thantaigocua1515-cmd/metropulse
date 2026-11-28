@@ -86,7 +86,7 @@ class UIController {
  refreshCloud(){
   const cloud=this.sim.cloud,state=!cloud?.enabled?"local":cloud.status;
   const who=cloud?.online&&cloud.account?(cloud.account.username||"Khách")+" · ":"";
-  const label="Tài khoản · "+who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state]||"Tài khoản");
+  const label="Tài khoản · "+who+({local:"Lưu trên máy",offline:"Ngoại tuyến",syncing:"Đang đồng bộ",synced:"Đã đồng bộ",conflict:"Cần chọn bản lưu",error:"Lỗi đồng bộ",expired:"Hết phiên · đăng nhập lại"}[state]||"Tài khoản");
   this.html("cloud",this.icon(state==="syncing"||state==="synced"?"cloud":"cloud-off"));
   const button=this.nodes.cloud;
   button.dataset.state=state;button.title=label;button.setAttribute("aria-label",label);
@@ -275,9 +275,16 @@ class UIController {
     this.toast(s.storage.save()?"Đã lưu hồ sơ.":"Không thể lưu: trình duyệt không cho phép ghi dữ liệu.");s.cloud?.flush(true);this.profileDialog();break;
    }
    case "sync":s.storage.save();s.cloud?.flush(true).then(ok=>{this.toast(ok?"Đã đồng bộ lên máy chủ.":"Chưa đồng bộ được. Trò chơi vẫn lưu trên trình duyệt.");if(this.dialogType==="profile")this.profileDialog()});break;
+   case "save-conflict":this.saveConflict();return;
+   case "save-conflict-choose":
+    if(id==="local"&&s.cloud.conflict?.remote?.data&&
+     CONFIG.saveRegresses(CONFIG.saveProgress(s.cloud.conflict.remote.data),CONFIG.saveProgress(s.cloud.conflict.local))){
+     this.saveConflict(true);return;
+    }
+    s.cloud.resolveConflict(id).catch(error=>{this.saveConflict();this.toast(error.message)});return;
    case "auth":this.auth(id);return;
-   case "reset":this.open("reset","XÁC NHẬN","Bắt đầu lại từ đầu?",'<p>Toàn bộ tiến độ, thành phố và danh sách bạn bè sẽ bị xóa'+(s.cloud?.online?", kể cả bản lưu trên máy chủ":"")+'.</p><div class="actions">'+this.btn("do-reset","Xóa và chơi lại",{cls:"danger"})+this.btn("close-dialog","Hủy")+'</div>');break;
-   case "do-reset":s.storage.reset().then(ok=>{if(!ok){this.close();this.toast("Không thể xóa bản lưu trên trình duyệt này.")}});return;
+   case "reset":this.open("reset","XÁC NHẬN","Bắt đầu lại từ đầu?",'<p>Tiến độ và thành phố hiện tại sẽ bị xóa'+(s.cloud?.saveCode?", kể cả bản lưu trên máy chủ":"")+'.</p><div class="actions">'+this.btn("do-reset","Xóa và chơi lại",{cls:"danger"})+this.btn("close-dialog","Hủy")+'</div>');break;
+   case "do-reset":s.storage.reset().then(ok=>{if(!ok){this.close();this.toast("Chưa thể đặt lại bản lưu. Hãy tải lại trang và thử lại khi có kết nối.")}});return;
    case "help":this.help(id||"start");break;
    case "replay-tutorial":s.progress.tutorial={step:0,done:false};this.close();this.tutorial?.restart();break;
    case "dispatch":this.dispatch(id);break;

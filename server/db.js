@@ -45,6 +45,8 @@ async function ensureIndexes(db){
   db.collection("adminRateLimits").createIndex({expiresAt:1},{expireAfterSeconds:0}),
   db.collection("adminSessions").createIndex({expiresAt:1},{expireAfterSeconds:0}),
   db.collection("adminAudit").createIndex({at:-1,_id:-1}),
+  db.collection("saveHistory").createIndex({player:1,rev:-1},{unique:true}),
+  db.collection("saveHistory").createIndex({expiresAt:1},{expireAfterSeconds:0}),
   db.collection("announcements").createIndex({active:1,priority:-1,createdAt:-1,_id:-1}),
   db.collection("serverMail").createIndex({to:1,createdAt:-1,_id:-1}),
   db.collection("serverMail").createIndex({createdAt:-1,_id:-1}),

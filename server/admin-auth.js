@@ -94,10 +94,10 @@ async function rate(req,accountKey){
  const scope=accountKey===OWNER||accountKey==="unknown"?"login":accountKey;
  if(!await throttle(db,scope+":ip:"+(req.ip||"local"),now)||!await throttle(db,"account:"+accountKey,now))throw fail(429,"Thử quá nhiều lần. Vui lòng đợi rồi thử lại.");
 }
-async function audit(req,action,target,before=null,after=null){
+async function audit(req,action,target,before=null,after=null,session){
  await req.adminDb.collection("adminAudit").insertOne({
   actor:req.admin?.username||"owner",action,target,before,after,ip:req.ip||"local",at:new Date()
- });
+ },{session});
 }
 async function startSession(req,res,admin){
  const token=newToken(),now=new Date(),absoluteExpiresAt=new Date(+now+ABSOLUTE);

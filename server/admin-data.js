@@ -3,6 +3,7 @@ const {ObjectId}=require("mongodb");
 const {CONFIG,inspectSave}=require("./game");
 const events=require("./event-config");
 const liveops=require("./liveops");
+const history=require("./save-history");
 const {overview}=require("./analytics");
 
 const projection={code:1,name:1,username:1,summary:1,coins:1,createdAt:1,lastSeenAt:1,bannedAt:1};
@@ -37,39 +38,73 @@ module.exports=function adminData(router,{audit,wrap,fail}){
  }));
  router.get("/users/:code",wrap(async(req,res)=>{
   const p=await findPlayer(req,{...projection,tokens:1});
-  const save=await c(req,"saves").findOne({_id:p._id},{projection:{"data.profile":1,"data.world.buildings.id":1,rev:1,updatedAt:1}});
-  const {tokens,...player}=p,profile=save?.data.profile;
-  res.json({player,sessions:(tokens||[]).map(({createdAt})=>({createdAt})),
-   save:save?{rev:save.rev,updatedAt:save.updatedAt,buildings:save.data.world.buildings.filter(b=>b.id!=="road").length,
+  const [save,revisions]=await Promise.all([
+   c(req,"saves").findOne({_id:p._id},{projection:{"data.profile":1,"data.world.buildings.id":1,rev:1,updatedAt:1}}),
+   history.list(req.adminDb,p._id)
+  ]);
+  const {tokens,...player}=p,profile=save?.data?.profile;
+  res.json({player,rev:save?.rev||0,revisions,sessions:(tokens||[]).map(({createdAt})=>({createdAt})),
+   save:profile?{rev:save.rev,updatedAt:save.updatedAt,buildings:save.data.world.buildings.filter(b=>b.id!=="road").length,
     roads:save.data.world.buildings.filter(b=>b.id==="road").length,cityName:profile.cityName,
     resources:Object.fromEntries(gameFields.map(key=>[key,profile[key]??0]))}:null});
  }));
+ router.post("/users/:code/save-history/:revision/restore",wrap(async(req,res)=>{
+  const p=await findPlayer(req,{code:1,skinPacks:1}),source=Number(req.params.revision),rev=req.body?.rev;
+  if(!Number.isSafeInteger(source)||source<1||!Number.isSafeInteger(rev)||rev<0)throw fail(400,"Phiên bản không hợp lệ.");
+  const db=req.adminDb,saves=c(req,"saves"),now=new Date();
+  const next=await history.transaction(db,async session=>{
+   const current=await saves.findOne({_id:p._id},{session});
+   if((current?.rev||0)!==rev)throw fail(409,"Bản lưu đã đổi. Hãy tải lại thông tin.");
+   const old=await history.get(db,p._id,source,session);
+   if(!old)throw fail(404,"Bản lưu lịch sử không còn.");
+   const data=old.data;
+   data.profile.mayorId=p.code;
+   if(!liveops.owns(p,data.profile.skin??"default"))data.profile.skin="default";
+   data.lastSavedAt=+now;
+   const check=inspectSave(data);
+   if(check.error)throw fail(409,check.error);
+   const next=rev+1;
+   const result=await c(req,"players").updateOne({_id:p._id,deletingAt:{$exists:false}},{$set:{name:check.name,summary:check.summary,coins:check.coins,city:check.city,updatedAt:now}},{session});
+   if(!result.matchedCount)throw fail(404,"Không tìm thấy người chơi.");
+   await history.archive(db,current,"restore",now,session);
+   await saves.updateOne({_id:p._id},{$set:{data,rev:next,adminRev:next,updatedAt:now}},{upsert:true,session});
+   await audit(req,"user.save.restore",p.code,history.describe(current),{sourceRev:source,rev:next,level:data.profile.level},session);
+   return next;
+  });
+  res.json({rev:next});
+ }));
  router.patch("/users/:code/resources",wrap(async(req,res)=>{
-  const p=await findPlayer(req),saves=c(req,"saves"),save=await saves.findOne({_id:p._id});
-  if(!save)throw fail(409,"Người chơi chưa có bản lưu để chỉnh sửa.");
+  const p=await findPlayer(req),saves=c(req,"saves");
   const changes=req.body?.resources,rev=req.body?.rev,keys=Object.keys(changes||{});
-  if(!Number.isSafeInteger(rev)||rev!==save.rev)throw fail(409,"Bản lưu đã đổi. Hãy tải lại thông tin.");
+  if(!Number.isSafeInteger(rev))throw fail(409,"Bản lưu đã đổi. Hãy tải lại thông tin.");
   if(!keys.length||keys.some(key=>!gameFields.includes(key)||typeof changes[key]!=="number"||!Number.isFinite(changes[key])))throw fail(400,"Giá trị tài nguyên không hợp lệ.");
-  const before=Object.fromEntries(keys.map(key=>[key,save.data.profile[key]??0]));
-  Object.assign(save.data.profile,changes);
-  if(keys.includes("level")){
-   if(!Number.isSafeInteger(changes.level)||changes.level<1)throw fail(400,"Cấp Thị trưởng không hợp lệ.");
-   save.data.profile.xp=Math.min(save.data.profile.xp,CONFIG.xpNext(changes.level)-1);
-   save.data.world.unlockedRadius=CONFIG.radius(changes.level);
-  }
-  const checked=inspectSave(save.data);
-  if(checked.error)throw fail(400,checked.error);
-  const now=new Date(),next=rev+1,result=await saves.updateOne({_id:p._id,rev},{$set:{data:save.data,rev:next,adminRev:next,updatedAt:now}});
-  if(!result.modifiedCount)throw fail(409,"Bản lưu đã đổi. Hãy tải lại thông tin.");
-  await c(req,"players").updateOne({_id:p._id},{$set:{summary:checked.summary,coins:checked.coins,city:checked.city,updatedAt:now}});
-  await audit(req,"user.resources",p.code,before,changes);
+  const now=new Date(),next=rev+1;
+  await history.transaction(req.adminDb,async session=>{
+   const save=await saves.findOne({_id:p._id},{session});
+   if(!save?.data)throw fail(409,"Người chơi chưa có bản lưu để chỉnh sửa.");
+   if(rev!==save.rev)throw fail(409,"Bản lưu đã đổi. Hãy tải lại thông tin.");
+   const before=Object.fromEntries(keys.map(key=>[key,save.data.profile[key]??0])),data=structuredClone(save.data);
+   Object.assign(data.profile,changes);
+   if(keys.includes("level")){
+    if(!Number.isSafeInteger(changes.level)||changes.level<1)throw fail(400,"Cấp Thị trưởng không hợp lệ.");
+    data.profile.xp=Math.min(data.profile.xp,CONFIG.xpNext(changes.level)-1);
+    data.world.unlockedRadius=CONFIG.radius(changes.level);
+   }
+   const checked=inspectSave(data);
+   if(checked.error)throw fail(400,checked.error);
+   await c(req,"players").updateOne({_id:p._id},{$set:{summary:checked.summary,coins:checked.coins,city:checked.city,updatedAt:now}},{session});
+   await history.archive(req.adminDb,save,"admin",now,session);
+   await saves.updateOne({_id:p._id,rev},{$set:{data,rev:next,adminRev:next,updatedAt:now}},{session});
+   await audit(req,"user.resources",p.code,before,changes,session);
+  });
   res.json({rev:next});
  }));
  router.post("/users/:code/ban",wrap(async(req,res)=>{
   const p=await findPlayer(req),banned=req.body?.banned;
   if(typeof banned!=="boolean")throw fail(400,"Trạng thái tài khoản không hợp lệ.");
   const change=banned?{$set:{bannedAt:new Date(),tokens:[]}}:{$unset:{bannedAt:1}};
-  await c(req,"players").updateOne({_id:p._id},change);
+  const result=await c(req,"players").updateOne({_id:p._id,deletingAt:{$exists:false}},change);
+  if(!result.matchedCount)throw fail(404,"Không tìm thấy người chơi.");
   if(banned)await c(req,"playSessions").updateMany({player:"p:"+p.code},{$set:{seenAt:new Date(0)}});
   await audit(req,banned?"user.ban":"user.unban",p.code,{banned:!!p.bannedAt},{banned});
   res.json({ok:true});
@@ -83,10 +118,16 @@ module.exports=function adminData(router,{audit,wrap,fail}){
  router.delete("/users/:code",wrap(async(req,res)=>{
   const p=await findPlayer(req);
   if(req.body?.confirm!==p.code)throw fail(400,"Nhập chính xác mã thành phố để xóa tài khoản.");
-  await c(req,"players").updateOne({_id:p._id},{$set:{bannedAt:new Date(),tokens:[]}});
+  const now=new Date();
+  await history.transaction(req.adminDb,async session=>{
+   await c(req,"players").updateOne({_id:p._id},{$set:{bannedAt:now,deletingAt:now,tokens:[]}},{session});
+   const saves=c(req,"saves"),save=await saves.findOne({_id:p._id},{session});
+   await history.archive(req.adminDb,save,"delete",now,session);
+   await saves.deleteOne({_id:p._id},{session});
+  });
   const player="p:"+p.code;
   await Promise.all([
-   c(req,"saves").deleteOne({_id:p._id}),c(req,"gifts").deleteMany({$or:[{to:p._id},{fromCode:p.code}]}),
+   c(req,"gifts").deleteMany({$or:[{to:p._id},{fromCode:p.code}]}),
    c(req,"serverMailClaims").deleteMany({player:p._id}),c(req,"serverMail").deleteMany({to:p._id}),
    c(req,"chatMessages").deleteMany({$or:[{from:p.code},{to:p.code}]}),c(req,"players").updateMany({friends:p.code},{$pull:{friends:p.code}}),
    c(req,"playSessions").deleteMany({player}),c(req,"playDays").deleteMany({player}),c(req,"playIdentities").deleteOne({_id:player})

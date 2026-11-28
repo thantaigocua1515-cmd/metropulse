@@ -12,6 +12,7 @@ npm test               # kiểm thử API bằng MongoDB trong bộ nhớ
 ```
 
 Không có `MONGODB_URI`, trò chơi vẫn chạy và lưu trên trình duyệt; các API đám mây trả về 503.
+Để lưu đám mây, dùng MongoDB Atlas hoặc replica set; cập nhật bản lưu và ghi lịch sử chạy trong cùng một giao dịch.
 
 ## Cấu trúc
 

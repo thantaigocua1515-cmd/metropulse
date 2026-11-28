@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
-const {MongoMemoryServer}=require("mongodb-memory-server");
+const {MongoMemoryReplSet}=require("mongodb-memory-server");
 const db=require("../server/db"),{createApp}=require("../server/index");
 
 let mongo,server,base;
@@ -12,7 +12,7 @@ const city=(level=1,extra=[])=>({version:2,profile:{mayorName:"Thử Nghiệm",l
  world:{buildings:[{id:"road",x:7,y:7,level:1,left:0},{id:"house_small",x:7,y:8,level:2,left:0},...extra]},progress:{stats:{peakIncome:12}},friends:[],lastSavedAt:Date.now()});
 
 test.before(async()=>{
- mongo=await MongoMemoryServer.create();await db.connect(mongo.getUri(),"metropulse_test");
+ mongo=await MongoMemoryReplSet.create({replSet:{count:1}});await db.connect(mongo.getUri(),"metropulse_test");
  server=createApp(()=>db.db).listen(0);base="http://127.0.0.1:"+server.address().port;
 });
 test.after(async()=>{server.close();await db.close();await mongo.stop()});
@@ -95,6 +95,29 @@ test("từ chối khi thiếu token và khi bản lưu sai",async()=>{
  for(const data of bad)assert.equal((await call("/save",{method:"PUT",token,body:{rev:0,data}})).status,400);
 });
 
+test("save regressions and resets require confirmation; history is bounded and expires",async()=>{
+ const {data:{token,account}}=await call("/auth/guest",{method:"POST",body:{}});
+ const starter={...city(),world:{buildings:[]}},put=(rev,data,extra={})=>call("/save",{method:"PUT",token,body:{rev,data,...extra}});
+ const reset=body=>call("/save",{method:"DELETE",token,body});
+ assert.equal((await put(0,city(4))).status,200);
+ const rejected=await put(1,starter);
+ assert.equal(rejected.status,409);
+ assert.equal(rejected.data.regression,true);
+ assert.equal((await put(1,starter,{confirmRegression:true})).status,200);
+ for(let rev=2;rev<14;rev++)assert.equal((await put(rev,city(4))).status,200);
+ assert.equal((await reset({rev:14})).status,400);
+ assert.equal((await reset({rev:13,confirm:"reset"})).status,409);
+ assert.equal((await reset({rev:14,confirm:"reset"})).data.rev,15);
+ const player=await db.db.collection("players").findOne({code:account.code}),history=db.db.collection("saveHistory");
+ const rows=await history.find({player:player._id}).sort({rev:-1}).toArray();
+ assert.deepEqual(rows.map(row=>row.rev),[14,13,12,11,10,9,8,7,6,5]);
+ assert.equal(rows[0].reason,"reset");
+ assert.equal(rows[0].data.profile.level,4);
+ assert.ok(+rows[0].expiresAt>Date.now()+29*86400000);
+ assert.equal((await history.indexes()).find(index=>index.key.expiresAt===1).expireAfterSeconds,0);
+ assert.equal((await put(14,starter)).data.adminEdited,true);
+});
+
 test("đăng ký, đăng nhập thiết bị khác và đăng xuất",async()=>{
  const {data:{token}}=await call("/auth/guest",{method:"POST",body:{}});
  await call("/save",{method:"PUT",token,body:{rev:0,data:city()}});
@@ -156,6 +179,7 @@ test("bạn bè, chi viện, hộp thư và bảng xếp hạng",async()=>{
  assert.equal(board.data.rows[0].avatar,10);assert.equal(board.data.rows.find(r=>r.code===b.account.code).avatar,25);
  await call("/friends/"+b.account.code,{method:"DELETE",token:a.token});
  assert.equal((await call("/friends",{token:a.token})).data.cities.length,0);
- await call("/save",{method:"DELETE",token:a.token});
- assert.deepEqual((await call("/save",{token:a.token})).data,{rev:0,data:null});
+ await call("/save",{method:"DELETE",token:a.token,body:{rev:1,confirm:"reset"}});
+ const reset=(await call("/save",{token:a.token})).data;
+ assert.deepEqual({rev:reset.rev,data:reset.data,adminRev:reset.adminRev},{rev:2,data:null,adminRev:2});
 });

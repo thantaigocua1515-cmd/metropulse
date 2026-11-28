@@ -20,23 +20,18 @@ function enableOffline(sprites){
   document.getElementById("boot-progress").value=value;
   document.getElementById("boot-status").textContent=text;
  };
- let data=StorageManager.load();
  stage(2,"Đang đọc bản lưu và kiểm tra kết nối…");
- let remote=await cloud.init(bootHealth),force=false;
+ let remote=await cloud.init(bootHealth),data=StorageManager.load(cloud.saveCode,!cloud.readMeta("base"));
  if(cloud.online&&!cloud.account){
   boot.hidden=true;
   const mode=await AuthGate.open(cloud,!!data.restored);
   boot.hidden=false;
-  if(mode!=="offline")remote=await cloud.pull();
-  // Đăng nhập sang tài khoản khác: thành phố của tài khoản luôn được ưu tiên hơn bản lưu trên trình duyệt.
-  force=mode==="login"&&data.profile.mayorId!==cloud.account?.code;
- }
- if(remote?.data){
-  const cloudData=StorageManager.normalize(remote.data);
-  if(cloudData&&(force||!data.restored||(remote.adminRev||0)>cloud.knownAdminRevision()||(cloudData.lastSavedAt||0)>(data.lastSavedAt||0))){
-   data=cloudData;cloud.rememberAdminRevision(remote.adminRev);
+  if(mode!=="offline"){
+   if(mode==="login")data=StorageManager.load(cloud.saveCode,!cloud.readMeta("base"));
+   remote=await cloud.pull();
   }
  }
+ data=cloud.selectBoot(data,remote);
  stage(3,"Đang dựng thành phố…");
  audio.enabled=data.sound!==false;
  audio.setMusic(data.musicEnabled,data.musicVolume);
@@ -44,7 +39,7 @@ function enableOffline(sprites){
  const sim=new SimulationEngine(data,audio);
  sim.crisis=new CrisisAndNPCManager(sim);
  sim.social=new SocialManager(sim,data.friends);
- sim.storage=new StorageManager(sim);
+ sim.storage=new StorageManager(sim,cloud.saveCode);
  sim.prog=new ProgressionManager(sim);
  const params=new URLSearchParams(location.search);
  sim.events=new SeasonalEvents(sim,params.get("event")||"");
@@ -52,9 +47,10 @@ function enableOffline(sprites){
  sim.legacy=new LegacyGoals(sim);
  cloud.attach(sim);
  const renderer=new IsoRenderer(document.getElementById("map"),sim),sprites=renderer.preloadCity(sim.world),ui=new UIController(sim,renderer);
+ cloud.ui=ui;
  new TutorialManager(sim,ui);
  sim.prog.refresh();
- const offline=sim.storage.offline(data.lastSavedAt);
+ const offline=!cloud.conflict&&sim.storage.offline(data.lastSavedAt);
  if(offline)sim.pending.unshift({type:"offline",result:offline});else sim.storage.save();
  if(sim.progress.tutorial.done&&sim.prog.loginState().available)sim.pending.push({type:"login"});
  if(cloud.online){
@@ -74,6 +70,7 @@ function enableOffline(sprites){
  sim.start(renderer,ui);
  requestAnimationFrame(()=>{
   boot.remove();
+  if(cloud.conflict)ui.saveConflict();
   setTimeout(()=>enableOffline(sprites),0);
  });
 })();

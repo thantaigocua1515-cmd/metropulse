@@ -19,7 +19,7 @@ const AuthGate = {
    $("gate-again-row").hidden=mode!=="register";
    pass.autocomplete=mode==="register"?"new-password":"current-password";
    submit.textContent=mode==="register"?"Tạo tài khoản & bắt đầu":"Đăng nhập";
-   note.textContent=!hasLocal?"":mode==="register"?"Thành phố đang lưu trên trình duyệt này sẽ được gắn vào tài khoản mới.":"Nếu tài khoản đã có thành phố, nó sẽ thay cho thành phố đang lưu trên trình duyệt này.";
+   note.textContent=!hasLocal?"":mode==="register"?"Thành phố khách sẽ được sao chép vào tài khoản mới.":"Bản lưu khách vẫn được giữ riêng trên thiết bị này.";
   };
   const lock=value=>{busy=value;for(const el of [user,pass,again,submit,guest])el.disabled=value};
   return new Promise(resolve=>{

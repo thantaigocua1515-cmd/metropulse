@@ -33,10 +33,8 @@ class StorageManager {
    const progress={...base,...source,
     stats:{...base.stats,...legacy?.stats,...source.stats},story:{...base.story,...source.story},tutorial:{...base.tutorial,...source.tutorial},
     daily:{...base.daily,...source.daily},login:{...base.login,...source.login},achievements:{...source.achievements},research:{...source.research}};
-   if(legacy&&!val.progress){
-    progress.tutorial.done=true;
-    progress.stats.maxBuildingLevel=Math.max(1,...val.world.buildings.map(b=>b.level||1));
-   }
+   if(legacy&&!val.progress)progress.tutorial.done=true;
+   progress.stats.maxBuildingLevel=Math.max(progress.stats.maxBuildingLevel,...val.world.buildings.map(b=>b.level||1));
    for(const key of ["claimed","seen"])if(!Array.isArray(progress.story[key]))progress.story[key]=[];
    if(!Array.isArray(progress.daily.quests))progress.daily.quests=[];
    const world=makeWorld(val.world.buildings,val.profile.level,val.world);
@@ -49,24 +47,32 @@ class StorageManager {
    return {...fallback,...val,version:2,profile,world,progress,friends:Array.isArray(val.friends)?val.friends:[],milestones:undefined};
   }catch(_){return null}
  }
- static load(){
+ static key(code){return code?CONFIG.key+":account:"+code:CONFIG.key+":guest"}
+ static load(code=null,legacy=true){
+  const key=this.key(code);
   try{
-   const raw=localStorage.getItem(CONFIG.key)||localStorage.getItem(CONFIG.legacyKey);
-   const data=raw&&this.normalize(JSON.parse(raw));
+   const read=key=>{const raw=localStorage.getItem(key);return raw&&this.normalize(JSON.parse(raw))};
+   let data=read(key);
+   if(!data&&legacy)for(const oldKey of [CONFIG.key,CONFIG.legacyKey]){
+    const old=read(oldKey);
+    if(old&&(code?old.profile.mayorId===code:/^MP-\d{4}$/.test(old.profile.mayorId))){
+     data=old;break;
+    }
+   }
    if(data)return {...data,restored:true};
   }catch(_){}
   return this.fresh();
  }
- constructor(sim){this.sim=sim;this.available=true;this.erasing=false}
+ constructor(sim,code=null){this.sim=sim;this.key=StorageManager.key(code);this.available=true;this.erasing=false}
  serialize(){
   const {profile,world,progress,social,audio,reduceEffects}=this.sim;
   return JSON.parse(JSON.stringify({version:2,profile,world,progress,friends:social.friends(),lastSavedAt:Date.now(),sound:audio.enabled,musicEnabled:audio.musicEnabled,musicVolume:audio.musicVolume,reduceEffects},
    (key,value)=>key==="index"||key==="_metros"||key==="_airport"?undefined:value));
  }
  save(){
-  if(this.erasing)return true;
+  if(this.erasing||this.sim.cloud?.conflict)return true;
   try{
-   localStorage.setItem(CONFIG.key,JSON.stringify(this.serialize()));
+   localStorage.setItem(this.key,JSON.stringify({...this.serialize(),_cloudBase:this.sim.cloud?.baseRev}));
    this.available=true;this.sim.cloud?.queue();return true;
   }catch(_){this.available=false;this.sim.cloud?.queue();return false}
  }
@@ -80,8 +86,14 @@ class StorageManager {
  }
  async reset(){
   try{
-   this.erasing=true;localStorage.removeItem(CONFIG.key);localStorage.removeItem(CONFIG.legacyKey);
-   await this.sim.cloud?.wipe();location.reload();return true;
+   this.erasing=true;
+   await this.sim.cloud?.wipe();
+   localStorage.removeItem(this.key);
+   for(const oldKey of [CONFIG.key,CONFIG.legacyKey])try{
+    const id=JSON.parse(localStorage.getItem(oldKey))?.profile?.mayorId;
+    if(id===this.sim.profile.mayorId||!this.sim.cloud?.saveCode&&/^MP-\d{4}$/.test(id))localStorage.removeItem(oldKey);
+   }catch(_){}
+   location.reload();return true;
   }catch(_){this.erasing=false;return false}
  }
 }

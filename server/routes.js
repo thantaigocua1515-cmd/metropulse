@@ -4,6 +4,7 @@ const {sha,newToken,newCode,hashPassword,verifyPassword,limiter}=require("./auth
 const {CONFIG,inspectSave,publicCity,cleanName}=require("./game");
 const community=require("./community");
 const liveops=require("./liveops");
+const history=require("./save-history");
 const events=require("./event-config"),{heartbeat}=require("./analytics");
 
 const STATS=["score","assets","happiness","helpsGiven"];
@@ -134,30 +135,44 @@ module.exports=function routes(getDb){
  }));
  router.put("/save",wrap(async(req,res)=>{
   if(!saveLimit(String(req.player._id)))throw fail(429,"Đồng bộ quá nhanh.");
-  const {rev,data}=req.body||{},check=inspectSave(data);
+  const {rev,data,confirmRegression}=req.body||{},check=inspectSave(data);
   if(check.error)throw fail(400,check.error);
   if(!liveops.owns(req.player,data.profile.skin??"default"))throw fail(403,"Bạn chưa sở hữu bộ skin này.");
-  const current=await saves().findOne({_id:req.player._id},{projection:{rev:1,adminRev:1}}),serverRev=current?.rev||0;
   const conflict=latest=>fail(409,"Bản lưu trên máy chủ đã thay đổi từ thiết bị khác.",{
    rev:latest?.rev||0,...(rev<latest?.adminRev?{adminEdited:true}:{})
   });
-  if(!Number.isSafeInteger(rev)||rev!==serverRev)throw conflict(current);
-  const now=new Date(),next=serverRev+1;
-  // Chỉ ghi khi rev chưa đổi để hai thiết bị không đè lên nhau một cách âm thầm.
-  let result;
-  try{result=await saves().updateOne({_id:req.player._id,rev:serverRev||{$exists:false}},{$set:{rev:next,data,updatedAt:now}},{upsert:!current})}
-  catch(error){if(error.code!==11000)throw error;result={matchedCount:0,upsertedCount:0}}
-  if(!result.matchedCount&&!result.upsertedCount){
-   const latest=await saves().findOne({_id:req.player._id},{projection:{rev:1,adminRev:1}});
-   throw conflict(latest);
-  }
-  await players().updateOne({_id:req.player._id},{$set:{name:check.name,summary:check.summary,city:check.city,coins:check.coins,updatedAt:now,lastSeenAt:now}});
-  res.json({rev:next,updatedAt:now});
+  const id=req.player._id,now=new Date();
+  const result=await history.transaction(getDb(),async session=>{
+   const current=await saves().findOne({_id:id},{session}),serverRev=current?.rev||0;
+   if(!Number.isSafeInteger(rev)||rev!==serverRev)throw conflict(current);
+   if(current?.data&&CONFIG.saveRegresses(CONFIG.saveProgress(current.data),CONFIG.saveProgress(data))&&confirmRegression!==true)
+    throw fail(409,"Bản lưu này có ít tiến độ hơn bản trên máy chủ.",{rev:serverRev,regression:true});
+   const next=serverRev+1;
+   const player=await players().updateOne({_id:id,bannedAt:{$exists:false},"tokens.hash":req.tokenHash},
+    {$set:{name:check.name,summary:check.summary,city:check.city,coins:check.coins,updatedAt:now,lastSeenAt:now}},{session});
+   if(!player.matchedCount)throw fail(401,"Phiên đăng nhập đã hết hạn.");
+   await history.archive(getDb(),current,confirmRegression===true?"replace":"sync",now,session);
+   await saves().updateOne({_id:id},{$set:{rev:next,data,updatedAt:now}},{upsert:true,session});
+   return {rev:next,updatedAt:now};
+  });
+  res.json(result);
  }));
  router.delete("/save",wrap(async(req,res)=>{
-  await saves().deleteOne({_id:req.player._id});
-  await players().updateOne({_id:req.player._id},{$set:{summary:{level:1,score:0,assets:0,happiness:100,helpsGiven:0,pop:0},city:[],coins:0}});
-  res.json({ok:true});
+  const {rev,confirm}=req.body||{};
+  if(confirm!=="reset")throw fail(400,"Cần xác nhận bắt đầu lại từ đầu.");
+  const id=req.player._id,now=new Date();
+  const next=await history.transaction(getDb(),async session=>{
+   const current=await saves().findOne({_id:id},{session}),currentRev=current?.rev||0;
+   if(rev!==currentRev)throw fail(409,"Bản lưu đã đổi. Hãy tải lại trước khi đặt lại.",{rev:currentRev,adminEdited:rev<current?.adminRev});
+   const player=await players().updateOne({_id:id,bannedAt:{$exists:false},"tokens.hash":req.tokenHash},
+    {$set:{summary:{level:1,score:0,assets:0,happiness:100,helpsGiven:0,pop:0},city:[],coins:0,updatedAt:now}},{session});
+   if(!player.matchedCount)throw fail(401,"Phiên đăng nhập đã hết hạn.");
+   await history.archive(getDb(),current,"reset",now,session);
+   const next=currentRev+1;
+   await saves().updateOne({_id:id},{$set:{data:null,rev:next,adminRev:next,updatedAt:now}},{upsert:true,session});
+   return next;
+  });
+  res.json({ok:true,rev:next});
  }));
 
  router.get("/leaderboard",wrap(async(req,res)=>{
