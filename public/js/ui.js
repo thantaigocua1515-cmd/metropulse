@@ -322,6 +322,14 @@ class UIController {
    case "train-specialist":if(tile()){this.toast(s.crisis.train(tile(),arg));this.specialists(tile())}break;
    case "team-up":case "team-hire":if(tile()){const error=s.crisis.teamAction(tile(),act==="team-hire"?"hire":"upgrade");this.teams();if(error){this.close();this.toast(error)}}break;
    case "policies":this.policies();break;
+   case "elections-open":if(s.progress.tutorial.done&&!s.social.current)this.electionsDialog();break;
+   case "elections-pledge":
+    if(this.dialogType!=="elections"||s.social.current)return;
+    say(s.elections.select(id));this.electionsDialog();break;
+   case "elections-locate":{
+    const site=s.elections.data().protest;if(!site||s.social.current)return;
+    this.close();this.setTool("look");r.focus(site.x,site.y);break;
+   }
    case "shadow-open":if(s.progress.tutorial.done&&!s.social.current)this.shadowDialog();break;
    case "shadow-tax":case "shadow-tolerate":case "shadow-crackdown":case "shadow-collect":case "shadow-buy":{
     if(this.dialogType!=="shadow"||s.social.current)return;

@@ -179,7 +179,8 @@ class SimulationEngine {
   }
   const shadow=mine?this.progress.shadow:null;
   m.ps=Math.round(m.ps*(shadow?.blueprints?.grid?1.10:1));m.ws=Math.round(m.ws);m.pop=Math.round(pop);m.waste=Math.round(m.waste);
-  const mood=m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0)-(m.ps<m.pd?6:0)-(m.ws<m.wd?6:0)+3*T("community")+(mine?this.buff("happy",w):0);
+  const protest=mine&&this.progress.elections?.protest?15:0;
+  const mood=m.happiness+w.happyDelta-(has("trash_pile")?10:0)-(has("flu_outbreak")?8:0)-(m.ps<m.pd?6:0)-(m.ws<m.wd?6:0)+3*T("community")+(mine?this.buff("happy",w):0)-protest;
   m.happiness=clamp(mood*(policy==="green"?1.2:1),20,150);
   const globalPenalty=Math.max(.1,w.crises.reduce((f,c)=>f*(c.id==="flu_outbreak"?.75:1),1));
   const wonderBonus=mine?.06*(this.progress.wonder?.stage||0):0;
@@ -456,7 +457,7 @@ class SimulationEngine {
   this.stats.peakIncome=Math.max(this.stats.peakIncome,m.income);this.stats.peakPop=Math.max(this.stats.peakPop,m.pop);
   if(!this.stats.news500&&m.income>=500){this.stats.news500=true;this.say(p.mayorName+" vừa vượt mốc 500 Vàng/giây!")}
   const guided=this.progress.tutorial.done;
-  if(guided)this.shadow?.tick(dt,m);
+  if(guided){this.shadow?.tick(dt,m);this.elections?.tick(dt,m)}
   if(guided&&p.level===CONFIG.utilityXP.level&&m.ps>=m.pd&&m.ws>=m.wd){
    this.utilityXP+=dt*CONFIG.utilityXP.perSecond;
    const earned=Math.floor(this.utilityXP);

@@ -679,6 +679,7 @@ class IsoRenderer {
   for(const c of w.crises)this.crisis(c,heights.get(coord(c.x,c.y))||0);
   if(w===own){
    this.sim.shadow?.draw(this,w);
+   this.sim.elections?.draw(this);
    for(const b of w.bubbles)if(!w.crises.some(c=>c.x===b.x&&c.y===b.y))this.bubble(b,heights.get(coord(b.x,b.y))||0);
   }
   for(const p of this.sim.particles)if((p.world||own)===w){

@@ -80,7 +80,28 @@ const UIDialogs = {
   }).join("");
   const shadow=this.sim.shadow&&this.sim.progress.tutorial.done&&!this.sim.social.current?
    '<div class="row"><div class="grow"><b>Kinh tế ngầm</b><small>'+(this.sim.shadow.data().market?"Có chợ đen trong thành phố":"Mức thuế, an ninh và báo chí")+'</small></div>'+this.btn("shadow-open","Xem tình hình")+'</div>':"";
-  this.open("policies","TÒA THỊ CHÍNH","Sắc lệnh Thị trưởng",'<p class="muted">Chỉ một sắc lệnh có hiệu lực tại một thời điểm.</p>'+shadow+rows);
+  const election=this.sim.elections&&this.sim.progress.tutorial.done&&!this.sim.social.current?
+   '<div class="row"><div class="grow"><b>Bầu cử Thị trưởng</b><small>'+(this.sim.elections.data().campaign?"Đang tranh cử":"Lịch bầu cử và lời hứa nhiệm kỳ")+'</small></div>'+this.btn("elections-open","Xem bầu cử")+'</div>':"";
+  this.open("policies","TÒA THỊ CHÍNH","Sắc lệnh Thị trưởng",'<p class="muted">Chỉ một sắc lệnh có hiệu lực tại một thời điểm.</p>'+shadow+election+rows);
+ },
+ electionsDialog(){
+  const {elections:e,metrics}=this.sim,d=e.data(),c=d.campaign,t=d.term,last=d.result;
+  const next=TERM_DAYS*(Math.floor(d.day/TERM_DAYS)+1);
+  let html='<p class="muted">Ngày '+d.day+' · Bầu cử mỗi '+TERM_DAYS+' ngày trong game · Bỏ phiếu ngày '+next+'.</p>';
+  if(c){
+   html+='<div class="chapter"><div><div class="eyebrow">ỨNG CỬ VIÊN · CÔNG KÍCH '+ELECTION_TOPICS[c.weak].name+'</div><h3>'+c.name+'</h3><small>“'+htm(e.slogan())+'”</small></div></div>'+
+    '<p>Ủng hộ dự kiến: <b>'+e.support(metrics)+'%</b>. Cần ít nhất 50% và một lời hứa để thắng.</p><h4>Lời hứa tranh cử · '+c.pledges.length+'/2</h4>'+
+    Object.entries(ELECTION_TOPICS).map(([id,topic])=>'<div class="row"><div class="grow"><b>'+topic.pledge+'</b><small>'+topic.task+' · '+topic.hold+' trong 2 ngày.</small></div>'+
+     this.btn("elections-pledge",c.pledges.includes(id)?"Bỏ chọn":"Cam kết",{id,cls:c.pledges.includes(id)?"primary":""})+'</div>').join("");
+  }else html+='<p class="muted">Đối thủ công bố thông điệp tranh cử 5 ngày trước khi bỏ phiếu.</p>';
+  if(last)html+='<div class="row"><div class="grow"><b>'+(last.win?"Thắng cử":"Thất cử")+' · '+last.support+'% phiếu</b><small>Ngày '+last.day+' · Đối thủ '+last.name+(last.reward?" · "+last.reward:"")+'</small></div></div>';
+  if(d.protest)html+='<div class="chapter"><div><div class="eyebrow">BIỂU TÌNH</div><h3>'+d.protest.broken+' lời hứa thất hẹn</h3><small>−15 Hạnh phúc đến ngày '+d.protest.until+'.</small></div>'+this.btn("elections-locate","Xem trên bản đồ")+'</div>';
+  if(t)html+='<h4>Lời hứa nhiệm kỳ · đến ngày '+t.deadline+'</h4>'+t.missions.map(m=>{
+   const item=ELECTION_TOPICS[m.id],state=m.status==="done"?"Hoàn thành":m.status==="failed"?"Thất hứa":
+    m.stage===1?"1/2 · "+item.task+" lên "+fmt(m.target)+" (hiện tại "+fmt(item.value(metrics))+")":"2/2 · "+item.hold+" · "+m.days+"/2 ngày";
+   return '<div class="row"><div class="grow"><b>'+item.pledge+'</b><small>'+state+'</small></div></div>';
+  }).join("");
+  this.open("elections","TÒA THỊ CHÍNH","Bầu cử Thị trưởng",html+this.btn("policies","Về Sắc lệnh"));
  },
  shadowDialog(){
   const {shadow:sh,profile:p}=this.sim,d=sh.data(),m=d.market;

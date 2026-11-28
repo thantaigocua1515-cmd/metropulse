@@ -39,6 +39,7 @@ function enableOffline(sprites){
  const sim=new SimulationEngine(data,audio);
  sim.underground=new Underground(sim);
  sim.shadow=new ShadowEconomy(sim);
+ sim.elections=new MayorElections(sim);
  sim.crisis=new CrisisAndNPCManager(sim);
  sim.social=new SocialManager(sim,data.friends);
  sim.storage=new StorageManager(sim,cloud.saveCode);

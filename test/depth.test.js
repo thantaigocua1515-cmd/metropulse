@@ -9,10 +9,10 @@ class TestClock extends Date {
   static now() { return now; }
 }
 const {inspectSave,publicCity}=require("../server/game");
-const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy } = vm.runInNewContext(
-  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis", "underground", "shadow"].map(file =>
+const { CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy, MayorElections } = vm.runInNewContext(
+  ["config", "content", "core", "simulation", "storage", "events", "progression", "social", "crisis", "underground", "shadow", "elections"].map(file =>
     fs.readFileSync(path.join(__dirname, "../public/js", file + ".js"), "utf8")).join("\n") +
-  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy })",
+  "\n({ CONFIG, CONTENT, Districts, EventCalendar, EventMap, SeasonalEvents, LegacyGoals, SimulationEngine, StorageManager, makeBuilding, makeWorld, Pathfinding, SocialManager, CrisisAndNPCManager, ProgressionManager, Underground, ShadowEconomy, MayorElections })",
   { Date: TestClock, GameArt: { draw(ctx,group,frame) { ctx.push(frame); return true; } } }
 );
 
@@ -166,6 +166,38 @@ test("poor districts can spawn a market, collect one payment per day, buy bluepr
  const save=s.storage.serialize();
  assert.equal(inspectSave(save).error,undefined);
  assert.equal(StorageManager.normalize(save).progress.shadow.blueprints.grid,true);
+});
+
+test("elections target measured weakness, reward wins once, and enforce timed two-stage campaign promises",()=>{
+ const s=setup([makeBuilding("house_small",7,7)],16),e=s.elections=new MayorElections(s),d=e.data();
+ const shortages={ps:35,pd:85,ws:120,wd:85,happiness:95};
+ e.tick(24*180,shortages);
+ assert.equal(d.campaign,null);
+ e.tick(180,shortages);
+ assert.equal(d.campaign.weak,"power");
+ assert.match(e.slogan(),/thiếu điện 25 ngày liền/);
+ e.select("power");e.select("water");
+ assert.match(e.select("happiness"),/tối đa 2/);
+ const before=s.profile.coins;
+ e.tick(5*180,shortages);
+ assert.equal(d.result.win,true);
+ assert.equal(s.profile.coins,before+1500*s.profile.level);
+ assert.equal(d.term.deadline,57);
+ const improvements={...shortages,ps:90};
+ e.tick(3*180,improvements);
+ assert.equal(d.term.missions[0].status,"done");
+ e.tick(24*180,improvements);
+ assert.equal(d.term.missions[1].status,"failed");
+ assert.equal(d.protest,null);
+ e.tick(3*180,improvements);
+ assert.equal(d.result.win,false);
+ assert.equal(s.profile.coins,before+1500*s.profile.level);
+ assert.equal(d.protest.broken,1);
+ assert.equal(d.protest.until,64);
+ const progress=StorageManager.normalize(s.storage.serialize()).progress;
+ assert.equal(progress.elections.protest.x,7);
+ e.tick(4*180,improvements);
+ assert.equal(d.protest,null);
 });
 
 test("flash windows use Vietnam time and leave the seasonal track independent", () => {
